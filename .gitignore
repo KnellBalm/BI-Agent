@@ -41,6 +41,7 @@ yarn.lock
 .env.local
 .env.*.local
 .env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -76,3 +77,5 @@ frontend/build/
 # OS
 Thumbs.db
 .DS_Store
+
+usage_cache.json

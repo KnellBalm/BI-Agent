@@ -12,10 +12,13 @@ Business Intelligence(BI) 작업을 자동화하는 Multi-Agent 시스템 구축
 - 기본적인 멀티 Agent 오케스트레이션
 
 ### 기술 스택
-- **Backend**: Python (Agent 로직, 데이터 처리) + Node.js (MCP 서버, 웹 서버)
-- **LLM**: Google Gemini (주) + Ollama (향후 폐쇄망 대응)
+- **Backend**: Python (Agent 로직, 데이터 처리) + Node.js (MCP 서버)
+- **LLM**: Google Gemini (Free & Paid Tier 병용) + Ollama (폐쇄망용 백업)
+  - *과금 방지*: Quota Manager를 통한 키 로테이션 및 예산 초과 방지
 - **프로토콜**: Model Context Protocol (MCP)
-- **Frontend**: React/Vue.js (간단한 채팅 UI)
+- **SaaS/Cloud**: Snowflake, Google BigQuery, Amazon S3
+- **Orchestration**: Apache Airflow
+- **Interface**: TUI (Terminal User Interface) & CLI + MCP Server
 
 ---
 
@@ -282,74 +285,51 @@ class Orchestrator:
         return state
 ```
 
-### Phase 3: 웹 UI 구현 (1주)
+### Phase 3: 기능 고도화 및 검증 (2주)
 
-#### 3.1 Frontend (React)
-- 채팅 인터페이스 (사용자 입력 + Agent 응답)
-- 데이터 테이블 표시 (쿼리 결과)
-- 간단한 시각화 미리보기 (Chart.js)
+> 모든 데이터 소스와 BI 수정 기능을 완벽하게 구현하고 검증하는 단계
 
-```jsx
-// App.jsx
-function ChatInterface() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+#### 3.1 기능 고도화 (SaaS & Cloud)
+- [ ] **SaaS 연동**: Snowflake, BigQuery MCP 서버 연동 및 쿼리 테스트
+- [ ] **Cloud Storage**: Amazon S3 내의 CSV/Excel 데이터 직접 조회 기능
+- [ ] **MySQL 연동 검증**: Docker MySQL 컨테이너 환경 최적화
 
-  const sendMessage = async () => {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message: input })
-    });
-    const data = await response.json();
-    setMessages([...messages, { user: input, agent: data.response }]);
-  };
+#### 3.2 UI/UX 혁신 (TUI)
+- [ ] **TUI (Terminal User Interface) 기반 에이전트 구현**:
+  - `rich` 또는 `textual` 라이브러리를 사용한 인터랙티브 터미널 UI
+  - 데이터 스트리밍 로그, Agent 사고 과정 시각화
+  - 터미널 내 데이터 테이블 프리뷰
 
-  return (
-    <div>
-      <MessageList messages={messages} />
-      <InputBox value={input} onChange={setInput} onSend={sendMessage} />
-    </div>
-  );
-}
-```
+#### 3.3 워크플로우 자동화 및 과금 관리
+- [ ] **Quota Manager 고도화**:
+  - Free Tier 키와 Paid Tier 키의 우선순위 자동 조정
+  - 일일 할당량 도달 시 자동 중지 또는 로컬 Ollama 전환 로직
+- [ ] **Airflow 활용 방안 수립**:
+  - Agent가 생성한 쿼리를 Airflow DAG로 자동 변환/등록하는 PoC
+  - 데이터 파이프라인 상태 모니터링 연동
 
-#### 3.2 Backend API (Node.js/Express)
-- `/api/chat`: 사용자 메시지 수신 → Orchestrator 호출 → 응답 반환
-- WebSocket 지원 (실시간 진행 상황 업데이트)
+#### 3.4 BI Tool Agent 및 에러 핸들링
+- [ ] **BI Tool Agent 강화**: Base64 시각화 및 복잡한 필드 로직 지원
+- [ ] **안정성**: DB 연결 및 쿼리 실패 시 자동 복구(Self-healing) 로직 시도
 
-```javascript
-// server.js
-const express = require('express');
-const { spawn } = require('child_process');
+#### 3.2 통합 테스트 (CLI 중심)
+- [ ] PostgreSQL + MySQL + Excel 교차 질의 테스트
+- [ ] 대규모 BI JSON 파일 처리 성능 및 안정성 테스트
+- [ ] `backend/main.py`를 통한 전체 시나리오 검증
 
-app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
+### Phase 4: 패키징 및 배포 (1주)
 
-  // Python Orchestrator 호출
-  const python = spawn('python', ['backend/orchestrator/main.py', message]);
-  let result = '';
+> 완성된 에이전트를 외부에서 쉽게 사용할 수 있도록 패키징
 
-  python.stdout.on('data', (data) => {
-    result += data.toString();
-  });
+#### 4.1 MCP 서버 패키지화
+- [ ] `bin/bi-agent-mcp.js` 안정화
+- [ ] `backend/mcp_bridge.py` 기능 확장 (모든 신규 기능 포함)
+- [ ] npm 패키지 설정 (`package.json`) 및 퍼블리시 준비
 
-  python.on('close', () => {
-    res.json({ response: result });
-  });
-});
-```
-
-### Phase 4: 테스트 및 POC 완성 (1주)
-
-#### 4.1 테스트 시나리오
-1. **데이터 조회**: "2024년 매출 상위 10개 제품을 보여줘"
-2. **BI 수정**: "매출 대시보드에 '이익률' 필드를 추가해줘"
-3. **복합 작업**: "최근 3개월 유동인구 데이터를 분석하고 시각화를 업데이트해줘"
-
-#### 4.2 문서화
-- README.md: 설치 및 실행 가이드
-- ARCHITECTURE.md: 시스템 구조 설명
-- API.md: Agent API 명세
+#### 4.2 배포 및 가이드
+- [ ] npx를 통한 설치 없는 실행 가이드
+- [ ] Claude Desktop / Cursor 연동 가이드 최신화
+- [ ] Docker 이미지 빌드 및 레지스트리 푸시 (필요 시)
 
 ---
 
@@ -359,33 +339,23 @@ app.post('/api/chat', async (req, res) => {
 ```
 backend/
 ├── orchestrator/
-│   ├── main.py                    # Orchestrator 엔트리포인트
+│   ├── main.py                    # Orchestrator 엔트리포인트 (CLI)
 │   ├── orchestrator.py            # Orchestrator Agent 로직
-│   └── llm_provider.py            # LLM 추상화 레이어
+│   └── connection_manager.py      # 데이터 연결 관리
 ├── agents/
 │   ├── data_source/
 │   │   ├── data_source_agent.py   # Data Source Agent
-│   │   └── mcp_client.py          # MCP Client 래퍼
+│   │   ├── mcp_client.py          # MCP Client 래퍼
+│   │   └── sql_generator.py       # SQL 생성기
 │   └── bi_tool/
 │       ├── bi_tool_agent.py       # BI Tool Agent
 │       ├── json_parser.py         # JSON 파서
 │       └── visual_decoder.py      # Base64 시각화 옵션 디코더
-├── mcp_servers/
-│   ├── postgres_server.js         # PostgreSQL MCP 서버
-│   ├── mysql_server.js            # MySQL MCP 서버
-│   └── excel_server.js            # Excel MCP 서버
-└── requirements.txt               # Python 의존성
+├── mcp_servers/                   # 기반 MCP 서버들 (JS)
+└── mcp_bridge.py                  # Node.js ↔ Python 브릿지 (배포용)
 
-frontend/
-├── src/
-│   ├── App.jsx                    # 메인 컴포넌트
-│   ├── ChatInterface.jsx          # 채팅 UI
-│   └── DataTable.jsx              # 데이터 표시
-└── package.json                   # Node.js 의존성
-
-server/
-├── server.js                      # Express 서버
-└── websocket.js                   # WebSocket 핸들러
+bin/
+└── bi-agent-mcp.js                # npx 엔트리포인트 (배포용)
 ```
 
 ### 기존 파일

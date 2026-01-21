@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bi-agent": {
+      "command": "node",
+      "args": ["/mnt/z/GitHub/BI-Agent/bin/bi-agent-mcp.js"],
+      "env": {
+        "GEMINI_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}

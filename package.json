@@ -1,15 +1,19 @@
 {
-  "name": "bi-agent",
+  "name": "@bi-agent/mcp",
   "version": "0.1.0",
-  "description": "AI Agent system for Business Intelligence automation",
-  "main": "server/server.js",
+  "description": "AI Agent system for Business Intelligence automation - MCP Server",
+  "main": "bin/bi-agent-mcp.js",
+  "bin": {
+    "bi-agent-mcp": "./bin/bi-agent-mcp.js"
+  },
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "nodemon server/server.js",
+    "start": "node bin/bi-agent-mcp.js",
+    "mcp": "node bin/bi-agent-mcp.js",
     "mcp:postgres": "node backend/mcp_servers/postgres_server.js",
     "mcp:mysql": "node backend/mcp_servers/mysql_server.js",
     "mcp:excel": "node backend/mcp_servers/excel_server.js",
     "mcp:gcp": "node backend/mcp_servers/gcp_manager_server.js",
+    "setup": "pip install -r backend/requirements.txt",
     "test": "jest"
   },
   "keywords": [
@@ -17,7 +21,9 @@
     "agent",
     "ai",
     "mcp",
-    "business-intelligence"
+    "business-intelligence",
+    "claude",
+    "cursor"
   ],
   "author": "",
   "license": "MIT",
@@ -43,5 +49,13 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "files": [
+    "bin/",
+    "backend/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/bi-agent.git"
   }
 }
