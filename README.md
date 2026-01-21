@@ -101,7 +101,7 @@ npm run dev
 현재 **POC (Proof of Concept)** 단계입니다.
 
 - [x] 프로젝트 구조 생성
-- [ ] MCP 서버 설정
+- [x] MCP 서버 설정 (PostgreSQL, MySQL, Excel)
 - [ ] LLM 통합 (Google Gemini)
 - [ ] Data Source Agent 구현
 - [ ] BI Tool Agent 구현
@@ -120,7 +120,9 @@ npm run dev
 
 ## 문서
 
+- [TODO 리스트](docs/TODO.md) - 개발 작업 목록 및 진행 상황
 - [구현 계획서](docs/PLAN.md) - 전체 시스템 설계 및 구현 계획
+- [MCP 서버 가이드](docs/MCP_SERVERS.md) - MCP 서버 설정 및 사용법
 - [아키텍처 문서](docs/ARCHITECTURE.md) - (작성 예정)
 - [API 명세](docs/API.md) - (작성 예정)
 

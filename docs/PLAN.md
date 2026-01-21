@@ -41,9 +41,9 @@ Business Intelligence(BI) 작업을 자동화하는 Multi-Agent 시스템 구축
 │ Data Source Agent     │  │ BI Tool Agent           │
 │ (Python)              │  │ (Python/Node.js)        │
 │                       │  │                         │
-│ - DB 쿼리 실행        │  │ - JSON 파싱/수정        │
-│ - Excel 파일 읽기     │  │ - 대시보드 업데이트     │
-│ - 데이터 변환         │  │ - 시각화 설정           │
+│ - DB 쿼리 실행          │  │ - JSON 파싱/수정          │
+│ - Excel 파일 읽기       │  │ - 대시보드 업데이트         │
+│ - 데이터 변환            │  │ - 시각화 설정             │
 └─────┬─────────────────┘  └────────┬────────────────┘
       │                              │
       │ MCP Protocol                 │ File I/O
@@ -51,10 +51,10 @@ Business Intelligence(BI) 작업을 자동화하는 Multi-Agent 시스템 구축
 ┌─────▼──────────────────────────────▼────────────────┐
 │              MCP Tools Layer                         │
 │                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │ PostgreSQL   │  │ MySQL        │  │ Excel     │ │
-│  │ MCP Server   │  │ MCP Server   │  │ MCP Server│ │
-│  └──────────────┘  └──────────────┘  └───────────┘ │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │
+│  │ PostgreSQL   │  │ MySQL        │  │ Excel     │  │
+│  │ MCP Server   │  │ MCP Server   │  │ MCP Server│  │
+│  └──────────────┘  └──────────────┘  └───────────┘  │
 └──────────────────────────────────────────────────────┘
           │                  │                │
           ▼                  ▼                ▼
