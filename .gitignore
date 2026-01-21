@@ -62,6 +62,7 @@ logs/
 # BI Files (민감 정보 포함 가능)
 tmp/*.json
 !tmp/.gitkeep
+docs/BI_JSON_STRUCTURE_ANALYSIS.md
 
 # Build outputs
 frontend/dist/

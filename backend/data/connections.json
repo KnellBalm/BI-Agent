@@ -1,0 +1,13 @@
+{
+    "test_pg": {
+        "type": "postgres",
+        "server_path": "/Users/zokr/python_workspace/BI-Agent/backend/mcp_servers/postgres_server.js",
+        "config": {
+            "DB_HOST": "localhost",
+            "DB_PORT": "5432",
+            "DB_NAME": "postgres",
+            "DB_USER": "postgres",
+            "DB_PASSWORD": ""
+        }
+    }
+}
