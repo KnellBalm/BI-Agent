@@ -13,6 +13,8 @@
     "mcp:mysql": "node backend/mcp_servers/mysql_server.js",
     "mcp:excel": "node backend/mcp_servers/excel_server.js",
     "mcp:gcp": "node backend/mcp_servers/gcp_manager_server.js",
+    "mcp:snowflake": "node backend/mcp_servers/snowflake_server.js",
+    "mcp:bigquery": "node backend/mcp_servers/bigquery_server.js",
     "setup": "pip install -r backend/requirements.txt",
     "test": "jest"
   },
@@ -40,7 +42,9 @@
     "mysql2": "^3.16.1",
     "pg": "^8.17.1",
     "ws": "^8.16.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "snowflake-sdk": "^1.11.0",
+    "@google-cloud/bigquery": "^7.7.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

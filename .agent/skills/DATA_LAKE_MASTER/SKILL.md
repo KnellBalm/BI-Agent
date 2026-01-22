@@ -8,7 +8,8 @@ description: 데이터 소스(DB/Excel) 인프라 및 쿼리 최적화 전문가
 이 스킬은 시스템이 가용한 모든 데이터 자원을 식별하고, 최적의 경로로 데이터를 추출하며, 관리하는 지침을 제공합니다.
 
 ## 1. 핵심 책임
-- **연결 매니지먼트**: `ConnectionManager`를 통한 DB/Excel 연결의 생명주기 관리 (등록, 삭제, 검증).
+- **연결 매니지먼트**: `ConnectionManager`를 통한 DB/Excel/SaaS(Snowflake, BigQuery) 연결의 생명주기 관리.
+- **SaaS & Cloud Analytics**: Snowflake, BigQuery 및 S3 파일 직접 질의를 위한 MCP 도구 활용 전략 수립.
 - **쿼리 엔진 최적화**: 자연어를 SQL 또는 Pandas 쿼리로 변환할 때 효율성(인덱스 활용, 성능)과 보안을 담당합니다.
 - **데이터 샘플링 & 요약**: 대용량 데이터 발생 시 컨텍스트 오버플로우를 방지하기 위한 Truncation 및 지능형 요약 전략을 수립합니다.
 

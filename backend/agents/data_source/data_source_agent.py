@@ -41,9 +41,13 @@ class DataSourceAgent:
         자연어 질문을 받아 DB에 쿼리하고 결과를 DataFrame으로 반환합니다.
         """
         client = await self.get_client(connection_info)
+        config = connection_info.get("config", {})
         
         # 1. 스키마 정보 가져오기 (MCP 도구 활용)
-        schema_result = await client.call_tool("list_tables", {})
+        # SaaS 공급자는 list_tables에 특정 인자(database, schema 등)가 필요할 수 있음
+        schema_args = {k: v for k, v in config.items() if k not in ['server_path']}
+        schema_result = await client.call_tool("list_tables", schema_args)
+        
         schema_info = ""
         if hasattr(schema_result, 'content') and len(schema_result.content) > 0:
             schema_info = schema_result.content[0].text
@@ -56,7 +60,8 @@ class DataSourceAgent:
         )
         
         # 3. SQL 실행
-        query_result = await client.call_tool("query", {"sql": sql})
+        query_args = {**schema_args, "sql": sql}
+        query_result = await client.call_tool("query", query_args)
         
         # 4. pandas DataFrame으로 변환
         data = []

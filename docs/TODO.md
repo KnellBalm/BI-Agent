@@ -27,18 +27,20 @@
 
 ### Phase 3: 기능 고도화 및 검증
 
-**목표**: 모든 데이터 소스(SaaS 포함)와 BI 수정 기능을 완벽하게 구현하고 TUI 제공
+**목표**: BI 툴 메타데이터(.twbx, .pbix) 지능형 수정 및 도구별 전문 가이드/로직 생성 구현
 
 #### 3.1 기능 고도화 (Data & SaaS)
 - [ ] **SaaS 연동**: Snowflake, BigQuery MCP 서버 연동 테스트
 - [ ] **Cloud Storage**: Amazon S3 내의 데이터 조회 기능
 - [ ] **MySQL 연동 검증** (Docker 컨테이너 활용)
-- [ ] **Excel 연동 구현** (pandas 연동 및 자연어 질의)
+- [x] **Excel 연동 구현** (pandas 연동 및 자연어 질의)
 
-#### 3.2 UI/UX 및 자동화
-- [ ] **TUI (Terminal User Interface) 구현**: `rich`/`textual` 활용
-- [ ] **Airflow 연동**: 쿼리를 Airflow DAG로 변환하는 PoC 진행
-- [ ] **BI Tool Agent 강화**: Base64 시각화 옵션 처리 보강
+#### 3.2 BI Intelligence & Library
+- [ ] **Tableau Metadata (.twbx XML)**: XML 기반 시각화 및 데이터 바인딩 자동 수정
+- [ ] **Power BI Logic (DAX)**: 고도화된 DAX 계산식 및 M 문구 생성 기능
+- [ ] **UI Guide RAG**: BI 도구 공식 문서 기반의 조작 가이드 에이전트 구축
+- [x] **TUI 고도화**: `rich` 라이브러리를 통한 분석 프로세스 시각화
+- [ ] **BI Tool Agent 강화**: 시각화 명세(JSON/XML) 처리 및 스타일 튜닝 보강
 
 #### 3.3 통합 테스트 및 검증
 - [ ] SaaS + DB + Excel 교차 질의 테스트
@@ -65,10 +67,10 @@
 
 ## Future Plan 🚀
 
-- [ ] Snowflake / BigQuery / S3 MCP 서버
-- [ ] Airflow 통합
-- [ ] Ollama 통합 (폐쇄망)
-- [ ] Tableau 연동
+- [ ] Tableau / Power BI Meta-Intelligence (Advanced)
+- [ ] UI Guide Assistant (RAG) Extension
+- [ ] Enterprise Connector expansion (SAP, etc)
+- [ ] Self-Healing Visualization Logic for 연동 테스트
 
 ---
 

@@ -43,19 +43,21 @@ class GeminiProvider(LLMProvider):
         else:
             self.model = None
 
-    async def _ensure_active_key(self) -> Optional[str]:
+    async def _ensure_active_key(self) -> str:
         """할당량이 남아있는 유효한 키를 확보합니다."""
         if not self.quota_manager:
-            return os.getenv("GEMINI_API_KEY")
+            key = os.getenv("GEMINI_API_KEY")
+            if not key:
+                raise ValueError("GEMINI_API_KEY not found in environment.")
+            return key
         
         active_config = await self.quota_manager.get_active_key_config()
         if active_config:
             genai.configure(api_key=active_config['key'])
             self.model = genai.GenerativeModel(self.model_name)
             return active_config['key']
-        elif not self.model:
-             raise ValueError("No active GEMINI_API_KEY found and QuotaManager is missing or has no keys.")
-        return os.getenv("GEMINI_API_KEY")
+        
+        raise RuntimeError("All Gemini API keys are exhausted or unavailable.")
 
     async def generate(self, prompt: str) -> str:
         current_key = await self._ensure_active_key()
@@ -91,15 +93,63 @@ class GeminiProvider(LLMProvider):
 
 class OllamaProvider(LLMProvider):
     """
-    Ollama (로컬 LLM)를 사용한 구현 (향후 활용)
+    Ollama (로컬 LLM)를 사용한 구현
     """
-    def __init__(self, base_url: str = 'http://localhost:11434', model: str = 'llama3'):
+    def __init__(self, model_name: Optional[str] = None, base_url: str = 'http://localhost:11434'):
+        self.model_name = model_name or os.getenv("OLLAMA_MODEL", "llama3")
         self.base_url = base_url
-        self.model = model
 
-    def generate(self, prompt: str) -> str:
-        # requests를 사용한 Ollama API 호출 구현
-        return "Ollama provider is not fully implemented yet."
+    async def generate(self, prompt: str) -> str:
+        import httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={"model": self.model_name, "prompt": prompt, "stream": False}
+                )
+                response.raise_for_status()
+                return response.json().get("response", "")
+            except Exception as e:
+                return f"Ollama generation failed: {str(e)}"
 
-    def chat(self, messages: List[Dict[str, str]]) -> str:
-        return "Ollama provider chat is not fully implemented yet."
+    async def chat(self, messages: List[Dict[str, str]]) -> str:
+        import httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/chat",
+                    json={"model": self.model_name, "messages": messages, "stream": False}
+                )
+                response.raise_for_status()
+                return response.json().get("message", {}).get("content", "")
+            except Exception as e:
+                return f"Ollama chat failed: {str(e)}"
+
+class FailoverLLMProvider(LLMProvider):
+    """
+    여러 LLM 공급자를 순차적으로 시도하는 공급자 (Gemini -> Ollama)
+    """
+    def __init__(self, primary: LLMProvider, secondary: LLMProvider):
+        self.primary = primary
+        self.secondary = secondary
+        self.use_secondary = False
+
+    async def generate(self, prompt: str) -> str:
+        if not self.use_secondary:
+            try:
+                return await self.primary.generate(prompt)
+            except Exception as e:
+                print(f"Primary LLM failed, switching to secondary: {e}")
+                self.use_secondary = True
+        
+        return await self.secondary.generate(prompt)
+
+    async def chat(self, messages: List[Dict[str, str]]) -> str:
+        if not self.use_secondary:
+            try:
+                return await self.primary.chat(messages)
+            except Exception as e:
+                print(f"Primary LLM failed, switching to secondary: {e}")
+                self.use_secondary = True
+        
+        return await self.secondary.chat(messages)
