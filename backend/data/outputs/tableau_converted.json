@@ -1,0 +1,235 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+      "connection": {
+        "type": "unknown"
+      },
+      "fields": [
+        {
+          "name": "Calculation_1049901706687348736",
+          "type": "date",
+          "role": "dimension",
+          "caption": "계산1"
+        },
+        {
+          "name": "Calculation_1897422861383581701",
+          "type": "string",
+          "role": "dimension",
+          "caption": "초기화"
+        },
+        {
+          "name": "Calculation_2345812499203104771",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM",
+          "caption": "수익률"
+        },
+        {
+          "name": "Calculation_2561960651952128",
+          "type": "string",
+          "role": "dimension",
+          "caption": "제품중분류_드릴다운"
+        },
+        {
+          "name": "Calculation_2561960657358849",
+          "type": "number",
+          "role": "dimension",
+          "caption": "제품 중분류 레이블"
+        },
+        {
+          "name": "__tableau_internal_object_id__].[Migrated Data",
+          "type": "string",
+          "role": "measure",
+          "aggregation": "SUM",
+          "caption": "마이그레이션된 데이터"
+        },
+        {
+          "name": "고유 ID",
+          "type": "number",
+          "role": "dimension",
+          "caption": "고유 Id"
+        },
+        {
+          "name": "국가",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "시군구",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "시도",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "제품 대분류",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "지역",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "제품 대분류 매개 변수",
+          "type": "string",
+          "role": "measure",
+          "caption": "제품 대분류 매개 변수"
+        }
+      ]
+    },
+    {
+      "name": "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+      "connection": {
+        "type": "unknown"
+      },
+      "fields": []
+    },
+    {
+      "name": "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+      "connection": {
+        "type": "unknown"
+      },
+      "fields": []
+    },
+    {
+      "name": "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+      "connection": {
+        "type": "unknown"
+      },
+      "fields": []
+    },
+    {
+      "name": "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+      "connection": {
+        "type": "unknown"
+      },
+      "fields": []
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "매개변수를 이용한 드릴 다운",
+      "visual_type": "bar",
+      "dimensions": [
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "none:제품 대분류:nk",
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "sum:매출:qk"
+      ],
+      "measures": [
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "none:제품 대분류:nk",
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "sum:매출:qk"
+      ]
+    },
+    {
+      "name": "전체 대비 매출 현황",
+      "visual_type": "pie",
+      "dimensions": [],
+      "measures": []
+    },
+    {
+      "name": "제품중분류 별 매출",
+      "visual_type": "bar",
+      "dimensions": [
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "none:제품 중분류:nk",
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "sum:매출:qk"
+      ],
+      "measures": [
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "none:제품 중분류:nk",
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "sum:매출:qk"
+      ]
+    },
+    {
+      "name": "지역별 매출 현황",
+      "visual_type": "bar",
+      "dimensions": [
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "Latitude (generated)",
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "Longitude (generated)"
+      ],
+      "measures": [
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "Latitude (generated)",
+        "federated.1m5t4g70glhz9r1dmf6ph1twh6vz",
+        "Longitude (generated)"
+      ]
+    }
+  ],
+  "calculated_fields": [
+    {
+      "name": "제품 대분류 매개 변수",
+      "formula": "\"사무용품\"",
+      "type": "string",
+      "role": "measure"
+    },
+    {
+      "name": "Calculation_1049901706687348736",
+      "formula": "{ MAX( [주문 일자]) }",
+      "type": "date",
+      "role": "dimension"
+    },
+    {
+      "name": "Calculation_1897422861383581701",
+      "formula": "\"전체\"",
+      "type": "string",
+      "role": "dimension"
+    },
+    {
+      "name": "Calculation_2345812499203104771",
+      "formula": "SUM([수익]) / SUM([매출])",
+      "type": "number",
+      "role": "measure"
+    },
+    {
+      "name": "Calculation_2561960651952128",
+      "formula": "if [제품 대분류] = [Parameters].[제품 대분류 매개 변수] then [제품 중분류] else [제품 대분류] end",
+      "type": "string",
+      "role": "dimension"
+    },
+    {
+      "name": "Calculation_2561960657358849",
+      "formula": "INT(if [Parameters].[제품 대분류 매개 변수] = '전체' THEN ''\nELSE [Calculation_2561960651952128]\nEND)",
+      "type": "number",
+      "role": "dimension"
+    },
+    {
+      "name": "Number of Records",
+      "formula": "1",
+      "type": "number",
+      "role": "measure"
+    },
+    {
+      "name": "제품 대분류 매개 변수",
+      "formula": "\"사무용품\"",
+      "type": "string",
+      "role": "measure"
+    },
+    {
+      "name": "제품 대분류 매개 변수",
+      "formula": "\"사무용품\"",
+      "type": "string",
+      "role": "measure"
+    },
+    {
+      "name": "Calculation_2561960651952128",
+      "formula": "if [제품 대분류] = [Parameters].[제품 대분류 매개 변수] then [제품 중분류] else [제품 대분류] end",
+      "type": "string",
+      "role": "dimension"
+    }
+  ]
+}

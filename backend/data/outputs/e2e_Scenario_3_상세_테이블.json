@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "orders_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "orders"
+      },
+      "fields": [
+        {
+          "name": "Customer",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Product",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "OrderCount",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "COUNT"
+        },
+        {
+          "name": "Revenue",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "COUNT"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Order Details",
+      "visual_type": "table",
+      "dimensions": [
+        "Customer",
+        "Product"
+      ],
+      "measures": [
+        "OrderCount",
+        "Revenue"
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

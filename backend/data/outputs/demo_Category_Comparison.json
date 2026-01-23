@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "products_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "products"
+      },
+      "fields": [
+        {
+          "name": "Category",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Profit",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Profit by Category",
+      "visual_type": "bar",
+      "dimensions": [
+        "Category"
+      ],
+      "measures": [
+        "Profit"
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

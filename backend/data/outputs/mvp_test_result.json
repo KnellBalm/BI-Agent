@@ -1,0 +1,30 @@
+{
+  "chart_type": "bar",
+  "dimensions": [
+    {
+      "field": "Region",
+      "role": "columns"
+    },
+    {
+      "field": "Category",
+      "role": "color"
+    }
+  ],
+  "measures": [
+    {
+      "field": "Sales",
+      "aggregation": "SUM",
+      "role": "rows"
+    }
+  ],
+  "filters": [
+    {
+      "field": "Order Date",
+      "type": "range",
+      "values": [
+        "2023-01-01",
+        "2023-12-31"
+      ]
+    }
+  ]
+}

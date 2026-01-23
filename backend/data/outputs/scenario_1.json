@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "sales_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "sales"
+      },
+      "fields": [
+        {
+          "name": "month",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "sales",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "월별 매출 추이",
+      "visual_type": "line",
+      "dimensions": [
+        "month"
+      ],
+      "measures": [
+        "sales"
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

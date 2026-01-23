@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "sales_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "sales"
+      },
+      "fields": [
+        {
+          "name": "category",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Sales quantity by product category in Seoul",
+      "visual_type": "bar",
+      "dimensions": [
+        "category"
+      ],
+      "measures": [
+        "quantity"
+      ],
+      "filters": [
+        {
+          "field": "region",
+          "operator": "=",
+          "value": "Seoul"
+        }
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

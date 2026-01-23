@@ -27,6 +27,7 @@ htmlcov/
 venv/
 env/
 ENV/
+backend/tests/*
 
 # Node.js
 node_modules/

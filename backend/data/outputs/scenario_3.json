@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "sales_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "sales"
+      },
+      "fields": [
+        {
+          "name": "Profit/Sales",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Profit/Sales Table",
+      "visual_type": "table",
+      "dimensions": [],
+      "measures": [
+        "Profit/Sales"
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

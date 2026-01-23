@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "product_data_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "product_data"
+      },
+      "fields": [
+        {
+          "name": "Category",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Region",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Quantity",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        },
+        {
+          "name": "Profit",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Category Performance by Region",
+      "visual_type": "bar",
+      "dimensions": [
+        "Category",
+        "Region"
+      ],
+      "measures": [
+        "Quantity",
+        "Profit"
+      ],
+      "filters": [
+        {
+          "field": "Year",
+          "operator": "=",
+          "value": "2023"
+        }
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

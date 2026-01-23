@@ -3,8 +3,8 @@
 ## 1. 프로젝트 개요
 
 ### 목표
-**"BI 메타데이터 지능화와 시각화 설계를 자율화하는 전술적 AI Agent"**
-단순한 데이터 추출을 넘어, Tableau(`.twbx`), Power BI(`.pbix`) 등의 메타데이터를 직접 조정하고, 도구별 전문 계산식(DAX, LOD) 생성 및 UI 가이드 지원을 통해 BI 운영의 복잡도를 획기적으로 낮춥니다.
+**"DB 데이터를 분석하여 자사 BI 솔루션 메타데이터를 자동 생성하는 AI Agent"**
+특정 DB에서 데이터를 추출하고, '데이터 분석 엔진'을 통해 인사이트를 발굴한 뒤, 이를 자사 BI 솔루션이 즉시 사용할 수 있는 메타데이터 파일로 변환하는 것을 목표로 합니다.
 
 ### 핵심 가치
 - **Metadata Intelligence**: BI 툴 내부 구조(XML/JSON)를 이해하고 직접 수정하는 능력.
@@ -71,21 +71,25 @@ graph TD
 - [x] Docker 기반 MySQL 테스트 환경 최적화 및 연동 검증
 - [x] `.env.example` 및 상세 가이드 문서화 (`docs/SETUP_GUIDE.md`)
 
-### Phase 3: 기능 고도화 및 지능형 오케스트레이션 (In-Progress)
-- **SaaS & Cloud Connectivity**:
-  - [ ] Snowflake 및 BigQuery 전용 커넥터 연동
-  - [ ] Amazon S3 버킷 내 파일(CSV/Parquet) 직접 분석 기능
-- **Billing Sovereignty (과금 제어)**:
-  - [ ] `Quota Manager` 고도화: 무료 키 소진 시 유료 키/Ollama 자동 로테이션
-  - [ ] 트큰 사용량 모니터링 및 실시간 비용 리포팅
+### Phase 3: [MVP] 자사 BI 메타데이터 생성 (In-Progress)
+> **핵심 시나리오**: DB 정보 입력 → 프로파일링 → 인사이트 도출 → **완성형 대시보드 JSON 생성**
+> **벤치마크**: `tmp/suwon_pop.json` (Connector, Datamodel, Report Visuals 포함)
+
+- **데이터 연동 및 분석 (T15/T10)**:
+  - [x] DB 데이터 로드 및 프로파일링 엔진 구축 (완료)
+  - [ ] 자연어 인터랙션을 통한 핵심 지표(KPI) 및 피처 확정 로직
+- **자사 메타 Generator (T16)**:
+  - [ ] **Schema Engine**: `suwon_pop.json` 규격에 맞춘 JSON 생성기 개발
+    - `connector`: DB 연결 정보 자동 매핑
+    - `datamodel`: 분석 쿼리 및 필드 별칭(Alias) 정의
+    - `report`: 컴포넌트(Label, Rect, Table 등) 배치 및 스타일 적용
+- **디자인 및 스타일링 (T20)**:
+  - [ ] `BI_VISUAL_DESIGNER` 스킬 기반 테마(색상, 폰트) 적용 로직
+
+### Phase 4: 외산 BI(Tableau/PBI) 및 도구 확장 (Planning)
 - **BI Metadata Intelligence**:
-  - [ ] **Tableau Metadata (.twbx XML)**: 파일 내 데이터 바인딩 및 시각화 속성 수정 기능
-  - [ ] **Power BI Logic (DAX)**: 복잡한 DAX 쿼리 및 파워 쿼리 M 문법 자동 생성 지원
-- **UI & Guide Support**:
-  - [ ] BI 도구(Tableau, Power BI) 공식 가이드를 활용한 UI 조작 도우미 (RAG 기반)
-- **Agent Intelligence**:
-  - [ ] 비즈니스 도메인 지식 주입 및 Few-shot SQL 생성 최적화 (SaaS 포함)
-  - [ ] BI JSON/XML 명세서의 지능형 오류 교정 및 스타일 튜닝
+  - [x] **Tableau Meta JSON MVP**: 기본적인 XML → JSON 변환 완료 (이전 성과)
+  - [ ] **Power BI Logic (DAX)**: 고도화된 DAX 계산식 및 M 문법 자동 생성 지원
 
 ### Phase 4: 패키징 및 글로벌 배포 (Planning)
 - **Distribution**:
@@ -96,7 +100,21 @@ graph TD
   - [ ] 보안 강화 (DB Credential 관리, API Key 암호화)
   - [ ] 상세 사용자 가이드 및 API 문서 완성
 
----
+### Phase 5: 데이터 분석 엔진 (Post-MVP Priority) 🌟
+> **핵심 가치**: BI를 "단순히" 구현하는 것이 아니라 "잘" 구현하기 위한 지능형 분석 레이어
+
+- **목표**: 데이터 소스와 시각화 생성 사이에 "분석 단계"를 추가하여 더 나은 BI 결과물 산출
+- **파이프라인 전환**:
+  ```
+  [현재] 데이터 소스 → 메타데이터 추출 → 시각화 생성
+  [목표] 데이터 소스 → [데이터 프로파일링 & 인사이트 발굴] → 최적화된 시각화 제안 → 메타데이터 생성
+  ```
+- **핵심 기능**:
+  - [ ] **데이터 프로파일링**: 컬럼 타입, 분포, 결측치, 이상치 자동 분석
+  - [ ] **인사이트 발굴**: 트렌드, 상관관계, 클러스터링 자동 탐지
+  - [ ] **시각화 추천**: 데이터 특성에 맞는 최적 차트 타입 자동 제안
+  - [ ] **스토리텔링**: 분석 결과를 사용자에게 자연어로 설명
+
 
 ## 4. 핵심 컴포넌트 상세
 

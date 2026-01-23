@@ -27,25 +27,71 @@ class BIToolAgent:
             return True
         return False
 
-    def update_visual_text(self, report_name: str, element_id: str, new_text: str):
+    def update_visual_text(self, report_name: str, element_id: str, new_text: str) -> bool:
         """레포트 내 특정 시각화 요소의 텍스트를 수정합니다."""
-        report = self.parser.find_report_by_name(report_name)
-        if not report or "etc" not in report:
-            return False
+        try:
+            report = self.parser.find_report_by_name(report_name)
+            if not report or "etc" not in report:
+                return False
 
-        etc_data = VisualDecoder.decode_etc(report["etc"])
-        visuals = etc_data.get("visual", [])
-        
-        found = False
-        for v in visuals:
-            if v.get("elementId") == element_id:
-                v["text"] = {"ko": new_text} # 텍스트 구조에 맞춰 수정 필요
-                found = True
-                break
-        
-        if found:
-            report["etc"] = VisualDecoder.encode_etc(etc_data)
-            return True
+            etc_data = VisualDecoder.decode_etc(report["etc"])
+            visuals = etc_data.get("visual", [])
+            
+            found = False
+            for v in visuals:
+                if v.get("elementId") == element_id:
+                    v["text"] = {"ko": new_text}
+                    found = True
+                    break
+            
+            if found:
+                report["etc"] = VisualDecoder.encode_etc(etc_data)
+                return True
+        except Exception as e:
+            print(f"Error in update_visual_text: {e}")
+        return False
+
+    def update_interaction_logic(self, report_name: str, update_data: Dict[str, Any]) -> bool:
+        """
+        레포트의 인터랙션 로직(varList, eventList)을 수정합니다.
+        update_data 예시: {"vars": [{"name": "target", "value": 100}], "events": [...]}
+        """
+        try:
+            report = self.parser.find_report_by_name(report_name)
+            if not report or "etc" not in report:
+                return False
+
+            etc_data = VisualDecoder.decode_etc(report["etc"])
+            modified = False
+
+            # 변수(Variables) 업데이트
+            if "vars" in update_data:
+                var_list = etc_data.get("varList", [])
+                for new_var in update_data["vars"]:
+                    v_name = new_var.get("name")
+                    for v in var_list:
+                        if v.get("name") == v_name:
+                            v.update(new_var)
+                            modified = True
+                etc_data["varList"] = var_list
+
+            # 이벤트(Events) 업데이트
+            if "events" in update_data:
+                event_list = etc_data.get("eventList", [])
+                # 단순화된 예시: eventCode 매칭 시 업데이트
+                for new_event in update_data["events"]:
+                    e_code = new_event.get("eventCode")
+                    for e in event_list:
+                        if e.get("eventCode") == e_code:
+                            e.update(new_event)
+                            modified = True
+                etc_data["eventList"] = event_list
+
+            if modified:
+                report["etc"] = VisualDecoder.encode_etc(etc_data)
+                return True
+        except Exception as e:
+            print(f"Error in update_interaction_logic: {e}")
         return False
 
     def list_all_components(self) -> Dict[str, List[str]]:

@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "sales_data_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "sales_data"
+      },
+      "fields": [
+        {
+          "name": "Month",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Sales",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Monthly Sales Trend",
+      "visual_type": "line",
+      "dimensions": [
+        "Month"
+      ],
+      "measures": [
+        "Sales"
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

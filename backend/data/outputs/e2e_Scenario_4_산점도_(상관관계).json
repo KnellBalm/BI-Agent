@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "marketing_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "marketing"
+      },
+      "fields": [
+        {
+          "name": "Campaign",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Cost",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        },
+        {
+          "name": "ROI",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Campaign ROI Analysis",
+      "visual_type": "scatter",
+      "dimensions": [
+        "Campaign"
+      ],
+      "measures": [
+        "Cost",
+        "ROI"
+      ]
+    }
+  ],
+  "calculated_fields": []
+}

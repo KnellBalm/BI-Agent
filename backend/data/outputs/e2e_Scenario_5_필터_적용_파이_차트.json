@@ -1,0 +1,51 @@
+{
+  "version": "1.0",
+  "tool": "tableau",
+  "datasources": [
+    {
+      "name": "revenue_datasource",
+      "connection": {
+        "type": "unknown",
+        "table": "revenue"
+      },
+      "fields": [
+        {
+          "name": "ProductLine",
+          "type": "string",
+          "role": "dimension"
+        },
+        {
+          "name": "Revenue",
+          "type": "number",
+          "role": "measure",
+          "aggregation": "SUM"
+        }
+      ]
+    }
+  ],
+  "worksheets": [
+    {
+      "name": "Q1 Asia Revenue Distribution",
+      "visual_type": "pie",
+      "dimensions": [
+        "ProductLine"
+      ],
+      "measures": [
+        "Revenue"
+      ],
+      "filters": [
+        {
+          "field": "Region",
+          "operator": "=",
+          "value": "Asia"
+        },
+        {
+          "field": "Quarter",
+          "operator": "=",
+          "value": "Q1"
+        }
+      ]
+    }
+  ],
+  "calculated_fields": []
+}
