@@ -1,0 +1,12 @@
+{
+  "sample_db": {
+    "type": "sqlite",
+    "name": "Sample Sales Data",
+    "category": "Local DB",
+    "config": {
+      "path": "backend/data/sample_sales.sqlite"
+    },
+    "created_at": "2026-01-26T10:55:00",
+    "last_accessed": "2026-01-26T11:10:17.091895"
+  }
+}

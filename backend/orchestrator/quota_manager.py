@@ -6,6 +6,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from backend.agents.data_source.mcp_client import MCPClient
 
+from backend.orchestrator.auth_manager import auth_manager
+
 logger = logging.getLogger(__name__)
 
 class QuotaManager:
@@ -15,13 +17,18 @@ class QuotaManager:
     def __init__(self, config_str: Optional[str] = None):
         self.configs = self._parse_config(config_str)
         self.current_index = 0
-        self.usage_cache_path = os.path.abspath("backend/data/usage_cache.json")
+        # 사용자 홈 디렉토리의 .bi-agent 폴더를 사용하도록 변경
+        self.usage_cache_path = auth_manager.home_dir / "usage_cache.json"
         self.usage_data = self._load_usage_cache()
         self.mcp_client = None
         self.gcp_server_path = os.path.abspath("backend/mcp_servers/gcp_manager_server.js")
 
     def _parse_config(self, config_str: Optional[str]) -> List[Dict[str, Any]]:
         if not config_str:
+            # auth_manager에서 키를 가져와서 동적으로 설정 생성
+            key = auth_manager.get_gemini_key()
+            if key:
+                return [{"key": key, "type": "free", "name": "Default User Key"}]
             config_str = os.getenv("GEMINI_API_CONFIGS", "[]")
         try:
             return json.loads(config_str)

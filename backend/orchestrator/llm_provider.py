@@ -45,10 +45,12 @@ class GeminiProvider(LLMProvider):
 
     async def _ensure_active_key(self) -> str:
         """할당량이 남아있는 유효한 키를 확보합니다."""
+        from backend.orchestrator.auth_manager import auth_manager
+        
         if not self.quota_manager:
-            key = os.getenv("GEMINI_API_KEY")
+            key = auth_manager.get_gemini_key()
             if not key:
-                raise ValueError("GEMINI_API_KEY not found in environment.")
+                raise ValueError("Gemini API Key가 설정되지 않았습니다. TUI에서 로그인을 완료해주세요.")
             return key
         
         active_config = await self.quota_manager.get_active_key_config()

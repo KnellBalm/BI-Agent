@@ -1,2 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<workbook><datasources><datasource name="SalesData"><column name="[OrderDate]" caption="주문일자" /><column name="[Sales]" caption="총 매출액" /></datasource></datasources></workbook>

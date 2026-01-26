@@ -79,4 +79,8 @@ frontend/build/
 Thumbs.db
 .DS_Store
 
+# Local Data & Secrets
+.env
+.env.*
+backend/data/usage_cache.json
 usage_cache.json

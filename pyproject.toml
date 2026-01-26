@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bi-agent"
+version = "0.1.0"
+description = "AI-powered BI Analytics Agent with Premium TUI Console"
+dependencies = [
+    "textual>=0.40.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0"
+]
+
+[project.scripts]
+# 이 부분이 'bi-agent'라는 명령어를 생성합니다.
+bi-agent = "backend.orchestrator.bi_agent_console:run_app"
