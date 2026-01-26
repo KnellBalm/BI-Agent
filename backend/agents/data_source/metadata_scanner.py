@@ -66,6 +66,11 @@ class MetadataScanner:
             query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
             df = self.conn_mgr.run_query(conn_id, query)
             return df["table_name"].tolist()
+        elif conn_type == "duckdb":
+            query = "SHOW TABLES"
+            df = self.conn_mgr.run_query(conn_id, query)
+            # SHOW TABLES returns a column 'name' or just one column
+            return df.iloc[:, 0].tolist()
         elif conn_type == "excel":
             # For Excel, we assume the session (path) refers to a file with sheets
             # In a real impl, we'd list sheet names.

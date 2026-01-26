@@ -10,85 +10,121 @@ from backend.agents.bi_tool.interaction_logic import InteractionLogic
 from backend.agents.data_source.connection_manager import ConnectionManager
 from backend.agents.data_source.metadata_scanner import MetadataScanner
 
+from backend.agents.bi_tool.metric_store import MetricStore
+
 class CollaborativeOrchestrator:
     """
     Advanced orchestrator that implements a multi-agent collaboration flow.
     """
 
-    def __init__(self, connection_registry: str = "config/connections.json"):
-        self.conn_mgr = ConnectionManager(connection_registry)
+    def __init__(self, project_id: str = "default"):
+        self.project_id = project_id
+        self.conn_mgr = ConnectionManager(project_id)
         self.scanner = MetadataScanner(self.conn_mgr)
+        self.metric_store = MetricStore(project_id)
         self.logic = InteractionLogic()
 
-    def handle_complex_request(self, user_query: str, conn_id: str) -> Dict[str, Any]:
+    async def handle_complex_request(self, user_query: str, conn_id: str) -> Dict[str, Any]:
         """
-        Executes a full collaborative loop:
-        1. Context Discovery (DataMaster Role)
-        2. Insight Strategy (Strategist Role)
-        3. Visual Composition (Designer Role)
-        4. Generation & Theming
+        Executes a full collaborative loop with simulation fallback.
         """
         print(f"🧠 Processing complex query: {user_query}")
 
-        # --- [Step 1: DataMaster] Context Discovery ---
-        # List tables and pick the most relevant one (simulated strategist decision)
-        meta = self.scanner.scan_source(conn_id)
-        if not meta["tables"]:
-            return {"status": "error", "message": "No tables found in data source."}
-        
-        # Pick the first table for now (In real case, Strategist would decide based on query)
-        target_table = meta["tables"][0]
-        print(f"🔍 [DataMaster] Selected table: {target_table['table_name']}")
+        try:
+            # --- [Step 1: DataMaster] Context Discovery ---
+            try:
+                meta = self.scanner.scan_source(conn_id)
+                is_simulation = False
+            except Exception as e:
+                print(f"⚠️ Connection failed for {conn_id}: {e}. Switching to Simulation Mode.")
+                meta = self._get_simulation_metadata()
+                is_simulation = True
 
-        # --- [Step 2: Strategist] Goal Definition ---
-        # Analyze user query to define parameters (Simulated)
-        # e.g., 'Compare sales by region' -> Strategist identifies 'sales' as measure, 'region' as dimension
-        strategy = {
-            "goal": "Performance Analysis",
-            "focus_columns": [c["name"] for c in target_table["columns"]],
-            "reasoning": f"Analyzing {user_query} using schema provided by DataMaster."
-        }
-        print(f"🎯 [Strategist] Plan: {strategy['reasoning']}")
+            if not meta["tables"]:
+                return {"status": "error", "message": "No tables found in data source."}
+            
+            # Pick the most relevant table (Simplified)
+            target_table = meta["tables"][0]
+            table_name = target_table['table_name']
+            sim_prefix = "[SIMULATION] " if is_simulation else ""
+            print(f"🔍 [DataMaster] {sim_prefix}Selected table: {table_name}")
 
-        # --- [Step 3: VisualDesigner] Composition ---
-        # Suggest config based on profile (Using existing InteractionLogic as core designer)
-        # Create a mock profile from target_table for the logic
-        profile = {
-            "columns": target_table["columns"],
-            "overview": {"rows": target_table["row_count_estimate"]}
-        }
-        config = self.logic.suggest_configuration(profile)
-        print(f"🎨 [Designer] Suggested {len(config['visuals'])} visuals with Premium Dark theme.")
-
-        # --- [Step 4: Generation] Assembly ---
-        generator = InHouseGenerator(profile, theme_name="premium_dark")
-        generator.build_connector()
-        
-        generator.build_datamodel(
-            name=f"dm_{target_table['table_name']}",
-            base_query=config["dynamic_query"],
-            param_definitions=config["params"]
-        )
-        
-        generator.build_report(
-            title=f"{target_table['table_name'].capitalize()} Insights",
-            components=config["visuals"],
-            var_list=config["varList"],
-            event_list=config["eventList"]
-        )
-
-        output_path = f"/tmp/collaborative_{conn_id}.json"
-        generator.dump_to_file(output_path)
-        
-        return {
-            "status": "success",
-            "path": output_path,
-            "reasoning": strategy["reasoning"],
-            "summary": {
-                "table": target_table["table_name"],
-                "visuals": [v["type"] for v in config["visuals"]],
-                "parameters": list(config["params"].keys())
+            # --- [Step 2: Strategist] Goal Definition (Metric Aware) ---
+            active_metrics = self.metric_store.get_metrics_for_table(table_name)
+            metric_context = ""
+            if active_metrics:
+                metric_names = [m["id"] for m in active_metrics]
+                metric_context = f" [Metrics: {', '.join(metric_names)}]"
+            
+            strategy = {
+                "goal": "Performance Analysis",
+                "focus_columns": [c["name"] for c in target_table["columns"]],
+                "active_metrics": active_metrics,
+                "reasoning": f"{sim_prefix}Found schema for {user_query}.{metric_context} Proceeding with analysis."
             }
+            print(f"🎯 [Strategist] Plan: {strategy['reasoning']}")
+ 
+            # --- [Step 3: VisualDesigner] Composition ---
+            profile = {
+                "columns": target_table["columns"],
+                "overview": {"rows": target_table["row_count_estimate"]},
+                "metrics": active_metrics
+            }
+            config = self.logic.suggest_configuration(profile)
+            print(f"🎨 [Designer] Suggested {len(config['visuals'])} visuals.")
+
+            # --- [Step 4: Generation] Assembly ---
+            generator = InHouseGenerator(profile, theme_name="premium_dark")
+            generator.build_connector()
+            
+            generator.build_datamodel(
+                name=f"dm_{target_table['table_name']}",
+                base_query=config["dynamic_query"],
+                param_definitions=config["params"]
+            )
+            
+            generator.build_report(
+                title=f"{sim_prefix}{target_table['table_name'].capitalize()} Insights",
+                components=config["visuals"],
+                var_list=config["varList"],
+                event_list=config["eventList"]
+            )
+
+            suffix = "_sim" if is_simulation else ""
+            output_path = f"/tmp/collaborative_{conn_id}{suffix}.json"
+            generator.dump_to_file(output_path)
+            
+            return {
+                "status": "success",
+                "is_simulation": is_simulation,
+                "path": output_path,
+                "reasoning": strategy["reasoning"],
+                "summary": {
+                    "table": target_table["table_name"],
+                    "visuals": [v["type"] for v in config["visuals"]],
+                    "parameters": list(config["params"].keys())
+                }
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Orchestration failed: {str(e)}"}
+
+    def _get_simulation_metadata(self) -> Dict[str, Any]:
+        """Provides a generic high-quality mock schema for simulation mode."""
+        return {
+            "tables": [
+                {
+                    "table_name": "mock_global_sales",
+                    "row_count_estimate": 15000,
+                    "columns": [
+                        {"name": "order_date", "type": "DATE", "semantic": "temporal"},
+                        {"name": "region", "type": "TEXT", "semantic": "spatial"},
+                        {"name": "category", "type": "TEXT", "semantic": "categorical"},
+                        {"name": "sales_amount", "type": "REAL", "semantic": "measure"},
+                        {"name": "profit", "type": "REAL", "semantic": "measure"},
+                        {"name": "quantity", "type": "INTEGER", "semantic": "measure"}
+                    ]
+                }
+            ]
         }
 
 if __name__ == "__main__":
