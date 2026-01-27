@@ -4,15 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bi-agent"
-version = "0.1.0"
-description = "AI-powered BI Analytics Agent with Premium TUI Console"
+version = "1.0.0"
+description = "Autonomous Business Intelligence Agent with Proactive Insights"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
 dependencies = [
-    "textual>=0.40.0",
-    "rich>=13.0.0",
-    "pydantic>=2.0.0",
-    "duckdb>=0.9.0"
+    "textual>=0.47.1",
+    "google-generativeai",
+    "pandas",
+    "duckdb",
+    "plotly",
+    "httpx",
+    "rich",
+    "python-dotenv",
+    "google-auth",
+    "google-auth-oauthlib",
 ]
 
 [project.scripts]
-# 이 부분이 'bi-agent'라는 명령어를 생성합니다.
 bi-agent = "backend.orchestrator.bi_agent_console:run_app"
+
+[tool.setuptools]
+packages = ["backend", "backend.orchestrator", "backend.agents", "backend.utils", "backend.agents.data_source", "backend.agents.bi_tool"]

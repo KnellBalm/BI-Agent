@@ -44,22 +44,25 @@ class GeminiProvider(LLMProvider):
             self.model = None
 
     async def _ensure_active_key(self) -> str:
-        """할당량이 남아있는 유효한 키를 확보합니다."""
+        """할당량이 남아있는 유효한 키 또는 토큰을 확보합니다."""
         from backend.orchestrator.auth_manager import auth_manager
         
-        if not self.quota_manager:
-            key = auth_manager.get_gemini_key()
-            if not key:
-                raise ValueError("Gemini API Key가 설정되지 않았습니다. TUI에서 로그인을 완료해주세요.")
-            return key
-        
-        active_config = await self.quota_manager.get_active_key_config()
-        if active_config:
-            genai.configure(api_key=active_config['key'])
+        provider_data = auth_manager.get_provider_data("gemini")
+        api_key = provider_data.get("key") or os.getenv("GEMINI_API_KEY")
+        token = provider_data.get("token")
+
+        if not api_key and not token:
+             raise ValueError("계정 인증이 필요합니다. TUI 메인 화면에서 로그인을 진행해주거나 API Key를 설정해 주세요.")
+
+        # API Key 우선 사용 (현재 라이브러리 지원 한계상)
+        if api_key:
+            genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel(self.model_name)
-            return active_config['key']
+            return api_key
         
-        raise RuntimeError("All Gemini API keys are exhausted or unavailable.")
+        # TODO: OAuth Token 사용 로직 (google-auth Credentials 객체 생성 필요)
+        # 현재는 안내 메시지로 대체
+        raise NotImplementedError("OAuth 토큰 기반 인증은 개발 중입니다. 현재는 API Key를 사용해 주세요.")
 
     async def generate(self, prompt: str) -> str:
         current_key = await self._ensure_active_key()

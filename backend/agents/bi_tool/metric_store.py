@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from backend.utils.logger_setup import setup_logger
+from backend.utils.path_config import path_manager
 
 logger = setup_logger("metric_store", "metrics.log")
 
@@ -13,7 +14,7 @@ class MetricStore:
     """
     def __init__(self, project_id: str):
         self.project_id = project_id
-        self.metrics_path = os.path.join("projects", project_id, "metrics.json")
+        self.metrics_path = path_manager.get_project_path(project_id) / "metrics.json"
         self.metrics: Dict[str, Any] = {}
         self._load_metrics()
 
@@ -59,9 +60,37 @@ class MetricStore:
             "table": table,
             "description": description
         }
+        self._save_metrics()
+
+    def import_metrics_from_project(self, source_project_id: str):
+        """Imports metrics from another project."""
+        source_path = path_manager.get_project_path(source_project_id) / "metrics.json"
+        if not os.path.exists(source_path):
+            logger.warning(f"Source project '{source_project_id}' metrics not found.")
+            return False
+            
+        try:
+            with open(source_path, 'r', encoding='utf-8') as f:
+                source_metrics = json.load(f)
+            
+            # Merge (don't overwrite existing if IDs conflict, or prefix them)
+            count = 0
+            for mid, mdata in source_metrics.items():
+                if mid not in self.metrics:
+                    self.metrics[mid] = mdata
+                    count += 1
+            
+            if count > 0:
+                self._save_metrics()
+                logger.info(f"Imported {count} metrics from '{source_project_id}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to import metrics: {e}")
+            return False
+
+    def _save_metrics(self):
         try:
             with open(self.metrics_path, 'w', encoding='utf-8') as f:
                 json.dump(self.metrics, f, indent=2)
-            logger.info(f"Added metric '{metric_id}' to project '{self.project_id}'")
         except Exception as e:
-            logger.error(f"Failed to save metric '{metric_id}': {e}")
+            logger.error(f"Failed to save metrics: {e}")

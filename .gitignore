@@ -84,3 +84,6 @@ Thumbs.db
 .env.*
 backend/data/usage_cache.json
 usage_cache.json
+# Local Test Data
+backend/data/*.json
+config/connections.json

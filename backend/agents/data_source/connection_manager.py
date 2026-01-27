@@ -7,6 +7,7 @@ import re
 from typing import Dict, Any, Optional, List
 import pandas as pd
 from backend.utils.logger_setup import setup_logger
+from backend.utils.path_config import path_manager
 
 # Initialize localized logger
 logger = setup_logger("connection_manager", "connections.log")
@@ -19,8 +20,8 @@ class ConnectionManager:
     
     def __init__(self, project_id: str = "default"):
         self.project_id = project_id
-        self.project_dir = os.path.join("projects", project_id)
-        self.registry_path = os.path.join(self.project_dir, "connections.json")
+        self.project_dir = path_manager.get_project_path(project_id)
+        self.registry_path = self.project_dir / "connections.json"
         self._ensure_registry_exists()
         self.active_sessions: Dict[str, Any] = {}
         logger.info(f"ConnectionManager initialized for project '{project_id}' at {self.registry_path}")
@@ -36,18 +37,19 @@ class ConnectionManager:
             
             if not registry:
                 logger.info(f"Empty registry for project '{self.project_id}'. Auto-onboarding sample sales data.")
-                sample_path = os.path.abspath(os.path.join("backend/data", "sample_sales.sqlite"))
+                # We keep the source data in the package for demo, or move to ~/.bi-agent
+                source_path = path_manager.get_project_path(self.project_id) / "sample_sales.sqlite"
                 
                 # Check if file exists, if not generate it
-                if not os.path.exists(sample_path):
+                if not os.path.exists(source_path):
                     from backend.utils.sample_data_gen import generate_sample_sqlite
-                    generate_sample_sqlite(sample_path)
-                    logger.info(f"Generated sample database at {sample_path}")
+                    generate_sample_sqlite(str(source_path))
+                    logger.info(f"Generated sample database at {source_path}")
                 
                 self.register_connection(
                     conn_id="sample_sales",
                     conn_type="sqlite",
-                    config={"path": sample_path},
+                    config={"path": str(source_path)},
                     name="Sample Sales Data (Auto)",
                     category="Demo"
                 )
