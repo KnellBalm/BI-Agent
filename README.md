@@ -15,7 +15,7 @@
 
 ---
 
-## ✨ Recent Enhancements (v1.0.0)
+## ✨ Recent Enhancements (v0.1.0)
 
 *   **Premium Entrance Hall**: 터미널 기반의 아름다운 환영 스크린과 **'BI - Agent'** 통합 로고 디자인 적용
 *   **Command Palette (/)**: 슬래시(/) 키로 호출하는 직관적인 분석 명령어 시스템 (키보드 네비게이션 지원)

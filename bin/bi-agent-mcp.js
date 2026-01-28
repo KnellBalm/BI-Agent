@@ -30,7 +30,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const server = new Server(
   {
     name: 'bi-agent',
-    version: '1.0.0',
+    version: '0.1.0',
   },
   {
     capabilities: {

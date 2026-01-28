@@ -33,7 +33,7 @@ const pool = mysql.createPool({
 const server = new Server(
   {
     name: 'mysql-mcp-server',
-    version: '1.0.0',
+    version: '0.1.0',
   },
   {
     capabilities: {

@@ -34,7 +34,7 @@ const pool = new Pool({
 const server = new Server(
   {
     name: 'postgres-mcp-server',
-    version: '1.0.0',
+    version: '0.1.0',
   },
   {
     capabilities: {
