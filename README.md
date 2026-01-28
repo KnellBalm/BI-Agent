@@ -74,13 +74,25 @@ Glassmorphism과 Deep Sea Dark Theme이 적용된 세련된 인터랙티브 대�
 - `.env.example`을 참고하여 `.env` 생성 및 Gemini API 키 입력
 
 ### 2단계: 설치 및 실행 (Go Live)
-```bash
-# 1. 의존성 설치
-pip install -r backend/requirements.txt
-npm install
 
-# 2. TUI 실행
-python backend/orchestrator/bi_agent_console.py
+> [!NOTE]
+> 현재 `bi-agent`는 PyPI에 등록되어 있지 않습니다. 아래의 방법을 통해 설치해 주세요.
+
+#### 방법 A: GitHub에서 직접 설치 (추천)
+다른 사용자라면 터미널에서 다음 명령어를 실행하여 설치할 수 있습니다:
+```bash
+pip install git+https://github.com/KnellBalm/BI-Agent.git
+```
+
+#### 방법 B: 로컬 소스 코드로 설치 (개발자용)
+레포지토리를 클론한 상태라면 디렉토리 내부에서 다음을 실행합니다:
+```bash
+# 1. 의존성 및 패키지 설치
+pip install -e .
+npm install  # MCP 서버 기능 사용 시 필요
+
+# 2. 실행 (어디서든 'bi-agent' 명령어로 실행 가능)
+bi-agent
 ```
 
 ---
