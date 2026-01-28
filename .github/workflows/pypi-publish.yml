@@ -45,7 +45,6 @@ jobs:
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # 사용자가 설정한 Secret 이름(PYPI_API)으로 변경
-          password: ${{ secrets.PYPI_API }}
+          # Trusted Publishing(OIDC)을 사용하므로 password 필드는 비워둡니다.
           # 이미 존재하는 버전이면 업로드를 건너뛰어 에러 방지 (중복 배포 방지)
           skip-existing: true
