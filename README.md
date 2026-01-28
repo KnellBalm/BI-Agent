@@ -70,30 +70,48 @@ Glassmorphism과 Deep Sea Dark Theme이 적용된 세련된 인터랙티브 대�
 ## 🚦 Getting Started
 
 ### 1단계: 환경 준비 (Setup)
-- Python 3.10+, Node.js 18+ 설치
-- `.env.example`을 참고하여 `.env` 생성 및 Gemini API 키 입력
+- **Python 3.10+** (필수: 3.9 이하 버전에서는 패키지가 검색되지 않을 수 있습니다.)
+- Node.js 18+ (MCP 서버 기능 사용 시 필요)
+- `.env.example`을 참고하여 `.env` 생성 및 Gemini API 키 입력 (또는 실행 후 TUI에서 직접 입력 가능)
 
 ### 2단계: 설치 및 실행 (Go Live)
 
-> [!NOTE]
-> 현재 `bi-agent`는 PyPI에 등록되어 있지 않습니다. 아래의 방법을 통해 설치해 주세요.
+#### 방법 A: PyPI에서 설치 (일반 사용자)
+가장 간단한 방법입니다. 터미널에서 아래 명령어를 실행하세요.
+```bash
+# 3.10+ 버전 확인 후 설치
+python3 -m pip install --upgrade bi-agent
 
-#### 방법 A: GitHub에서 직접 설치 (추천)
-다른 사용자라면 터미널에서 다음 명령어를 실행하여 설치할 수 있습니다:
+# 어디서든 실행
+bi-agent
+```
+
+#### 방법 B: GitHub에서 직접 설치
+최신 소스 코드를 바로 사용하고 싶다면:
 ```bash
 pip install git+https://github.com/KnellBalm/BI-Agent.git
 ```
 
-#### 방법 B: 로컬 소스 코드로 설치 (개발자용)
-레포지토리를 클론한 상태라면 디렉토리 내부에서 다음을 실행합니다:
+#### 방법 C: 로컬 소스 코드로 설치 (개발자용)
 ```bash
 # 1. 의존성 및 패키지 설치
 pip install -e .
-npm install  # MCP 서버 기능 사용 시 필요
+npm install
 
-# 2. 실행 (어디서든 'bi-agent' 명령어로 실행 가능)
+# 2. 실행
 bi-agent
 ```
+
+> [!TIP]
+> **설치 오류 발생 시**: `ERROR: Could not find a version...` 에러가 발생한다면 현재 사용 중인 `pip`가 Python 3.10 이상을 가리키고 있는지 확인하세요. `python3 -m pip install bi-agent`를 권장합니다.
+
+---
+
+## 🏛️ Entrance Hall (지능형 관문)
+패키지 설치 후 `bi-agent`를 실행하면 세련된 **Entrance Hall** UI가 나타납니다.
+- **슬래시 명령어 (/)**: `/`를 입력하여 분석 명령어 팔레트를 호출할 수 있습니다.
+- **실시간 로그 뷰어**: 에이전트의 사고 과정과 시스템 로그를 채팅창 하단에서 실시간으로 확인할 수 있습니다.
+- **즉시 인증**: API 키가 없어도 실행 중 브라우저를 통해 즉시 발급 및 등록이 가능합니다.
 
 ---
 
