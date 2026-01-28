@@ -15,6 +15,16 @@
 
 ---
 
+## ✨ Recent Enhancements (v1.0.0)
+
+*   **Premium Entrance Hall**: 터미널 기반의 아름다운 환영 스크린과 **'BI - Agent'** 통합 로고 디자인 적용
+*   **Command Palette (/)**: 슬래시(/) 키로 호출하는 직관적인 분석 명령어 시스템 (키보드 네비게이션 지원)
+*   **Real-time Agent Logs**: 에이전트의 사고 과정과 시스템 로그를 채팅창 내에서 실시간으로 확인 가능
+*   **Smart Auth Onboarding**: API 키가 없어도 실행 중 즉각적으로 발급 및 등록 가능한 인터랙티브 가이드 모드
+*   **Secure Multi-Agent Core**: 전략가, 데이터마스터, 디자이너 에이전트의 협업 로직 최적화
+
+---
+
 ## 🏛️ Vision & Core Values
 
 BI-Agent는 데이터 분석가의 사고 과정을 복제하고 증폭하는 **AI 파트너**를 지향합니다. 사용자의 질문에 답하는 수동적 존재에서 벗어나, 데이터의 문맥을 읽고 선제적으로 통찰을 제안합니다.
@@ -70,48 +80,45 @@ Glassmorphism과 Deep Sea Dark Theme이 적용된 세련된 인터랙티브 대�
 ## 🚦 Getting Started
 
 ### 1단계: 환경 준비 (Setup)
-- **Python 3.10+** (필수: 3.9 이하 버전에서는 패키지가 검색되지 않을 수 있습니다.)
+- **Python 3.10+** (필수: 3.9 이하 환경에서는 패키지를 찾을 수 없거나 설치에 실패할 수 있습니다.)
 - Node.js 18+ (MCP 서버 기능 사용 시 필요)
-- `.env.example`을 참고하여 `.env` 생성 및 Gemini API 키 입력 (또는 실행 후 TUI에서 직접 입력 가능)
+- `.env` 파일 (Gemini API 키 등) 또는 실행 후 TUI에서 직접 입력 가능
 
 ### 2단계: 설치 및 실행 (Go Live)
 
-#### 방법 A: PyPI에서 설치 (일반 사용자)
-가장 간단한 방법입니다. 터미널에서 아래 명령어를 실행하세요.
+#### 📦 방법 A: PyPI에서 정식 설치 (추천)
+가장 안정적인 최신 릴리스 버전을 설치합니다.
 ```bash
-# 3.10+ 버전 확인 후 설치
+# 파이썬 버전 확인 후 설치
 python3 -m pip install --upgrade bi-agent
 
 # 어디서든 실행
 bi-agent
 ```
 
-#### 방법 B: GitHub에서 직접 설치
-최신 소스 코드를 바로 사용하고 싶다면:
+#### 🛠️ 방법 B: GitHub 소스 설치
+개발 버전이나 직접 소스 코드를 수정하고 싶다면:
 ```bash
+# 깃허브에서 직접 설치
 pip install git+https://github.com/KnellBalm/BI-Agent.git
-```
 
-#### 방법 C: 로컬 소스 코드로 설치 (개발자용)
-```bash
-# 1. 의존성 및 패키지 설치
+# 또는 로컬 소스 폴더에서 설치 (개발자용)
+git clone https://github.com/KnellBalm/BI-Agent.git
+cd BI-Agent
 pip install -e .
 npm install
-
-# 2. 실행
-bi-agent
 ```
 
-> [!TIP]
-> **설치 오류 발생 시**: `ERROR: Could not find a version...` 에러가 발생한다면 현재 사용 중인 `pip`가 Python 3.10 이상을 가리키고 있는지 확인하세요. `python3 -m pip install bi-agent`를 권장합니다.
+> [!IMPORTANT]
+> **설치 오류 발생 시**: `ERROR: Could not find a version...` 에러가 난다면, 현재 실행된 `pip` 명령어가 Python 3.10 이상 버전에 연결되어 있는지 확인해 주세요. `python3 -m pip install bi-agent` 명령어가 가장 확실한 방법입니다.
 
 ---
 
 ## 🏛️ Entrance Hall (지능형 관문)
-패키지 설치 후 `bi-agent`를 실행하면 세련된 **Entrance Hall** UI가 나타납니다.
-- **슬래시 명령어 (/)**: `/`를 입력하여 분석 명령어 팔레트를 호출할 수 있습니다.
-- **실시간 로그 뷰어**: 에이전트의 사고 과정과 시스템 로그를 채팅창 하단에서 실시간으로 확인할 수 있습니다.
-- **즉시 인증**: API 키가 없어도 실행 중 브라우저를 통해 즉시 발급 및 등록이 가능합니다.
+패키지 설치 후 `bi-agent`를 실행하면 고도화된 **Entrance Hall** UI가 실행됩니다.
+- **슬래시 명령어 (/)**: `/`를 입력하여 분석 명령어 팔레트 호출
+- **실시간 사고 로그**: 에이전트의 내부 추론 과정과 시스템 로그를 채팅창 하단에서 실시간 모니터링
+- **지능형 온보딩**: API 키가 없어도 실행 중 보안 가이드에 따라 즉시 등록 가능
 
 ---
 
