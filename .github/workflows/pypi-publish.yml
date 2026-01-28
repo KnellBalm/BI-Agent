@@ -22,6 +22,10 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_deployment == 'yes') ||
       (github.event_name == 'push' && contains(github.ref, 'refs/tags/v'))
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
