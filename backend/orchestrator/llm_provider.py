@@ -2,8 +2,11 @@ import asyncio
 import os
 import google.generativeai as genai
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Union
+import anthropic
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
+from backend.orchestrator.quota_manager import quota_manager
 
 load_dotenv()
 
@@ -65,20 +68,24 @@ class GeminiProvider(LLMProvider):
         raise NotImplementedError("OAuth 토큰 기반 인증은 개발 중입니다. 현재는 API Key를 사용해 주세요.")
 
     async def generate(self, prompt: str) -> str:
+        if not quota_manager.can_use_provider("gemini"):
+            # Fallback will be handled by FailoverLLMProvider if used
+            raise RuntimeError("Gemini 할당량이 가득 찼거나 이미 소진되었습니다.")
+
         current_key = await self._ensure_active_key()
         try:
             response = await asyncio.to_thread(self.model.generate_content, prompt)
-            if self.quota_manager and current_key:
-                self.quota_manager.increment_usage(current_key)
+            quota_manager.increment_usage("gemini")
             return response.text
         except Exception as e:
-            if "429" in str(e) and self.quota_manager:
-                # 할당량 초과 시 키 무효화 후 재시도
-                await self.quota_manager.report_exhausted()
-                return await self.generate(prompt)
+            if "429" in str(e):
+                quota_manager.report_limit_reached("gemini")
             raise e
 
     async def chat(self, messages: List[Dict[str, str]]) -> str:
+        if not quota_manager.can_use_provider("gemini"):
+            raise RuntimeError("Gemini 할당량이 가득 찼거나 이미 소진되었습니다.")
+
         current_key = await self._ensure_active_key()
         try:
             history = []
@@ -87,13 +94,11 @@ class GeminiProvider(LLMProvider):
             
             chat = self.model.start_chat(history=history)
             response = await asyncio.to_thread(chat.send_message, messages[-1]["content"])
-            if self.quota_manager and current_key:
-                self.quota_manager.increment_usage(current_key)
+            quota_manager.increment_usage("gemini")
             return response.text
         except Exception as e:
-            if "429" in str(e) and self.quota_manager:
-                await self.quota_manager.report_exhausted()
-                return await self.chat(messages)
+            if "429" in str(e):
+                quota_manager.report_limit_reached("gemini")
             raise e
 
 class OllamaProvider(LLMProvider):
@@ -130,31 +135,140 @@ class OllamaProvider(LLMProvider):
             except Exception as e:
                 return f"Ollama chat failed: {str(e)}"
 
-class FailoverLLMProvider(LLMProvider):
+class ClaudeProvider(LLMProvider):
     """
-    여러 LLM 공급자를 순차적으로 시도하는 공급자 (Gemini -> Ollama)
+    Anthropic Claude API를 사용한 구현
     """
-    def __init__(self, primary: LLMProvider, secondary: LLMProvider):
-        self.primary = primary
-        self.secondary = secondary
-        self.use_secondary = False
+    def __init__(self, model_name: str = "claude-3-5-sonnet-20241022"):
+        self.model_name = model_name
+        self._setup_client()
+
+    def _setup_client(self):
+        from backend.orchestrator.auth_manager import auth_manager
+        api_key = auth_manager.get_provider_data("claude").get("key") or os.getenv("ANTHROPIC_API_KEY")
+        if api_key:
+            self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        else:
+            self.client = None
 
     async def generate(self, prompt: str) -> str:
-        if not self.use_secondary:
-            try:
-                return await self.primary.generate(prompt)
-            except Exception as e:
-                print(f"Primary LLM failed, switching to secondary: {e}")
-                self.use_secondary = True
-        
-        return await self.secondary.generate(prompt)
+        if not self.client: return "Claude API Key가 설정되지 않았습니다."
+        if not quota_manager.can_use_provider("claude"):
+            raise RuntimeError("Claude 할당량이 가득 찼습니다.")
+
+        try:
+            response = await self.client.messages.create(
+                model=self.model_name,
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            quota_manager.increment_usage("claude")
+            return response.content[0].text
+        except Exception as e:
+            if "429" in str(e):
+                quota_manager.report_limit_reached("claude")
+            raise e
 
     async def chat(self, messages: List[Dict[str, str]]) -> str:
-        if not self.use_secondary:
-            try:
-                return await self.primary.chat(messages)
-            except Exception as e:
-                print(f"Primary LLM failed, switching to secondary: {e}")
-                self.use_secondary = True
+        if not self.client: return "Claude API Key가 설정되지 않았습니다."
+        if not quota_manager.can_use_provider("claude"):
+            raise RuntimeError("Claude 할당량이 가득 찼습니다.")
+
+        # Claude format conversion (system prompt adjustment might be needed elsewhere)
+        claude_messages = []
+        for msg in messages:
+            claude_messages.append({"role": msg["role"], "content": msg["content"]})
         
-        return await self.secondary.chat(messages)
+        try:
+            response = await self.client.messages.create(
+                model=self.model_name,
+                max_tokens=4096,
+                messages=claude_messages
+            )
+            quota_manager.increment_usage("claude")
+            return response.content[0].text
+        except Exception as e:
+            if "429" in str(e):
+                quota_manager.report_limit_reached("claude")
+            raise e
+
+class OpenAIProvider(LLMProvider):
+    """
+    OpenAI ChatGPT API를 사용한 구현
+    """
+    def __init__(self, model_name: str = "gpt-4o"):
+        self.model_name = model_name
+        self._setup_client()
+
+    def _setup_client(self):
+        from backend.orchestrator.auth_manager import auth_manager
+        api_key = auth_manager.get_provider_data("openai").get("key") or os.getenv("OPENAI_API_KEY")
+        if api_key:
+            self.client = AsyncOpenAI(api_key=api_key)
+        else:
+            self.client = None
+
+    async def generate(self, prompt: str) -> str:
+        if not self.client: return "OpenAI API Key가 설정되지 않았습니다."
+        if not quota_manager.can_use_provider("openai"):
+            raise RuntimeError("OpenAI 할당량이 가득 찼습니다.")
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            quota_manager.increment_usage("openai")
+            return response.choices[0].message.content
+        except Exception as e:
+            if "429" in str(e):
+                quota_manager.report_limit_reached("openai")
+            raise e
+
+    async def chat(self, messages: List[Dict[str, str]]) -> str:
+        if not self.client: return "OpenAI API Key가 설정되지 않았습니다."
+        if not quota_manager.can_use_provider("openai"):
+            raise RuntimeError("OpenAI 할당량이 가득 찼습니다.")
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages
+            )
+            quota_manager.increment_usage("openai")
+            return response.choices[0].message.content
+        except Exception as e:
+            if "429" in str(e):
+                quota_manager.report_limit_reached("openai")
+            raise e
+
+class FailoverLLMProvider(LLMProvider):
+    """
+    여러 LLM 공급자를 순차적으로 시도하는 공급자 (Gemini -> Claude -> GPT -> Ollama)
+    """
+    def __init__(self, providers: List[LLMProvider]):
+        self.providers = providers
+        self.current_index = 0
+
+    async def generate(self, prompt: str) -> str:
+        # 가용한 공급자를 찾을 때까지 순회
+        for provider in self.providers:
+            provider_name = provider.__class__.__name__.lower().replace("provider", "")
+            if quota_manager.can_use_provider(provider_name):
+                try:
+                    return await provider.generate(prompt)
+                except Exception as e:
+                    logger.error(f"Provider {provider_name} failed: {e}")
+                    continue
+        return "모든 유료 구독 및 무료 Fallback LLM 공급자가 응답에 실패했거나 할당량이 소진되었습니다."
+
+    async def chat(self, messages: List[Dict[str, str]]) -> str:
+        for i in range(self.current_index, len(self.providers)):
+            try:
+                result = await self.providers[i].chat(messages)
+                self.current_index = i
+                return result
+            except Exception as e:
+                print(f"Provider {i} failed: {e}")
+                continue
+        return "모든 LLM 공급자가 응답에 실패했습니다."

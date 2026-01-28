@@ -20,6 +20,9 @@ dependencies = [
     "python-dotenv",
     "google-auth",
     "google-auth-oauthlib",
+    "anthropic",
+    "openai",
+    "mcp",
 ]
 
 [project.scripts]

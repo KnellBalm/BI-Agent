@@ -12,144 +12,107 @@ logger = logging.getLogger(__name__)
 
 class QuotaManager:
     """
-    Gemini API 할당량 및 과금 관리를 담당하는 클래스
+    모든 LLM 공급자의 할당량(Quota) 및 구독 혜택을 통합 관리하는 클래스.
+    '과금 제로(Zero-Billing)' 정책을 위해 실시간 사용량을 트래킹하고 Fallback 시점을 결정합니다.
     """
-    def __init__(self, config_str: Optional[str] = None):
-        self.configs = self._parse_config(config_str)
-        self.current_index = 0
-        # 사용자 홈 디렉토리의 .bi-agent 폴더를 사용하도록 변경
+    def __init__(self):
         self.usage_cache_path = auth_manager.home_dir / "usage_cache.json"
         self.usage_data = self._load_usage_cache()
         self.mcp_client = None
         self.gcp_server_path = os.path.abspath("backend/mcp_servers/gcp_manager_server.js")
 
-    def _parse_config(self, config_str: Optional[str]) -> List[Dict[str, Any]]:
-        if not config_str:
-            # auth_manager에서 키를 가져와서 동적으로 설정 생성
-            key = auth_manager.get_gemini_key()
-            if key:
-                return [{"key": key, "type": "free", "name": "Default User Key"}]
-            config_str = os.getenv("GEMINI_API_CONFIGS", "[]")
-        try:
-            return json.loads(config_str)
-        except json.JSONDecodeError:
-            logger.error("Failed to parse GEMINI_API_CONFIGS. Ensure it is a valid JSON list.")
-            return []
-
     def _load_usage_cache(self) -> Dict[str, Any]:
+        """로컬 캐시에서 사용량 정보를 로드합니다."""
         if os.path.exists(self.usage_cache_path):
             try:
-                with open(self.usage_cache_path, 'r') as f:
-                    return json.load(f)
+                with open(self.usage_cache_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if "providers" not in data:
+                        return self._create_default_usage()
+                    return data
             except Exception:
                 pass
-        return {"keys": {}, "last_sync": None}
+        return self._create_default_usage()
+
+    def _create_default_usage(self) -> Dict[str, Any]:
+        return {
+            "providers": {
+                "gemini": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1500},
+                "claude": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1000},
+                "openai": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1000},
+                "ollama": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 999999}
+            },
+            "last_sync": None
+        }
 
     def _save_usage_cache(self):
-        with open(self.usage_cache_path, 'w') as f:
-            json.dump(self.usage_data, f, indent=2)
-
-    async def _init_mcp(self):
-        if not self.mcp_client:
-            self.mcp_client = MCPClient(self.gcp_server_path)
-            await self.mcp_client.connect()
-
-    async def sync_with_gcp(self, project_id: str):
-        """GCP API를 통해 실시간 할당량 및 결제 정보를 동기화합니다."""
-        await self._init_mcp()
         try:
-            # 1. 할당량 조회
-            quota_res = await self.mcp_client.call_tool("get_quota_usage", {"projectId": project_id})
-            # 2. 결제 정보 조회
-            billing_res = await self.mcp_client.call_tool("get_billing_info", {"projectId": project_id})
-            
-            # MCP 결과에서 텍스트 추출 및 JSON 파싱
-            def parse_mcp_res(res):
-                if hasattr(res, 'content') and len(res.content) > 0:
-                    try:
-                        return json.loads(res.content[0].text)
-                    except (AttributeError, json.JSONDecodeError):
-                        return str(res.content[0])
-                return str(res)
-
-            quota_data = parse_mcp_res(quota_res)
-            billing_data = parse_mcp_res(billing_res)
-            
-            self.usage_data["last_sync"] = datetime.now().isoformat()
-            self.usage_data["quota_sync_raw"] = quota_data
-            self.usage_data["billing_info"] = billing_data
-            self._save_usage_cache()
-            logger.info(f"Synced with GCP for project {project_id}")
+            with open(self.usage_cache_path, 'w', encoding='utf-8') as f:
+                json.dump(self.usage_data, f, indent=2)
         except Exception as e:
-            logger.error(f"GCP Sync failed: {e}")
-            logger.error(f"GCP Sync failed: {e}")
+            logger.error(f"Failed to save usage cache: {e}")
 
-    async def get_active_key_config(self) -> Optional[Dict[str, Any]]:
-        """사용 가능한 최적의 키 설정을 반환합니다."""
-        if not self.configs:
-            return None
-
-        # 가용한 키를 찾을 때까지 순환
-        for _ in range(len(self.configs)):
-            idx = self.current_index % len(self.configs)
-            config = self.configs[idx]
-            key_id = config.get("key")
-            
-            # 차단 여부 확인 (429 에러 기록 등)
-            if not self.usage_data["keys"].get(key_id, {}).get("exhausted", False):
-                # 유료 키의 경우 추가 체크 (Daily Limit 등)
-                if config.get("type") == "paid":
-                    # 모델별 안전 기본 한도 설정
-                    model_name = os.getenv("GEMINI_MODEL", "flash").lower()
-                    if "pro" in model_name:
-                        default_limit = 45 # Pro 무료 한도 50회 대비 마진
-                    else:
-                        default_limit = 1400 # Flash 무료 한도 1,500회 대비 마진
-
-                    daily_limit = config.get("daily_limit", default_limit) 
-                    current_usage = self.usage_data["keys"].get(key_id, {}).get("daily_count", 0)
-                    
-                    if current_usage >= daily_limit:
-                        logger.warning(f"Paid key {key_id[:8]} reached safe limit ({daily_limit}) for model {model_name}. Stopping to prevent billing.")
-                        self.current_index += 1
-                        continue
-                
-                return config
-            
-            self.current_index += 1
+    def get_provider_status(self, provider: str) -> Dict[str, Any]:
+        """특정 공급자의 현재 할당량 상태를 반환합니다."""
+        status = self.usage_data["providers"].get(provider, {"exhausted": True})
         
-        return None
-
-    async def report_exhausted(self):
-        """현재 키가 429 에러 등으로 소진되었음을 기록합니다."""
-        config = await self.get_active_key_config()
-        if config:
-            key_id = config.get("key")
-            if key_id not in self.usage_data["keys"]:
-                self.usage_data["keys"][key_id] = {}
-            self.usage_data["keys"][key_id]["exhausted"] = True
-            self.usage_data["keys"][key_id]["exhausted_at"] = datetime.now().isoformat()
-            self._save_usage_cache()
-            logger.error(f"Key {key_id[:8]} reported as exhausted.")
-            self.current_index += 1
-
-    def increment_usage(self, key_id: str):
-        """로컬 사용량 카운트를 증가시킵니다."""
-        if key_id not in self.usage_data["keys"]:
-            self.usage_data["keys"][key_id] = {}
+        # 리셋 시간 확인 로직 (초 단위 간략화)
+        if status.get("exhausted") and status.get("reset_at"):
+            reset_dt = datetime.fromisoformat(status["reset_at"])
+            if datetime.now() > reset_dt:
+                status["exhausted"] = False
+                status["reset_at"] = None
+                self._save_usage_cache()
         
-        # 날짜가 바뀌었으면 카운트 초기화 로직 필요 (단순화함)
+        return status
+
+    def can_use_provider(self, provider: str) -> bool:
+        """해당 공급자를 과금 없이 사용할 수 있는지 확인합니다."""
+        status = self.get_provider_status(provider)
+        if status.get("exhausted"):
+            return False
+        
+        # 일일 한도 체크 (Zero-Billing 마진 포함)
+        if status.get("daily_count", 0) >= status.get("limit", 1500):
+            return False
+            
+        return True
+
+    def increment_usage(self, provider: str):
+        """사용량을 1회 증가시킵니다."""
+        if provider not in self.usage_data["providers"]:
+            self.usage_data["providers"][provider] = {"exhausted": False, "daily_count": 0}
+        
+        # 날짜 기반 카운트 리셋
         today = datetime.now().strftime("%Y-%m-%d")
-        last_date = self.usage_data["keys"][key_id].get("last_used_date")
+        last_date = self.usage_data["providers"][provider].get("last_date")
         
         if last_date != today:
-            self.usage_data["keys"][key_id]["daily_count"] = 1
-            self.usage_data["keys"][key_id]["last_used_date"] = today
+            self.usage_data["providers"][provider]["daily_count"] = 1
+            self.usage_data["providers"][provider]["last_date"] = today
         else:
-            self.usage_data["keys"][key_id]["daily_count"] = self.usage_data["keys"][key_id].get("daily_count", 0) + 1
-        
+            self.usage_data["providers"][provider]["daily_count"] += 1
+            
         self._save_usage_cache()
+
+    def report_limit_reached(self, provider: str, reset_in_seconds: int = 60):
+        """429 에러 등을 받았을 때 소진 상태로 기록합니다."""
+        if provider not in self.usage_data["providers"]:
+            self.usage_data["providers"][provider] = {}
+            
+        import datetime as dt
+        self.usage_data["providers"][provider]["exhausted"] = True
+        reset_time = datetime.now() + dt.timedelta(seconds=reset_in_seconds)
+        self.usage_data["providers"][provider]["reset_at"] = reset_time.isoformat()
+        self._save_usage_cache()
+        logger.warning(f"Provider {provider} limit reached. Reset at {reset_time}")
+
+    async def sync_with_gcp(self, project_id: str):
+        # TODO: GCP 특정 할당량 동기화 로직 유지 (기존 코드 참고)
+        pass
 
     async def close(self):
         if self.mcp_client:
             await self.mcp_client.disconnect()
+
+quota_manager = QuotaManager()

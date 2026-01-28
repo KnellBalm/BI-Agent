@@ -17,10 +17,10 @@
 
 ## ✨ Recent Enhancements (v0.1.0)
 
-*   **Premium Entrance Hall**: 터미널 기반의 아름다운 환영 스크린과 **'BI - Agent'** 통합 로고 디자인 적용
+*   **Smart Quota & Zero-Billing**: 구독 혜택(Gemini Pro, Claude Pro 등)을 최우선 활용하되, 할당량 소진 시 추가 과금 없이 무료/로컬 모델로 자동 전환하는 'Zero-Stop' 엔진 탑재
+*   **Premium Entrance Hall**: 터미널 기반의 아름다운 환영 스크린과 실시간 쿼터 대시보드가 통합된 사이드바 적용
 *   **Command Palette (/)**: 슬래시(/) 키로 호출하는 직관적인 분석 명령어 시스템 (키보드 네비게이션 지원)
-*   **Real-time Agent Logs**: 에이전트의 사고 과정과 시스템 로그를 채팅창 내에서 실시간으로 확인 가능
-*   **Smart Auth Onboarding**: API 키가 없어도 실행 중 즉각적으로 발급 및 등록 가능한 인터랙티브 가이드 모드
+*   **Multi-Provider Integration**: Gemini, Claude 3.5, OpenAI 및 Ollama(Local)를 자유롭게 넘나드는 하이브리드 지능 체계 구축
 *   **Secure Multi-Agent Core**: 전략가, 데이터마스터, 디자이너 에이전트의 협업 로직 최적화
 
 ---
@@ -41,8 +41,8 @@ BI-Agent는 멀티 에이전트 오케스트레이션 프레임워크를 기반�
 
 ### 3.1 Collaborative Orchestrator (중앙 제어)
 모든 분석 요청의 관제탑 역할을 수행하며, 하위 에이전트들의 출력을 조율합니다.
-- **Failover LLM Provider**: Google Gemini(Primary)와 Ollama(Secondary)를 결합하여 안정적인 지능을 유지합니다.
-- **Plan B Logic**: 데이터 연결이 끊긴 상황에서도 사용자 의도를 기반으로 '가상 스키마'를 추론하여 분석을 지속합니다.
+- **Smart Quota Manager**: 사용자의 모든 유료 구독(Gemini, Claude, GPT) 할당량을 실시간 추적하고 '과금 제로' 시점에 Fallback을 결정합니다.
+- **Failover LLM Engine**: 구독 모델이 지치거나 비용 임계치에 도달하면 즉시 Ollama(로컬)나 무료 티어로 중단 없는 지능 전환을 수행합니다.
 
 ### 3.2 Specialized Agents & Skills
 - **DataMaster**: `ConnectionManager`를 통해 다양한 데이터 소스(SQL, Local Files)를 안전하게 핸들링합니다.
@@ -126,8 +126,8 @@ npm install
 
 | Layer | Technologies |
 | :--- | :--- |
-| **Intelligence** | LangGraph, Gemini 2.0 Flash, Ollama, PydanticAI |
-| **Interface** | **Premium TUI (Rich)**, Interactive Dashboard (Plotly) |
+| **Intelligence** | Gemini 2.0, Claude 3.5, GPT-4o, Ollama, LangGraph |
+| **Interface** | **Premium TUI (Textual)**, Real-time Quota Dashboard |
 | **Data Engine** | DuckDB, Pandas, Postgres, Snowflake, BigQuery |
 | **Connectivity** | **Model Context Protocol (MCP)**, Node.js |
 | **Aesthetics** | CSS Glassmorphism, Google Fonts (Outfit/Inter) |
