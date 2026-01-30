@@ -6,8 +6,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from textual.app import App, ComposeResult
-from textual.containers import Vertical, Horizontal, Container
-from textual.widgets import Label, Input, ListView, ListItem, Static, Header, Footer, DataTable, RichLog, OptionList
+from textual.containers import Vertical, Horizontal, Container, VerticalScroll
+from textual.widgets import Label, Input, ListView, ListItem, Static, Header, Footer, DataTable, RichLog, OptionList, Button
+from textual.widgets.option_list import Option
 from textual.screen import ModalScreen
 from textual.binding import Binding
 
@@ -15,82 +16,258 @@ from backend.orchestrator.auth_manager import auth_manager
 from backend.orchestrator.quota_manager import quota_manager
 from backend.utils.logger_setup import setup_logger
 from backend.utils.path_config import path_manager
+from backend.orchestrator.hud_statusline import HUDStatusLine
+from backend.orchestrator.message_components import (
+    MessageBubble, 
+    ThinkingPanel, 
+    StreamingMessageView,
+    ToolActivityTracker
+)
 
 # Initialize localized logger
 logger = setup_logger("tui", "tui.log")
 
 class AuthScreen(ModalScreen):
     """
-    환영 메시지와 함께 API 키 설정을 유도하는 모달 스크린
+    LLM Provider 설정 안내 화면 (CLI-style)
+    사용자에게 환경변수 또는 credentials.json 파일로 API 키를 설정하는 방법을 안내합니다.
     """
-    def compose(self) -> ComposeResult:
-        with Vertical(id="auth-modal"):
-            yield Label("[bold white]B I  -  A G E N T  Multi-LLM Auth[/bold white]\n", id="auth-title")
-            yield Label("에이전트 구동을 위해 다음 중 하나 이상의 계정 연동이 필요합니다.\n")
-            yield Label("• [cyan]Gemini (Pro 구독 권장)[/cyan]: AI Studio Key")
-            yield Label("• [cyan]Claude 3.5[/cyan]: Anthropic API Key")
-            yield Label("• [cyan]ChatGPT[/cyan]: OpenAI API Key\n")
-            
-            with Horizontal(id="auth-buttons"):
-                yield Static("[bold green] 🔑 [1] Gemini/Google [/bold green]", id="btn-gemini")
-                yield Static("   ")
-                yield Static("[bold blue] 🤖 [2] Claude [/bold blue]", id="btn-claude")
-                yield Static("   ")
-                yield Static("[bold magenta] 💡 [3] ChatGPT [/bold magenta]", id="btn-openai")
-            
-            yield Input(id="key-input", placeholder="API Key 입력...", password=True)
-            yield Label("\n[dim]※ 입력한 키는 credentials.json 에 안전하게 보관됩니다.[/dim]")
-            yield Label("[dim]※ 환경 변수(GEMINI_API_KEY)가 설정되어 있다면 자동으로 적용됩니다.[/dim]")
     
     CSS = """
-    #auth-modal {
-        width: 60;
-        height: 25;
-        background: #1e293b;
-        border: thick #38bdf8;
-        padding: 2;
+    AuthScreen {
         align: center middle;
+        background: rgba(0, 0, 0, 0.7);
+    }
+    #auth-modal {
+        width: 70;
+        height: auto;
+        background: #1a1b1e;
+        border: solid #2d2f34;
+        padding: 2 4;
     }
     #auth-title {
-        font-size: 150%;
+        text-align: center;
+        color: #f8fafc;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    .guide-text {
+        color: #94a3b8;
+        margin: 1 0;
         text-align: center;
     }
-    #auth-buttons {
-        height: 3;
-        align: center middle;
-        margin: 1;
+    .credential-path {
+        color: #7c3aed;
+        text-style: bold italic;
+        text-align: center;
     }
-    #key-input {
-        display: none;
-        border: solid #38bdf8;
+    #provider-list {
+        height: 5;
+        margin: 1 0;
+        background: #111214;
+        border: solid #2d2f34;
     }
-    #key-input.visible {
-        display: block;
+    #detail-container {
+        height: auto;
+        margin: 1 0;
+        padding: 1 2;
+        background: #111214;
+        border-left: tall #7c3aed;
+    }
+    #api-key-container {
+        margin-top: 1;
+        border: solid #2d2f34;
+        background: #111214;
+        padding: 1;
+    }
+    #api-key-input {
+        background: #1a1b1e;
+        border: solid #404040;
+        margin-bottom: 1;
+        color: #f8fafc;
+        width: 100%;
+    }
+    #api-key-input:focus {
+        border: solid #7c3aed;
+    }
+    #save-key-btn {
+        width: 100%;
+        background: #7c3aed;
+        color: white;
+        text-style: bold;
+    }
+    #save-key-btn:hover {
+        background: #6d28d9;
     }
     """
-
-    async def on_click(self, event) -> None:
+    
+    BINDINGS = [
+        ("escape", "dismiss", "Close"),
+        ("1", "select_gemini", "Gemini"),
+        ("2", "select_claude", "Claude"),
+        ("3", "select_openai", "OpenAI"),
+    ]
+    
+    def __init__(self):
+        super().__init__()
+        self.selected_provider = None
+        logger.debug("AuthScreen initialized (CLI-style)")
+    
+    def compose(self) -> ComposeResult:
+        with Container(id="auth-modal"):
+            yield Label("LLM Provider Authentication", id="auth-title")
+            
+            yield Label("BI-Agent reads API keys automatically from your environment or config file.", classes="guide-text")
+            yield Label(f"Config: ~/.bi-agent/credentials.json", classes="credential-path")
+            
+            yield OptionList(
+                Option("🔑 Gemini (Google)", id="gemini"),
+                Option("🤖 Claude (Anthropic)", id="claude"),
+                Option("💡 ChatGPT (OpenAI)", id="openai"),
+                id="provider-list"
+            )
+            
+            yield Container(id="detail-container")
+            
+            with Vertical(id="api-key-container"):
+                yield Label("[dim]Enter API Key manually:[/dim]")
+                yield Input(id="api-key-input", placeholder="Paste your API key here...", password=True)
+                yield Button("Save & Authenticate", id="save-key-btn")
+            
+            yield Label("\n[dim]Press ESC to skip if already configured.[/dim]", classes="guide-text")
+    
+    def on_mount(self) -> None:
+        """화면 마운트 시 첫 번째 항목 선택"""
+        logger.info("AuthScreen mounted - showing setup instructions")
+        option_list = self.query_one("#provider-list", OptionList)
+        option_list.focus()
+    
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        """사용자가 공급자를 선택했을 때 상세 안내 표시"""
+        provider = event.option.id
+        logger.info(f"User selected provider: {provider}")
+        self.selected_provider = provider
+        self._show_provider_details(provider)
+    
+    def _show_provider_details(self, provider: str) -> None:
+        """선택한 공급자의 상세 설정 방법 표시"""
         try:
-            self.current_provider = None
-            if event.node.id == "btn-gemini":
-                self.current_provider = "gemini"
-                await auth_manager.login_with_google_oauth()
-            elif event.node.id == "btn-claude":
-                self.current_provider = "claude"
-            elif event.node.id == "btn-openai":
-                self.current_provider = "openai"
-                
-            if self.current_provider:
-                self.query_one("#key-input", Input).add_class("visible")
-                self.query_one("#key-input", Input).focus()
+            detail_container = self.query_one("#detail-container", Container)
+            detail_container.remove_children()
+            
+            details = {
+                "gemini": {
+                    "name": "Gemini (Google AI Studio)",
+                    "env_var": "GEMINI_API_KEY",
+                    "api_url": "https://aistudio.google.com/app/apikey",
+                    "cred_key": "gemini"
+                },
+                "claude": {
+                    "name": "Claude (Anthropic)",
+                    "env_var": "ANTHROPIC_API_KEY",
+                    "api_url": "https://console.anthropic.com/",
+                    "cred_key": "claude"
+                },
+                "openai": {
+                    "name": "ChatGPT (OpenAI)",
+                    "env_var": "OPENAI_API_KEY",
+                    "api_url": "https://platform.openai.com/api-keys",
+                    "cred_key": "openai"
+                }
+            }
+            
+            info = details[provider]
+            
+            # compose() 외부에서는 with 구문 대신 직접 mount 호출
+            detail_container.mount(Label(f"[bold cyan]{info['name']} 설정 방법[/bold cyan]"))
+            detail_container.mount(Label(""))
+            detail_container.mount(Label(f"[bold]방법 1: 환경변수 설정[/bold]"))
+            detail_container.mount(Label(f"  export {info['env_var']}=\"your-api-key-here\""))
+            detail_container.mount(Label(""))
+            detail_container.mount(Label(f"[bold]방법 2: credentials.json 파일 편집[/bold]"))
+            detail_container.mount(Label(f"  파일: ~/.bi-agent/credentials.json"))
+            detail_container.mount(Label(f'  {{"providers": {{"{info['cred_key']}": {{"key": "your-api-key-here"}}}}}}'))
+            detail_container.mount(Label(""))
+            detail_container.mount(Label(f"[bold]API 키 발급:[/bold] {info['api_url']}", classes="api-link"))
+            
+            logger.debug(f"Displayed setup details for {provider}")
         except Exception as e:
-            logger.error(f"Error in AuthScreen click: {e}")
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        key = event.value.strip()
-        if key and self.current_provider:
-            auth_manager.set_provider_key(self.current_provider, key)
-            self.dismiss(True)
+            logger.error(f"Error showing provider details: {e}", exc_info=True)
+    
+    def action_select_gemini(self) -> None:
+        """숫자 키 1로 Gemini 선택"""
+        option_list = self.query_one("#provider-list", OptionList)
+        option_list.highlighted = 0
+        option_list.action_select()
+    
+    def action_select_claude(self) -> None:
+        """숫자 키 2로 Claude 선택"""
+        option_list = self.query_one("#provider-list", OptionList)
+        option_list.highlighted = 1
+        option_list.action_select()
+    
+    def action_select_openai(self) -> None:
+        """숫자 키 3로 OpenAI 선택"""
+        option_list = self.query_one("#provider-list", OptionList)
+        option_list.highlighted = 2
+        option_list.action_select()
+    
+    def action_dismiss(self) -> None:
+        """ESC 키로 모달 닫기"""
+        logger.info("AuthScreen dismissed by user")
+        self.dismiss(False)
+    
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """API 키 저장 버튼 클릭"""
+        if event.button.id == "save-key-btn":
+            self._save_api_key()
+    
+    def _save_api_key(self) -> None:
+        """입력된 API 키를 credentials.json에 저장"""
+        if not self.selected_provider:
+            self.notify("먼저 LLM 공급자를 선택해주세요!", severity="warning")
+            return
+        
+        api_key_input = self.query_one("#api-key-input", Input)
+        api_key = api_key_input.value.strip()
+        
+        if not api_key:
+            self.notify("API 키를 입력해주세요!", severity="warning")
+            return
+        
+        try:
+            # credentials.json 파일 경로
+            creds_path = path_manager.home_dir / "credentials.json"
+            
+            # 기존 credentials 읽기 또는 새로 생성
+            if creds_path.exists():
+                with open(creds_path, 'r', encoding='utf-8') as f:
+                    credentials = json.load(f)
+            else:
+                credentials = {"providers": {}}
+            
+            # API 키 저장
+            if "providers" not in credentials:
+                credentials["providers"] = {}
+            
+            credentials["providers"][self.selected_provider] = {"key": api_key}
+            
+            # 파일에 저장
+            with open(creds_path, 'w', encoding='utf-8') as f:
+                json.dump(credentials, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"API key saved for {self.selected_provider}")
+            self.notify(f"✅ {self.selected_provider.capitalize()} API 키가 저장되었습니다!", severity="information")
+            
+            # 입력 필드 초기화
+            api_key_input.value = ""
+            
+            # auth_manager에 즉시 반영
+            auth_manager.load_credentials()
+            
+        except Exception as e:
+            logger.error(f"Error saving API key: {e}", exc_info=True)
+            self.notify(f"❌ API 키 저장 실패: {e}", severity="error")
 
 class ProjectScreen(ModalScreen):
     """
@@ -119,7 +296,6 @@ class ProjectScreen(ModalScreen):
         align: center middle;
     }
     #project-title {
-        font-size: 150%;
         text-align: center;
         margin-bottom: 1;
     }
@@ -166,76 +342,71 @@ class BI_AgentConsole(App):
     """
     CSS = """
     Screen {
-        background: #0f172a;
+        background: #0c0c0e;
     }
     #main-container {
         width: 100%;
         height: 100%;
     }
-    #logo-banner {
-        width: 100%;
-        height: 6;
-        content-align: center middle;
-        text-style: bold;
-        color: #38bdf8;
-        background: #1e293b;
-        border-bottom: tall #334155;
-    }
     #content-area {
         height: 1fr;
     }
     #chat-area {
-        width: 70%;
+        width: 100%;
         height: 100%;
-        border-right: vertical #334155;
-    }
-    #status-sidebar {
-        width: 30%;
-        height: 100%;
-        background: #1e293b;
-        padding: 1 2;
     }
     #chat-log {
         height: 1fr;
         border: none;
-        background: #0f172a;
+        background: #0c0c0e;
+        padding: 1 2;
     }
     #input-bar {
-        height: 3;
+        height: auto;
         margin: 0 1;
-        background: #1e293b;
-        border: solid #38bdf8;
+        background: #0c0c0e;
+        border-top: solid #21262d;
+        layout: vertical;
+    }
+    #command-menu {
+        height: auto;
+        max-height: 8;
+        background: #161b22;
+        border: solid #30363d;
+        display: none;
+        margin: 0 4;
+        padding: 0 0;
+    }
+    #command-menu.visible {
+        display: block;
+    }
+    #command-menu > .option-list--option {
+        padding: 0 1;
+    }
+    #command-menu > .option-list--option-highlighted {
+        background: #7c3aed;
+        color: #f8fafc;
+    }
+    #input-container {
+        height: 3;
+        layout: horizontal;
+    }
+    #input-bar:focus-within {
+        border-top: solid #7c3aed;
+    }
+    #input-prompt {
+        color: #7c3aed;
+        padding: 0 1;
+        text-style: bold;
     }
     Input {
         background: transparent;
         border: none;
         width: 100%;
-    }
-    .status-title {
-        text-style: bold;
-        color: #38bdf8;
-        margin-top: 1;
-    }
-    .skill-item {
-        color: #94a3b8;
-        margin-left: 2;
-    }
-    .skill-active {
-        color: #10b981;
+        color: #f8fafc;
     }
     #command-palette {
-        width: 40;
-        height: 12;
-        background: #1e293b;
-        border: thick #38bdf8;
         display: none;
-        layer: top;
-        position: absolute;
-        bottom: 4;
-        left: 2;
-    }
-    #command-palette.visible {
-        display: block;
     }
     """
 
@@ -264,57 +435,52 @@ class BI_AgentConsole(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Vertical(id="main-container"):
-            yield Static(
-                "\n[bold cyan] ⚡ BI - AGENT [/bold cyan]\n" +
-                "[dim] Advanced Analyst Co-pilot Interface [/dim]",
-                id="logo-banner"
-            )
             with Horizontal(id="content-area"):
                 with Vertical(id="chat-area"):
-                    yield RichLog(id="chat-log", markup=True, wrap=True)
-                    yield OptionList(
-                        "📈 /analyze - 스마트 데이터 분석",
-                        "🔗 /connect - 데이터 소스 연결 관리",
-                        "📂 /project - 프로젝트 전환 및 생성",
-                        "🔑 /login   - LLM 계정 설정 및 인증",
-                        "📄 /report  - 최신 리포트 보기",
-                        "❓ /help    - 에이전트 사용 가이드",
-                        id="command-palette"
-                    )
-                    with Horizontal(id="input-bar"):
-                        yield Input(id="user-input", placeholder="무엇을 도와드릴까요? (/를 입력하여 명령어 탐색)")
-                
-                with Vertical(id="status-sidebar"):
-                    yield Label("S Y S T E M  S T A T U S", classes="status-title")
-                    yield Label(f"• Project: [cyan]{self.current_project}[/cyan]", id="lbl-project")
-                    yield Label("• Auth: [yellow]Checking...[/yellow]", id="lbl-auth")
+                    yield VerticalScroll(id="chat-log")
                     
-                    yield Label("\nS K I L L S  (Active)", classes="status-title")
-                    yield Label("• [green]✔[/green] Data Source Agent", classes="skill-item")
-                    yield Label("• [green]✔[/green] BI Tool Agent", classes="skill-item")
-                    yield Label("• [green]✔[/green] Insight Agent", classes="skill-item")
-                    
-                    yield Label("\nQ U O T A  S T A T U S", classes="status-title")
-                    yield Static("[dim]할당량 정보를 불러오는 중...[/dim]", id="lbl-quota")
-                    
-                    yield Label("\nC O N N E C T I O N S", classes="status-title")
-                    yield Static("[dim]연결된 소스가 없습니다.[/dim]", id="lbl-connections")
-                    
-                    yield Label("\n[dim]Press [b]Ctrl+L[/b] to clear chat[/dim]")
+                    with Vertical(id="input-bar"):
+                        yield OptionList(
+                            Option("/analyze   [dim]데이터 심층 분석[/dim]", id="analyze"),
+                            Option("/explore   [dim]데이터 탐색[/dim]", id="explore"),
+                            Option("/connect   [dim]소스 연결[/dim]", id="connect"),
+                            Option("/project   [dim]프로젝트 전환[/dim]", id="project"),
+                            Option("/login     [dim]LLM 인증[/dim]", id="login"),
+                            Option("/help      [dim]도움말[/dim]", id="help"),
+                            id="command-menu"
+                        )
+                        with Horizontal(id="input-container"):
+                            yield Label("❯", id="input-prompt")
+                            yield Input(id="user-input", placeholder="Type a command or ask a question... (Type / to select)")
         yield Footer()
 
     async def on_mount(self) -> None:
-        self.title = "BI-Agent Analyst Co-pilot"
+        self.title = "BI-Agent Terminal"
         
-        chat_log = self.query_one("#chat-log", RichLog)
+        # 채팅 로그를 VerticalScroll로 가져오기
+        chat_log = self.query_one("#chat-log", VerticalScroll)
 
-        # Show initial greeting
-        chat_log.write("\n" + " " * 4 + "[bold cyan]Welcome to BI-Agent Entrance Hall[/bold cyan]")
-        chat_log.write(" " * 4 + "[dim]분석가의 생산성을 3배 이상 높이는 지능형 조수입니다.[/dim]\n")
+        # 환영 메시지 및 배너 표시
+        banner_art = (
+            "\n"
+            "[bold #7c3aed]   ╔═══════════════════════════════════════╗[/bold #7c3aed]\n"
+            "[bold #7c3aed]   ║         ⚡ BI-AGENT TERMINAL          ║[/bold #7c3aed]\n"
+            "[bold #7c3aed]   ║   Advanced Autonomous BI Co-pilot     ║[/bold #7c3aed]\n"
+            "[bold #7c3aed]   ╚═══════════════════════════════════════╝[/bold #7c3aed]\n"
+            "\n"
+            "[dim]Welcome back. Everything is ready for analysis.[/dim]\n"
+            "[dim]Type [b]/help[/b] to see available commands.[/dim]\n"
+        )
+        welcome_msg = MessageBubble(
+            role="system",
+            content=banner_art
+        )
+        chat_log.mount(welcome_msg)
         
-        # Initial checks
-        self.call_after_refresh(self._update_sidebar)
-        logger.info("TUI mounted successfully.")
+        # 입력 필드에 자동 포커스
+        self.set_focus(self.query_one("#user-input", Input))
+        
+        logger.info("Terminal TUI mounted successfully.")
 
     async def _update_sidebar(self) -> None:
         """Update the sidebar status information."""
@@ -326,16 +492,38 @@ class BI_AgentConsole(App):
             auth_lbl.update("• Auth: [red]✘ Login Required[/red]")
             self.push_screen(AuthScreen())
 
-        # Quota status
+        # Quota status - 시각화 향상
         quota_lbl = self.query_one("#lbl-quota", Static)
         quota_text = ""
         for p in ["gemini", "claude", "openai", "ollama"]:
             status = quota_manager.get_provider_status(p)
-            color = "green" if not status.get("exhausted") else "red"
-            emoji = "💎" if p == "gemini" else "🤖" if p == "claude" else "💡" if p == "openai" else "🏠"
+            is_exhausted = status.get("exhausted", False)
             
-            usage_str = f"{status.get('daily_count', 0)}/{status.get('limit', '∞')}"
-            quota_text += f"• {emoji} {p.capitalize()}: [{color}]{usage_str}[/{color}]\n"
+            usage = status.get('daily_count', 0)
+            limit = status.get('limit', 1500)
+            
+            # 시각적 프로그레스 바
+            if limit != "∞" and isinstance(limit, int):
+                percent = min(100, int((usage / limit) * 100))
+                bar_len = 15
+                filled = int(percent / 100 * bar_len)
+                bar = "━" * filled + "─" * (bar_len - filled)
+                
+                # 컬러 코딩
+                if percent < 50:
+                    color = "green"
+                elif percent < 80:
+                    color = "yellow"
+                else:
+                    color = "red"
+                
+                # 이모지
+                emoji = "💎" if p == "gemini" else "🤖" if p == "claude" else "💡" if p == "openai" else "🏠"
+                
+                quota_text += f"{emoji} [{color}]{bar}[/{color}] {usage}/{limit} ({percent}%)\n"
+            else:
+                emoji = "💎" if p == "gemini" else "🤖" if p == "claude" else "💡" if p == "openai" else "🏠"
+                quota_text += f"{emoji} {p.capitalize()}: {usage}/∞\n"
         
         quota_lbl.update(quota_text.strip())
 
@@ -352,46 +540,153 @@ class BI_AgentConsole(App):
 
         # Schedule next update
         self.set_timer(10, self._update_sidebar)
+    
+    async def _update_hud(self) -> None:
+        """현재 모델 및 컬텍스트 상태로 HUD 업데이트"""
+        try:
+            hud = self.query_one("#hud-status", HUDStatusLine)
+            
+            # 현재 모델 확인 (가장 먼저 인증된 모델)
+            if auth_manager.is_authenticated("gemini"):
+                hud.update_model("Gemini 2.0 Flash")
+            elif auth_manager.is_authenticated("claude"):
+                hud.update_model("Claude 3.5 Sonnet")
+            elif auth_manager.is_authenticated("openai"):
+                hud.update_model("GPT-4o")
+            else:
+                hud.update_model("Ollama")
+            
+            # 컬텍스트 사용률 시뮬레이션 (실제로는 LLM API에서 가져와야 함)
+            # 여기서는 예시로 20%로 설정
+            hud.update_context(20.0)
+            
+            # 10초마다 업데이트
+            self.set_timer(10, self._update_hud)
+        except Exception as e:
+            logger.error(f"Error updating HUD: {e}")
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Detect slash to show command palette."""
-        palette = self.query_one("#command-palette", OptionList)
-        if event.value == "/":
-            palette.add_class("visible")
+        """슬래시(/) 입력 시 세로 메뉴 표시 및 키보드 네비게이션 준비"""
+        menu = self.query_one("#command-menu", OptionList)
+        if event.value.startswith("/"):
+            menu.add_class("visible")
             self.palette_visible = True
-            logger.debug("Slash detected, showing palette.")
-        elif not event.value.startswith("/"):
-            palette.remove_class("visible")
+            # 첫 번째 항목 선택
+            if menu.option_count > 0:
+                menu.highlighted = 0
+        else:
+            menu.remove_class("visible")
             self.palette_visible = False
 
     def on_key(self, event) -> None:
-        """Handle global keys for palette navigation."""
-        if self.palette_visible and event.key == "down":
-            inp = self.query_one("#user-input", Input)
-            if inp.has_focus:
-                palette = self.query_one("#command-palette", OptionList)
-                palette.focus()
+        """Handle global keys for menu navigation and Tab autocomplete."""
+        menu = self.query_one("#command-menu", OptionList)
+        user_input = self.query_one("#user-input", Input)
+        
+        # Tab 자동완성: 입력값이 /로 시작하면 일치하는 명령어 자동완성
+        if event.key == "tab" and user_input.has_focus:
+            current_text = user_input.value.strip()
+            if current_text.startswith("/"):
+                commands = ["analyze", "explore", "connect", "project", "login", "help"]
+                prefix = current_text[1:].lower()  # / 제거
+                
+                # 접두사와 일치하는 명령어 찾기
+                matches = [cmd for cmd in commands if cmd.startswith(prefix)]
+                
+                if len(matches) == 1:
+                    # 정확히 하나만 일치하면 자동완성
+                    user_input.value = "/" + matches[0]
+                    user_input.cursor_position = len(user_input.value)
+                elif len(matches) > 1:
+                    # 여러 개 일치하면 공통 접두사까지 완성
+                    common = matches[0]
+                    for m in matches[1:]:
+                        while not m.startswith(common):
+                            common = common[:-1]
+                    if len(common) > len(prefix):
+                        user_input.value = "/" + common
+                        user_input.cursor_position = len(user_input.value)
+                
                 event.prevent_default()
+                return
+        
+        if self.palette_visible and user_input.has_focus:
+            if event.key == "escape":
+                menu.remove_class("visible")
+                self.palette_visible = False
+                event.prevent_default()
+            elif event.key == "up":
+                # 입력창에서 메뉴 항목 위로 이동
+                if menu.highlighted is not None and menu.highlighted > 0:
+                    menu.highlighted -= 1
+                event.prevent_default()
+            elif event.key == "down":
+                # 입력창에서 메뉴 항목 아래로 이동
+                if menu.highlighted is not None and menu.highlighted < menu.option_count - 1:
+                    menu.highlighted += 1
+                event.prevent_default()
+            elif event.key == "enter":
+                # 메뉴에서 선택된 항목 실행
+                if menu.highlighted is not None:
+                    option = menu.get_option_at_index(menu.highlighted)
+                    if option and option.id:
+                        command_map = {
+                            "analyze": "/analyze",
+                            "explore": "/explore",
+                            "connect": "/connect",
+                            "project": "/project",
+                            "login": "/login",
+                            "help": "/help"
+                        }
+                        cmd = command_map.get(option.id, "/" + option.id)
+                        user_input.value = ""
+                        menu.remove_class("visible")
+                        self.palette_visible = False
+                        import asyncio
+                        asyncio.create_task(self.handle_command(cmd))
+                        event.prevent_default()
 
     def action_hide_palette(self) -> None:
-        """Force hide the palette."""
-        palette = self.query_one("#command-palette", OptionList)
-        palette.remove_class("visible")
+        """Force hide the menu."""
+        menu = self.query_one("#command-menu", OptionList)
+        menu.remove_class("visible")
         self.palette_visible = False
         self.query_one("#user-input", Input).focus()
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        """Handle command selection from palette."""
-        prompt = str(event.option.prompt)
-        # Extract command part (e.g., "/login")
-        import re
-        match = re.search(r"(/[a-z]+)", prompt)
-        if match:
-            cmd = match.group(1)
-            inp = self.query_one("#user-input", Input)
-            inp.value = cmd + " "
-            self.action_hide_palette()
-            inp.focus()
+        """Handle command palette selection with Enter key"""
+        # 명령 팔레트 이벤트가 아닌 경우(예: AuthScreen의 OptionList) 무시
+        if event.option_list.id != "command-palette":
+            return
+            
+        import asyncio
+        palette = self.query_one("#command-palette", OptionList)
+        palette.remove_class("visible")
+        self.palette_visible = False
+        
+        # 선택된 명령어를 입력 필드에 설정
+        command_id = event.option.id
+        if command_id:
+            user_input = self.query_one("#user-input", Input)
+            
+            # 명령어 매핑
+            command_map = {
+                "analyze": "/analyze",
+                "explore": "/explore",
+                "connect": "/connect",
+                "project": "/project",
+                "login": "/login",
+                "report": "/report",
+                "help": "/help"
+            }
+            
+            cmd = command_map.get(command_id, "/" + command_id)
+            user_input.value = cmd
+            
+            # 입력으로 포커스 복귀 및 명령 실행
+            user_input.focus()
+            # Enter를 누른 것처럼 실행
+            asyncio.create_task(self.handle_command(cmd))
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle final input execution."""
@@ -399,9 +694,17 @@ class BI_AgentConsole(App):
         if not user_text:
             return
 
-        chat_log = self.query_one("#chat-log", RichLog)
-        chat_log.write(f"\n[bold green]You:[/bold green] {user_text}")
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        
+        # 사용자 메시지 추가
+        user_msg = MessageBubble(role="user", content=user_text)
+        chat_log.mount(user_msg)
+        chat_log.scroll_end(animate=False)
+        
         self.query_one("#user-input", Input).value = ""
+        
+        # 크래시 방지: 제거된 HUD 참조 제거
+        # (기존 hud = self.query_one("#hud-status") 부분 삭제)
         
         if user_text.startswith("/"):
             await self.handle_command(user_text)
@@ -412,32 +715,48 @@ class BI_AgentConsole(App):
         """Routing for slash commands."""
         parts = cmd_text.split()
         cmd = parts[0]
-        chat_log = self.query_one("#chat-log", RichLog)
+        chat_log = self.query_one("#chat-log", VerticalScroll)
         
         if cmd == "/connect":
-            chat_log.write("[dim]데이터 소스 관리 화면으로 전환합니다... (곧 지원 예정)[/dim]")
+            msg = MessageBubble(role="system", content="[dim]데이터 소스 관리 화면으로 전환합니다... (곧 지원 예정)[/dim]")
+            chat_log.mount(msg)
         elif cmd == "/project":
             self.action_switch_project()
         elif cmd == "/login":
-            chat_log.write("[dim]인증 및 계정 설정 화면을 엽니다...[/dim]")
+            msg = MessageBubble(role="system", content="[dim]인증 및 계정 설정 화면을 엽니다...[/dim]")
+            chat_log.mount(msg)
             self.push_screen(AuthScreen())
         elif cmd == "/analyze":
-            chat_log.write("[dim]상세 분석 모드로 전환합니다... (곧 지원 예정)[/dim]")
+            msg = MessageBubble(role="system", content="[dim]상세 분석 모드로 전환합니다... (곧 지원 예정)[/dim]")
+            chat_log.mount(msg)
+        elif cmd == "/explore":
+            msg = MessageBubble(role="system", content="[dim]데이터 탐색 모드로 전환합니다... (곧 지원 예정)[/dim]")
+            chat_log.mount(msg)
         elif cmd == "/help":
-            chat_log.write("\n[bold cyan]사용 가능한 명령어:[/bold cyan]")
-            chat_log.write("- [b]/analyze[/b]: 데이터 심층 분석 모드 실행")
-            chat_log.write("- [b]/connect[/b]: 데이터 소스 관리 및 연결 설정")
-            chat_log.write("- [b]/project[/b]: 현재 분석 프로젝트 전환")
-            chat_log.write("- [b]/login[/b]: LLM 계정 및 API Key 설정")
-            chat_log.write("- [b]/report[/b]: 생성된 리포트 센터 방문")
-            chat_log.write("- [b]/help[/b]: 이 도움말 표시\n")
+            help_content = (
+                "[bold cyan]사용 가능한 명령어:[/bold cyan]\n\n"
+                "[b]/analyze[/b]: 데이터 심층 분석 모드 실행\n"
+                "[b]/explore[/b]: 데이터 탐색 및 프로파일링\n"
+                "[b]/connect[/b]: 데이터 소스 관리 및 연결 설정\n"
+                "[b]/project[/b]: 현재 분석 프로젝트 전환\n"
+                "[b]/login[/b]: LLM 계정 및 API Key 설정\n"
+                "[b]/report[/b]: 생성된 리포트 센터 방문\n"
+                "[b]/help[/b]: 이 도움말 표시"
+            )
+            msg = MessageBubble(role="system", content=help_content)
+            chat_log.mount(msg)
         else:
-            chat_log.write(f"[red]알 수 없는 명령어입니다: {cmd}[/red]")
+            msg = MessageBubble(role="system", content=f"[red]알 수 없는 명령어입니다: {cmd}[/red]")
+            chat_log.mount(msg)
+        
+        chat_log.scroll_end(animate=False)
 
     async def process_query(self, query: str):
         """Handle natural language queries."""
-        chat_log = self.query_one("#chat-log", RichLog)
-        chat_log.write("\n[dim]분석 에이전트가 사고하는 중...[/dim]")
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        thinking_msg = MessageBubble(role="system", content="[dim]분석 에이전트가 사고하는 중...[/dim]")
+        chat_log.mount(thinking_msg)
+        chat_log.scroll_end(animate=False)
         
         try:
             # Check for active connection
@@ -469,18 +788,37 @@ class BI_AgentConsole(App):
             self.call_from_thread(self.show_response, f"에러 발생: {e}")
 
     def show_response(self, response: str):
-        chat_log = self.query_one("#chat-log", RichLog)
-        chat_log.write(f"\n[bold cyan]Agent:[/bold cyan] {response}\n")
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        agent_msg = MessageBubble(role="agent", content=response)
+        chat_log.mount(agent_msg)
+        chat_log.scroll_end(animate=False)
 
     def action_clear_chat(self) -> None:
-        self.query_one("#chat-log", RichLog).clear()
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        # 모든 자식 제거
+        chat_log.remove_children()
+        # 환영 메시지 다시 추가
+        welcome_msg = MessageBubble(
+            role="system",
+            content=(
+                "[bold cyan]어서오세요! BI-Agent Entrance Hall입니다[/bold cyan]\n"
+                "분석가의 생산성을 3배 이상 높이는 지능형 조수입니다.\n\n"
+                "[dim]명령어: /help 로 시작하거나 질문을 입력하세요.[/dim]"
+            )
+        )
+        chat_log.mount(welcome_msg)
 
     def action_switch_project(self) -> None:
         def set_project(project_name: str) -> None:
             if project_name:
-                self.current_project = project_name
-                self._init_orchestrator(project_name)
-                self.query_one("#chat-log", RichLog).write(f"\n[green]프로젝트가 '{project_name}'으로 전환되었습니다.[/green]")
+                # 프로젝트 전환 메시지
+                chat_log = self.query_one("#chat-log", VerticalScroll)
+                msg = MessageBubble(
+                    role="system",
+                    content=f"[green]Project switched to '{project_name}'.[/green]"
+                )
+                chat_log.mount(msg)
+                chat_log.scroll_end(animate=False)
 
         self.push_screen(ProjectScreen(self.current_project), set_project)
 

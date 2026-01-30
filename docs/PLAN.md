@@ -64,12 +64,14 @@ graph TD
 - [x] **Pre-flight Check**: TUI 진입 전 LLM API Key 및 필수 환경 선검증 로직 구축
 - [x] **Entrance Hall**: 환경 검사 통과 후 로고, 시스템 상태, 가이드가 포함된 홈 화면 구현
 - [x] **Smart Quota & Zero-Billing**: Gemini, Claude, OpenAI 통합 트래킹 및 과금 방지 로직 (Phase 0+ 완료)
+- [x] **SDK Modernization**: Google Gemini SDK 최신(google-genai) 마이그레이션 완료
 - [x] **Skills & Config**: 초기 프로젝트 설정 및 에이전트 기술(Skills) 활성화 상태 관리
 
 ### Phase 1: 기반 재구축 (In-Progress)
 - [ ] **Collaborative Core**: 분석가와 에이전트의 '대화형 협업'을 가능하게 하는 기초 오케스트레이터 재설계
 - [ ] **Protocol Optimization**: 에이전트 간의 정보 교환 규격(Context Passing)을 분석가 개입이 용이하도록 표준화
 - [x] **Security & Key Management**: `auth_manager` 및 `quota_manager` 안정화 및 한글 가이드 내재화 (완료)
+- [x] **TUI Rendering Fix**: 최신 Textual 버전 호환성(CSS 파싱 에러) 해결 및 UI 안정화
 - [ ] **Unified Logging**: 분석가가 에이전트의 '생각'을 실시간으로 추적할 수 있는 CoT(Chain of Thought) 로깅 기초 구축
 
 ### Phase 2: 기능 확장 및 TUI 도입 (Completed)
@@ -77,8 +79,8 @@ graph TD
 - [x] **TUI (Terminal UI) 프로토타입** 구현 (`rich` 라이브러리 활용)
 - [x] Docker 기반 MySQL 테스트 환경 최적화 및 연동 검증
 - [x] `.env.example` 및 상세 가이드 문서화 (`docs/SETUP_GUIDE.md`)
-- [x] 프로젝트 규칙(`agent-guide-lines.md`) 수립 및 버전 관리 안정화 (0.1.0)
 - [x] GitHub Actions OIDC 기반 PyPI 배포 자동화 구축
+- [x] **Competitor Benchmark**: `agentic-dashboard-ai` 조사 및 차별화 전략 수립 (추가)
 
 ### Phase 3: [MVP] 자사 BI 메타데이터 생성 (In-Progress)
 > **비전**: 분석가의 시간을 벌어주는 지능형 코파일럿 시스템 구축
@@ -95,7 +97,7 @@ graph TD
 - **데이터 연동 및 분석 (T15/T10)**:
   - [x] DB 데이터 로드 및 프로파일링 엔진 구축 (완료)
   - [ ] 자연어 인터랙션을 통한 핵심 지표(KPI) 및 피처 확정 로직
-- **자사 메타 Generator (T16)**:
+- **BI 솔루션 메타 Generator (T16)**:
   - [ ] **Schema Engine**: `suwon_pop.json` 규격에 맞춘 JSON 생성기 개발
     - `connector`: DB 연결 정보 자동 매핑
     - `datamodel`: 분석 쿼리 및 필드 별칭(Alias) 정의

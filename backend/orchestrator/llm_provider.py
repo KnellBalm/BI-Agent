@@ -1,6 +1,6 @@
 import asyncio
 import os
-import google.generativeai as genai
+from google import genai
 from abc import ABC, abstractmethod
 from typing import Any, List, Dict, Optional, Union
 import anthropic
@@ -41,10 +41,9 @@ class GeminiProvider(LLMProvider):
         # 기본 키 설정 (기존 .env 호환용)
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel(self.model_name)
+            self.client = genai.Client(api_key=api_key)
         else:
-            self.model = None
+            self.client = None
 
     async def _ensure_active_key(self) -> str:
         """할당량이 남아있는 유효한 키 또는 토큰을 확보합니다."""
@@ -57,10 +56,9 @@ class GeminiProvider(LLMProvider):
         if not api_key and not token:
              raise ValueError("계정 인증이 필요합니다. TUI 메인 화면에서 로그인을 진행해주거나 API Key를 설정해 주세요.")
 
-        # API Key 우선 사용 (현재 라이브러리 지원 한계상)
+        # API Key 우선 사용
         if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel(self.model_name)
+            self.client = genai.Client(api_key=api_key)
             return api_key
         
         # TODO: OAuth Token 사용 로직 (google-auth Credentials 객체 생성 필요)
@@ -74,7 +72,12 @@ class GeminiProvider(LLMProvider):
 
         current_key = await self._ensure_active_key()
         try:
-            response = await asyncio.to_thread(self.model.generate_content, prompt)
+            # google-genai (new SDK)는 동기/비동기 모두 지원하지만 여기선 thread 유지
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model_name,
+                contents=prompt
+            )
             quota_manager.increment_usage("gemini")
             return response.text
         except Exception as e:
@@ -90,10 +93,14 @@ class GeminiProvider(LLMProvider):
         try:
             history = []
             for msg in messages[:-1]:
-                history.append({"role": msg["role"], "parts": [msg["content"]]})
+                history.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
             
-            chat = self.model.start_chat(history=history)
-            response = await asyncio.to_thread(chat.send_message, messages[-1]["content"])
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.model_name,
+                contents=messages[-1]["content"],
+                config=genai.types.GenerateContentConfig(history=history)
+            )
             quota_manager.increment_usage("gemini")
             return response.text
         except Exception as e:

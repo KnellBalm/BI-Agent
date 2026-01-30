@@ -55,6 +55,7 @@ yarn.lock
 # Logs
 logs/
 *.log
+bi-agent-debug.log*
 
 # Database
 *.db

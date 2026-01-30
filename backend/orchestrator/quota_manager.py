@@ -37,12 +37,12 @@ class QuotaManager:
     def _create_default_usage(self) -> Dict[str, Any]:
         return {
             "providers": {
-                "gemini": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1500},
-                "claude": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1000},
-                "openai": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1000},
-                "ollama": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 999999}
+                "gemini": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 1500, "last_reset": datetime.now().isoformat()},
+                "claude": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 50, "last_reset": datetime.now().isoformat()},
+                "openai": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 100, "last_reset": datetime.now().isoformat()},
+                "ollama": {"exhausted": False, "reset_at": None, "daily_count": 0, "limit": 999999, "last_reset": datetime.now().isoformat()}
             },
-            "last_sync": None
+            "last_sync": datetime.now().isoformat()
         }
 
     def _save_usage_cache(self):

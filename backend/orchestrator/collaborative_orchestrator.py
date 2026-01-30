@@ -31,7 +31,7 @@ class CollaborativeOrchestrator:
         # Initialize LLM for Coaching & Insights
         primary = GeminiProvider()
         secondary = OllamaProvider()
-        self.llm = FailoverLLMProvider(primary, secondary)
+        self.llm = FailoverLLMProvider([primary, secondary])
         
         # Local Dashboard Generator & Packager
         self.dash_gen = DashboardGenerator(project_id)
