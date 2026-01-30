@@ -16,6 +16,9 @@ from backend.orchestrator.auth_manager import auth_manager
 from backend.orchestrator.quota_manager import quota_manager
 from backend.utils.logger_setup import setup_logger
 from backend.utils.path_config import path_manager
+from backend.utils.diagnostic_logger import diagnostic_logger
+from backend.orchestrator.error_viewer_screen import ErrorViewerScreen
+import pandas as pd
 from backend.orchestrator.hud_statusline import HUDStatusLine
 from backend.orchestrator.message_components import (
     MessageBubble, 
@@ -269,6 +272,347 @@ class AuthScreen(ModalScreen):
             logger.error(f"Error saving API key: {e}", exc_info=True)
             self.notify(f"❌ API 키 저장 실패: {e}", severity="error")
 
+class ConnectionScreen(ModalScreen):
+    """
+    데이터 소스 연결 설정 화면 (Step 3)
+    """
+    
+    BINDINGS = [
+        ("escape", "dismiss", "Close"),
+    ]
+    
+    CSS = """
+    ConnectionScreen {
+        align: center middle;
+        background: rgba(0, 0, 0, 0.7);
+    }
+    #conn-modal {
+        width: 60;
+        height: auto;
+        background: #1a1b1e;
+        border: solid #2d2f34;
+        padding: 1 2;
+    }
+    #conn-title {
+        text-align: center;
+        color: #f8fafc;
+        text-style: bold;
+        margin-bottom: 2;
+    }
+    #conn-type-list {
+        height: 6;
+        margin-bottom: 1;
+        background: #111214;
+        border: solid #2d2f34;
+    }
+    .field-label {
+        margin-top: 1;
+        color: #94a3b8;
+    }
+    .conn-input {
+        background: #111214;
+        border: solid #2d2f34;
+        margin-bottom: 1;
+        color: #f8fafc;
+    }
+    .conn-input:focus {
+        border: solid #7c3aed;
+    }
+    #connect-btn {
+        width: 100%;
+        background: #7c3aed;
+        color: white;
+        margin-top: 1;
+        text-style: bold;
+    }
+    #connect-btn:hover {
+        background: #6d28d9;
+    }
+    .ssh-field {
+        margin-left: 2;
+    }
+    #ssh-auth-type {
+        height: 4;
+        margin-bottom: 1;
+        background: #111214;
+        border: solid #2d2f34;
+    }
+    """
+
+    def __init__(self, callback=None):
+        super().__init__()
+        self.callback = callback
+        self.selected_type = "sqlite"
+        self.use_ssh = False
+        self.ssh_auth_type = "key"  # "key" or "password"
+
+    def compose(self) -> ComposeResult:
+        with Container(id="conn-modal"):
+            yield Label("Data Source Connector (Step 3)", id="conn-title")
+            
+            yield Label("Existing Connections:", id="existing-conn-label")
+            yield OptionList(id="existing-conn-list")
+            
+            yield Label("Add New Connection:", id="new-conn-label")
+            yield Label("Select Connection Type:")
+            yield OptionList(
+                Option("📂 Excel File (.xlsx, .csv)", id="excel"),
+                Option("🗄️ SQLite Database", id="sqlite"),
+                Option("🐘 PostgreSQL", id="postgres"),
+                Option("🐬 MySQL / MariaDB", id="mysql"),
+                id="conn-type-list"
+            )
+            
+            with Vertical(id="form-container"):
+                yield Label("Connection ID (Unique):", classes="field-label")
+                yield Input(id="conn-id", placeholder="e.g., local_db", classes="conn-input")
+                
+                # Database specific fields (Hidden by default or shown dynamically)
+                yield Label("Database Host:", classes="field-label", id="path-label")
+                yield Input(id="conn-path", placeholder="localhost or IP", classes="conn-input")
+
+                yield Label("Port:", classes="field-label", id="port-label")
+                yield Input(id="conn-port", placeholder="5432", classes="conn-input")
+
+                yield Label("Database Name:", classes="field-label", id="db-label")
+                yield Input(id="conn-db", placeholder="mydb", classes="conn-input")
+
+                yield Label("User / Password:", classes="field-label", id="auth-label")
+                yield Input(id="conn-user", placeholder="User", classes="conn-input")
+                yield Input(id="conn-pass", placeholder="Password", classes="conn-input", password=True)
+
+                # SSH Tunnel 옵션
+                from textual.widgets import Checkbox
+                yield Label("\n🔐 SSH Tunnel Options:", classes="field-label")
+                yield Checkbox("Use SSH Tunnel (for remote servers)", id="ssh-checkbox", value=False)
+                
+                # SSH 설정 필드 (기본적으로 숨김)
+                yield Label("SSH Host:", classes="field-label ssh-field", id="ssh-host-label")
+                yield Input(id="ssh-host", placeholder="ssh.example.com", classes="conn-input ssh-field")
+                
+                yield Label("SSH Port:", classes="field-label ssh-field", id="ssh-port-label")
+                yield Input(id="ssh-port", placeholder="22", classes="conn-input ssh-field", value="22")
+                
+                yield Label("SSH Username:", classes="field-label ssh-field", id="ssh-user-label")
+                yield Input(id="ssh-username", placeholder="your-ssh-user", classes="conn-input ssh-field")
+                
+                yield Label("SSH Auth Type:", classes="field-label ssh-field", id="ssh-auth-label")
+                yield OptionList(
+                    Option("🔑 SSH Key File", id="key"),
+                    Option("🔒 Password", id="password"),
+                    id="ssh-auth-type",
+                    classes="ssh-field"
+                )
+                
+                yield Label("SSH Key Path:", classes="field-label ssh-field", id="ssh-key-label")
+                yield Input(id="ssh-key-path", placeholder="~/.ssh/id_rsa", classes="conn-input ssh-field")
+                
+                yield Label("SSH Password:", classes="field-label ssh-field", id="ssh-pass-label")
+                yield Input(id="ssh-password", placeholder="SSH Password", classes="conn-input ssh-field", password=True)
+                
+                yield Label("Remote DB Host (inside SSH):", classes="field-label ssh-field", id="remote-host-label")
+                yield Input(id="remote-db-host", placeholder="localhost or 127.0.0.1", classes="conn-input ssh-field", value="127.0.0.1")
+                
+                yield Label("Remote DB Port:", classes="field-label ssh-field", id="remote-port-label")
+                yield Input(id="remote-db-port", placeholder="5432 or 3306", classes="conn-input ssh-field")
+
+                yield Button("Connect & Scan Source", id="connect-btn")
+            
+            yield Label("\n[dim]Press ESC to cancel[/dim]", classes="guide-text")
+
+    def on_mount(self) -> None:
+        self.query_one("#conn-type-list").focus()
+        self._update_form("sqlite")
+        self._load_existing_connections()
+        self._hide_ssh_fields()  # SSH 필드 초기에는 숨김
+        self._update_ssh_auth_fields()  # SSH 인증 타입 기본 설정
+
+    def _load_existing_connections(self):
+        try:
+            with open(self.app.conn_mgr.registry_path, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+            
+            list_view = self.query_one("#existing-conn-list", OptionList)
+            list_view.clear_options()
+            
+            if not registry:
+                list_view.add_option(Option("[dim]No connections registered yet[/dim]", id="none"))
+            else:
+                for conn_id, info in registry.items():
+                    list_view.add_option(Option(f"{info['type'].upper()}: {conn_id} ({info.get('name', '')})", id=conn_id))
+        except Exception as e:
+            logger.error(f"Failed to load existing connections: {e}")
+
+    async def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        if event.option_list.id == "existing-conn-list":
+            if event.option.id == "none":
+                return
+            # 기존 연결 선택 시 즉시 해당 연결로 스캔 시작
+            conn_id = str(event.option.id)
+            self.notify(f"📡 Reconnecting to '{conn_id}'...", severity="information")
+            self.dismiss(conn_id)
+            if self.callback:
+                self.callback(conn_id)
+        else:
+            self.selected_type = event.option.id
+            self._update_form(self.selected_type)
+        if event.option_list.id == "ssh-auth-type":
+            self.ssh_auth_type = event.option.id
+            self._update_ssh_auth_fields()
+
+    def _update_form(self, conn_type: str):
+        path_label = self.query_one("#path-label", Label)
+        path_input = self.query_one("#conn-path", Input)
+        port_label = self.query_one("#port-label", Label)
+        port_input = self.query_one("#conn-port", Input)
+        db_label = self.query_one("#db-label", Label)
+        db_input = self.query_one("#conn-db", Input)
+        auth_label = self.query_one("#auth-label", Label)
+        user_input = self.query_one("#conn-user", Input)
+        pass_input = self.query_one("#conn-pass", Input)
+
+        if conn_type in ["sqlite", "excel"]:
+            path_label.update("File Path (Absolute):")
+            path_input.placeholder = "/full/path/to/your/file"
+            port_label.display = False
+            port_input.display = False
+            db_label.display = False
+            db_input.display = False
+            auth_label.display = False
+            user_input.display = False
+            pass_input.display = False
+        else:
+            path_label.update("Host / Server:")
+            path_input.placeholder = "localhost or IP"
+            port_label.display = True
+            port_input.display = True
+            if conn_type == "postgres":
+                port_input.value = "5432"
+            elif conn_type == "mysql":
+                port_input.value = "3306"
+            
+            db_label.display = True
+            db_input.display = True
+            auth_label.display = True
+            user_input.display = True
+            pass_input.display = True
+
+    def _hide_ssh_fields(self):
+        """SSH 관련 모든 필드 숨김"""
+        ssh_fields = self.query(".ssh-field")
+        for field in ssh_fields:
+            field.display = False
+
+    def _show_ssh_fields(self):
+        """SSH 관련 모든 필드 표시"""
+        ssh_fields = self.query(".ssh-field")
+        for field in ssh_fields:
+            field.display = True
+        self._update_ssh_auth_fields()  # 인증 타입에 따라 필드 조정
+
+    def _update_ssh_auth_fields(self):
+        """SSH 인증 타입에 따라 Key Path / Password 필드 표시/숨김"""
+        if not self.use_ssh:
+            return
+        
+        key_label = self.query_one("#ssh-key-label", Label)
+        key_input = self.query_one("#ssh-key-path", Input)
+        pass_label = self.query_one("#ssh-pass-label", Label)
+        pass_input = self.query_one("#ssh-password", Input)
+        
+        if self.ssh_auth_type == "key":
+            key_label.display = True
+            key_input.display = True
+            pass_label.display = False
+            pass_input.display = False
+        else:  # password
+            key_label.display = False
+            key_input.display = False
+            pass_label.display = True
+            pass_input.display = True
+
+    def on_checkbox_changed(self, event) -> None:
+        """SSH Tunnel 체크박스 상태 변경 핸들러"""
+        if event.checkbox.id == "ssh-checkbox":
+            self.use_ssh = event.value
+            if self.use_ssh:
+                self._show_ssh_fields()
+            else:
+                self._hide_ssh_fields()
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "connect-btn":
+            conn_id = self.query_one("#conn-id", Input).value.strip()
+            path = self.query_one("#conn-path", Input).value.strip()
+            
+            if not conn_id or not path:
+                self.notify("Connection ID and Path are required!", severity="error")
+                return
+
+            config = {"path": path}
+            if self.selected_type in ["postgres", "mysql"]:
+                config = {
+                    "host": path,
+                    "port": self.query_one("#conn-port", Input).value.strip(),
+                    "dbname": self.query_one("#conn-db", Input).value.strip(),
+                    "user": self.query_one("#conn-user", Input).value.strip(),
+                    "password": self.query_one("#conn-pass", Input).value
+                }
+                
+                # SSH 설정 추가 (체크된 경우에만)
+                if self.use_ssh:
+                    ssh_host = self.query_one("#ssh-host", Input).value.strip()
+                    ssh_port = self.query_one("#ssh-port", Input).value.strip()
+                    ssh_username = self.query_one("#ssh-username", Input).value.strip()
+                    remote_host = self.query_one("#remote-db-host", Input).value.strip()
+                    remote_port = self.query_one("#remote-db-port", Input).value.strip()
+                    
+                    if not all([ssh_host, ssh_port, ssh_username, remote_host, remote_port]):
+                        self.notify("⚠️ SSH 설정이 불완전합니다. 모든 SSH 필드를 입력해주세요.", severity="warning")
+                        return
+                    
+                    ssh_config = {
+                        "host": ssh_host,
+                        "port": int(ssh_port),
+                        "username": ssh_username,
+                        "remote_host": remote_host,
+                        "remote_port": int(remote_port)
+                    }
+                    
+                    if self.ssh_auth_type == "key":
+                        key_path = self.query_one("#ssh-key-path", Input).value.strip()
+                        if not key_path:
+                            self.notify("⚠️ SSH Key Path를 입력해주세요.", severity="warning")
+                            return
+                        ssh_config["key_path"] = key_path
+                    else:  # password
+                        ssh_password = self.query_one("#ssh-password", Input).value.strip()
+                        if not ssh_password:
+                            self.notify("⚠️ SSH Password를 입력해주세요.", severity="warning")
+                            return
+                        ssh_config["password"] = ssh_password
+                    
+                    config["ssh"] = ssh_config
+
+            try:
+                # Use application's connection manager
+                logger.info(f"Attempting to register {self.selected_type} connection: {conn_id}")
+                self.app.conn_mgr.register_connection(conn_id, self.selected_type, config)
+                
+                # 창을 먼저 닫아 UI 프리징 현상 방지
+                self.dismiss(conn_id)
+                
+                # 콜백 호출 (여기서 비동기 스캔이 시작됨)
+                if self.callback:
+                    self.callback(conn_id)
+            except Exception as e:
+                logger.error(f"Connection registration failed: {e}")
+                diagnostic_logger.log_error("CONN_REGISTRATION_FAILED", str(e), {"conn_id": conn_id, "type": self.selected_type})
+                self.notify(f"❌ Connection failed: {e}", severity="error")
+
+    def action_dismiss(self) -> None:
+        self.dismiss(None)
+
 class ProjectScreen(ModalScreen):
     """
     Project selection and creation screen.
@@ -422,6 +766,60 @@ class BI_AgentConsole(App):
         self._init_orchestrator(self.current_project)
         self.palette_visible = False
 
+    def on_exception(self, event) -> None:
+        """Textual 프레임워크 레벨에서 발생하는 모든 예외를 캐치하여 로깅"""
+        import traceback
+        import sys
+        from backend.utils.diagnostic_logger import diagnostic_logger
+        
+        error_msg = str(event.exception)
+        exc_type = type(event.exception).__name__
+        tb_str = "".join(traceback.format_exception(type(event.exception), event.exception, event.exception.__traceback__))
+        
+        # 1. diagnostic_logger에 기록
+        try:
+            diagnostic_logger.log_error(
+                error_code="TEXTUAL_FRAMEWORK_ERROR",
+                message=error_msg,
+                context={
+                    "exception_type": exc_type,
+                    "traceback": tb_str
+                }
+            )
+        except Exception as log_error:
+            # 로깅 실패 시에도 계속 진행
+            print(f"Failed to log to diagnostic_logger: {log_error}", file=sys.stderr)
+        
+        # 2. 콘솔 및 일반 로거에도 기록
+        logger.error(f"\n{'='*80}\nTextual Framework Error: {exc_type}\n{'='*80}\n{tb_str}", exc_info=False)
+        
+        # 3. 에러를 textual_errors.log에도 별도 저장 (사용자가 쉽게 찾을 수 있도록)
+        try:
+            import pathlib
+            project_root = pathlib.Path(__file__).parent.parent.parent
+            error_log_path = project_root / "logs" / "textual_errors.log"
+            
+            with open(error_log_path, "a", encoding="utf-8") as f:
+                import datetime
+                f.write(f"\n\n{'='*80}\n")
+                f.write(f"[{datetime.datetime.now().isoformat()}] {exc_type}: {error_msg}\n")
+                f.write(f"{'='*80}\n")
+                f.write(tb_str)
+                f.write(f"\n{'='*80}\n")
+        except Exception as file_error:
+            print(f"Failed to write to textual_errors.log: {file_error}", file=sys.stderr)
+        
+        # 4. 사용자에게도 알림 (UI가 살아있다면)
+        try:
+            error_summary = f"[bold red]{exc_type}[/bold red]: {error_msg[:100]}"
+            self.notify(
+                f"⚠️ System Error Detected\n{error_summary}\n[dim]See logs/textual_errors.log or type /errors[/dim]",
+                severity="error",
+                timeout=15
+            )
+        except:
+            pass
+
     def _init_orchestrator(self, project_id: str):
         try:
             from backend.orchestrator.collaborative_orchestrator import CollaborativeOrchestrator
@@ -441,6 +839,7 @@ class BI_AgentConsole(App):
                     
                     with Vertical(id="input-bar"):
                         yield OptionList(
+                            Option("/intent    [dim]분석 계획 수립[/dim]", id="intent"),
                             Option("/analyze   [dim]데이터 심층 분석[/dim]", id="analyze"),
                             Option("/explore   [dim]데이터 탐색[/dim]", id="explore"),
                             Option("/connect   [dim]소스 연결[/dim]", id="connect"),
@@ -541,6 +940,10 @@ class BI_AgentConsole(App):
         # Schedule next update
         self.set_timer(10, self._update_sidebar)
     
+    def show_error_viewer(self):
+        """최근 발생한 Textual 에러를 확인할 수 있는 화면 표시"""
+        self.push_screen(ErrorViewerScreen())
+
     async def _update_hud(self) -> None:
         """현재 모델 및 컬텍스트 상태로 HUD 업데이트"""
         try:
@@ -587,7 +990,7 @@ class BI_AgentConsole(App):
         if event.key == "tab" and user_input.has_focus:
             current_text = user_input.value.strip()
             if current_text.startswith("/"):
-                commands = ["analyze", "explore", "connect", "project", "login", "help"]
+                commands = ["intent", "analyze", "explore", "connect", "project", "login", "help"]
                 prefix = current_text[1:].lower()  # / 제거
                 
                 # 접두사와 일치하는 명령어 찾기
@@ -655,12 +1058,12 @@ class BI_AgentConsole(App):
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         """Handle command palette selection with Enter key"""
-        # 명령 팔레트 이벤트가 아닌 경우(예: AuthScreen의 OptionList) 무시
-        if event.option_list.id != "command-palette":
+        # 명령 메뉴 이벤트가 아닌 경우(예: AuthScreen의 OptionList) 무시
+        if event.option_list.id != "command-menu":
             return
             
         import asyncio
-        palette = self.query_one("#command-palette", OptionList)
+        palette = self.query_one("#command-menu", OptionList)
         palette.remove_class("visible")
         self.palette_visible = False
         
@@ -671,6 +1074,7 @@ class BI_AgentConsole(App):
             
             # 명령어 매핑
             command_map = {
+                "intent": "/intent",
                 "analyze": "/analyze",
                 "explore": "/explore",
                 "connect": "/connect",
@@ -717,30 +1121,51 @@ class BI_AgentConsole(App):
         cmd = parts[0]
         chat_log = self.query_one("#chat-log", VerticalScroll)
         
-        if cmd == "/connect":
-            msg = MessageBubble(role="system", content="[dim]데이터 소스 관리 화면으로 전환합니다... (곧 지원 예정)[/dim]")
-            chat_log.mount(msg)
+        if cmd == "/intent":
+            user_intent = " ".join(parts[1:]) if len(parts) > 1 else ""
+            if not user_intent:
+                msg = MessageBubble(role="system", content="[yellow]분석 의도를 입력해주세요. 예: /intent 이번 달 매출 하락 원인 분석[/yellow]")
+                chat_log.mount(msg)
+            else:
+                msg = MessageBubble(role="system", content=f"[dim]'{user_intent}'에 대한 분석 플랜을 수립 중입니다...[/dim]")
+                chat_log.mount(msg)
+                chat_log.scroll_end(animate=False)
+                
+                # 비동기로 플랜 생성 실행
+                import asyncio
+                asyncio.create_task(self._run_intent_plan(user_intent))
+                
+        elif cmd == "/connect":
+            def on_connected(conn_id: str):
+                if conn_id:
+                    # 비동기 워커로 스캔 실행 (UI 프리징 방지)
+                    self.run_worker(self._run_scan(conn_id))
+            
+            self.push_screen(ConnectionScreen(callback=on_connected))
         elif cmd == "/project":
             self.action_switch_project()
         elif cmd == "/login":
             msg = MessageBubble(role="system", content="[dim]인증 및 계정 설정 화면을 엽니다...[/dim]")
             chat_log.mount(msg)
-            self.push_screen(AuthScreen())
         elif cmd == "/analyze":
             msg = MessageBubble(role="system", content="[dim]상세 분석 모드로 전환합니다... (곧 지원 예정)[/dim]")
             chat_log.mount(msg)
         elif cmd == "/explore":
             msg = MessageBubble(role="system", content="[dim]데이터 탐색 모드로 전환합니다... (곧 지원 예정)[/dim]")
             chat_log.mount(msg)
+        elif cmd == "/errors":
+            self.show_error_viewer()
         elif cmd == "/help":
             help_content = (
                 "[bold cyan]사용 가능한 명령어:[/bold cyan]\n\n"
+                "[b]/intent[/b] <의도>: 분석 의도를 정립하고 실행 플랜 생성\n"
                 "[b]/analyze[/b]: 데이터 심층 분석 모드 실행\n"
                 "[b]/explore[/b]: 데이터 탐색 및 프로파일링\n"
                 "[b]/connect[/b]: 데이터 소스 관리 및 연결 설정\n"
                 "[b]/project[/b]: 현재 분석 프로젝트 전환\n"
                 "[b]/login[/b]: LLM 계정 및 API Key 설정\n"
                 "[b]/report[/b]: 생성된 리포트 센터 방문\n"
+                "[b]/errors[/b]: 최근 발생한 시스템 에러 확인\n"
                 "[b]/help[/b]: 이 도움말 표시"
             )
             msg = MessageBubble(role="system", content=help_content)
@@ -760,37 +1185,98 @@ class BI_AgentConsole(App):
         
         try:
             # Check for active connection
-            if not os.path.exists(self.registry_path):
-                 chat_log.write("[yellow]연결된 데이터 소스가 없습니다. /connect 를 입력해 소스를 추가해 주세요.[/yellow]")
+            if not os.path.exists(self.conn_mgr.registry_path):
+                 msg = MessageBubble(role="system", content="[yellow]연결된 데이터 소스가 없습니다. /connect 를 입력해 소스를 추가해 주세요.[/yellow]")
+                 chat_log.mount(msg)
                  return
 
             # Execute via worker to keep UI alive
             self.run_worker(self._run_analysis(query))
         except Exception as e:
-            chat_log.write(f"\n[bold red]Error:[/bold red] {e}")
+            msg = MessageBubble(role="system", content=f"[bold red]Error:[/bold red] {e}")
+            chat_log.mount(msg)
 
     async def _run_analysis(self, query: str):
-        """Orchestrator execution in background."""
-        try:
-            # For simplicity in this demo, we pick the first connection
-            with open(self.registry_path, 'r', encoding='utf-8') as f:
-                registry = json.load(f)
-            conn_id = list(registry.keys())[0] if registry else None
-            
-            if not conn_id:
-                self.call_from_thread(self.show_response, "연결된 소스가 없어 분석을 진행할 수 없습니다.")
-                return
+        # Implementation depends on orchestrator.run
+        pass
 
-            result = await self.orchestrator.run(query, conn_id=conn_id)
-            response = result.get('final_response', "분석 결과를 생성하지 못했습니다.")
-            self.call_from_thread(self.show_response, response)
+    async def _run_scan(self, conn_id: str):
+        """백그라운드에서 데이터 소스 스캔 수행 (UI 프리징 방지)"""
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        try:
+            chat_log.mount(MessageBubble(role="system", content=f"[bold blue]Scanning data source '{conn_id}'...[/bold blue]"))
+            chat_log.scroll_end(animate=False)
+            
+            from backend.agents.data_source.metadata_scanner import MetadataScanner
+            scanner = MetadataScanner(self.conn_mgr)
+            
+            # 동기 작업을 별도 스레드에서 실행
+            meta = await asyncio.get_event_loop().run_in_executor(None, scanner.scan_source, conn_id)
+            
+            table_count = len(meta.get("tables", []))
+            table_names = [t["table_name"] for t in meta.get("tables", [])]
+            
+            summary = f"[green]✅ '{conn_id}' 연결 및 스캔 완료![/green]\n"
+            summary += f"📊 발견된 테이블 수: {table_count}\n"
+            if table_names:
+                summary += f"📋 테이블 목록: {', '.join(table_names[:5])}"
+                if len(table_names) > 5:
+                    summary += " ..."
+            
+            msg = MessageBubble(role="system", content=summary)
+            chat_log.mount(msg)
+            self._update_sidebar() # 업데이트된 정보 반영
         except Exception as e:
-            self.call_from_thread(self.show_response, f"에러 발생: {e}")
+            logger.error(f"Scan failed for {conn_id}: {e}")
+            diagnostic_logger.log_error("SCAN_FAILED", str(e), {"conn_id": conn_id})
+            msg = MessageBubble(role="system", content=f"[bold red]Scan Error ({conn_id}):[/bold red] {e}\n[dim]상세 에러는 diagnostic_errors.jsonl을 확인하세요.[/dim]")
+            chat_log.mount(msg)
+        
+        chat_log.scroll_end(animate=False)
 
     def show_response(self, response: str):
         chat_log = self.query_one("#chat-log", VerticalScroll)
         agent_msg = MessageBubble(role="agent", content=response)
         chat_log.mount(agent_msg)
+        chat_log.scroll_end(animate=False)
+
+    async def _run_intent_plan(self, intent: str):
+        """Execute the orchestrator's intent analysis and display the plan."""
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        try:
+            # Step 1: LLM을 통한 플랜 생성
+            # 데모를 위해 첫 번째 연결을 사용
+            with open(self.registry_path, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+            conn_id = list(registry.keys())[0] if registry else "default_db"
+
+            result = await self.orchestrator.handle_intent(intent, conn_id)
+            
+            if "status" in result and result["status"] == "error":
+                msg = MessageBubble(role="system", content=f"[red]플랜 생성 실패: {result['message']}[/red]")
+                chat_log.mount(msg)
+            else:
+                # Step 2: 플랜 출력 (CoT 시뮬레이션)
+                thought = result.get("thought", "분석 의도를 파악했습니다.")
+                steps = result.get("steps", [])
+                value = result.get("estimated_value", "데이터 기반의 인사이트를 제공합니다.")
+                
+                plan_content = f"[bold green]🎯 분석 실행 플랜 수립 완료[/bold green]\n\n"
+                plan_content += f"[italic]'{thought}'[/italic]\n\n"
+                plan_content += "[bold]수행 단계:[/bold]\n"
+                for i, step in enumerate(steps, 1):
+                    plan_content += f"{i}. {step}\n"
+                
+                plan_content += f"\n[bold]기대 가치:[/bold] {value}\n\n"
+                plan_content += "[dim]위 플랜으로 분석을 시작할까요? [b]/analyze[/b]를 입력하여 시작하세요.[/dim]"
+                
+                msg = MessageBubble(role="system", content=plan_content)
+                chat_log.mount(msg)
+                
+        except Exception as e:
+            msg = MessageBubble(role="system", content=f"[red]오류 발생: {str(e)}[/red]")
+            chat_log.mount(msg)
+        
         chat_log.scroll_end(animate=False)
 
     def action_clear_chat(self) -> None:

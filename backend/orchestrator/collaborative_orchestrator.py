@@ -37,6 +37,46 @@ class CollaborativeOrchestrator:
         self.dash_gen = DashboardGenerator(project_id)
         self.packager = OutputPackager(project_id)
 
+    async def handle_intent(self, query: str, conn_id: str) -> Dict[str, Any]:
+        """
+        User intent analysis and Step-by-step PLAN generation.
+        """
+        print(f"🎯 Analyzing intent: {query}")
+        try:
+            # Get schema context if possible
+            schema_context = ""
+            try:
+                meta = self.scanner.scan_source(conn_id)
+                schema_context = f"Available tables and columns: {json.dumps(meta.get('tables', []), indent=2)}"
+            except:
+                schema_context = "Data source context currently unavailable."
+
+            prompt = f"""
+            You are a Senior BI Strategist. The user wants to analyze something: "{query}"
+            
+            Context: {schema_context}
+            
+            Task:
+            1. Analyze the user's intent and goals.
+            2. Propose a logical, step-by-step analysis PLAN (3-5 steps).
+            3. Each step should be actionable and describe what the agents (DataMaster, Strategist, Designer) will do.
+            4. Keep it professional and concise.
+            
+            Return ONLY a valid JSON object with keys:
+            - "thought": Your internal reasoning for this plan (Korean).
+            - "steps": A list of strings, each being one step of the analysis (Korean).
+            - "estimated_value": A brief mention of the business value this analysis brings (Korean).
+            """
+            
+            response = await self.llm.generate(prompt)
+            import re
+            match = re.search(r'\{.*\}', response, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+            return {"status": "error", "message": "Failed to generate structured plan."}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
     async def run(self, query: str, conn_id: str) -> Dict[str, Any]:
         """
         Entrance Hall 등에서 호출하는 메인 진입점입니다.

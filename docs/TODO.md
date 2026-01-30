@@ -1,63 +1,60 @@
-# BI-Agent 개발 TODO (자사 BI Co-pilot MVP)
-> 최종 업데이트: 2026-01-29
-> 목표: 시너지 퍼널(8단계)을 통한 분석가 업무 효율 3배 향상
+# BI-Agent 개발 TODO (Roadmap 2.1 기반)
+> 마지막 업데이트: 2026-01-30
+> 목표: 15단계 초정밀 여정 구현을 통한 분석가 최적화 워크스페이스 구축
 
 ---
 
-### Phase 0: 준비 및 진입 경험 (Completed)
-- [x] **Smart Quota Auth**: 다중 구독 혜택 극대화 및 초과 시 자동 무료 Fallback 시스템
-- [x] **Entrance Hall**: 실시간 할당량 상태와 지능형 복구(Recovery) 대시보드 구현
-- [x] **Initial Skills Setup**: 사용 가능한 에이전트와 도구(Skills) 목록 가동 상태 업데이트
-- [x] 필수 환경(Python, MCP) 최종 체크리스트 및 Pre-flight 로직 완료
+## 🏗️ Phase 0: 아키텍처 파운데이션
+- [x] **0.1 BaseIntent 클래스 구현**: `base_intent.py` 신규 생성
+- [x] **0.2 ChartIntent 리팩토링**: `BaseIntent` 상속 및 구조 개선
+- [x] **0.3 AnalysisIntent 구현**: 복합 분석용 의도 객체 설계
+- [ ] **0.4 Unit Tests**: Intent 클래스군에 대한 단위 테스트 (커버리지 90%)
 
 ---
 
-## 🚀 Phase 1: 코파일럿 기초 설계 재구축 (Foundation Re-design)
-
-### 1. 협업 아키텍처 설계 (Agent-Analyst Synergy)
-- [ ] **Collaborative Orchestrator**: 분석가의 전략적 개입이 가능한 이벤트 기반 오케스트레이터 재설계
-- [ ] **Context Protocol**: 에이전트 간 '인사이트'와 '데이터'를 효율적으로 전달하는 표준 규격 정의
-- [ ] **Korean NLP First**: 모든 시스템 메시지 및 에이전트 사고 방식의 한국어 최적화 설정
-
-### 2. 가시성 및 제어권 강화 (Visibility & Control)
-- [ ] **Chain of Thought (CoT) UI**: 에이전트의 판단 근거를 분석가가 실시간으로 감수할 수 있는 로깅 UI 보강
-- [ ] **Human-in-the-Loop 기초**: 에이전트가 독단적으로 진행하지 않고, 중간 단계에서 분석가의 승인을 기다리는 정지(Pause) 로직 구현
-
----
-
-## 🚀 Phase 3.1: 인사이트 브리핑 레이어 (Data & Briefing)
-
-### 1. 데이터 해석 엔진 (Agent-led)
-- [ ] `DataProfiler`의 통계 JSON을 LLM용 한글 브리핑 텍스트로 변환하는 파서 개발
-- [ ] **InsightAgent** 구현: 데이터 특징 요약 및 KPI 후보(3~5개) 추천 프롬프트 최적화
-
-### 2. 브리핑 인터페이스 (Analyst-Interaction)
-- [ ] TUI 내 실시간 브리핑 스트리밍 및 Co-pilot 사고 과정(CoT) 가독성 개선
-- [ ] **KPI Selection UI**: 추천된 지표 중 분석가가 전략적으로 선택/수정할 수 있는 인터랙션 구현
+## 🛰️ Phase 2: 의도 파악 및 컨텍스트 스캐닝
+- [x] **Step 4. 분석 의도 선언**: `/intent` 명령어 연동 및 기본 플랜 생성 로직 (LLM)
+- [ ] **Step 4.2 히스토리 강화**: 최근 명령 저장 및 탭 자동완성 최적화
+- [ ] **Step 5. 타겟 데이터 선정**: `TableRecommender` (LLM 기반 relevance scoring)
+- [ ] **Step 5.2 추천 UI**: `TableSelectionScreen` 텍스추얼 모달 구현
+- [ ] **Step 5.3 ERD 추론**: `ERDAnalyzer` (JOIN 관계 자동 감지)
+- [ ] **Step 6. 딥 스캐닝**: `Profiler` 고도화 (4분위수, 결측치, 히스토그램 데이터)
+- [ ] **Step 6.2 데이터 그리드**: TUI 내 샘플 데이터 테이블 뷰어 (`DataGrid`)
+- [ ] **Step 6.3 타입 교정**: `TypeCorrector` (날짜/숫자 형식 자동 감지 및 변환 제안)
 
 ---
 
-## 🚀 Phase 3.2: 커스터마이징 및 생성 엔진 (Gen & Approval)
-
-### 1. 지능형 시각화 매핑 (Agent-led)
-- [ ] 분석가가 선택한 KPI와 데이터 타입을 기반으로 최적 차트(Bar, Line, Table 등) 자동 매핑 로직 강화
-- [ ] `Theme Engine`: 분석가가 선택한 테마 옵션(Color, Font)을 메타데이터에 일괄 적용
-
-### 2. 메타데이터 최종 조립 (Synergy)
-- [ ] `suwon_pop.json` 규격에 맞춘 최종 메타데이터 파일 생성 및 정합성 검증 엔진 고도화
-- [ ] **Review Center**: 생성된 대시보드의 요약 정보 제공 및 최종 승인(Approval) 프로세스 구축
-
-### 3. 통합 검증 (End-to-End)
-- [ ] **Full Synergy Flow Test**: 연결 -> 자동 분석 -> 한글 브리핑 -> 사용자 선택 -> JSON 생성 전체 흐름 검증
+## 🧠 Phase 3: 전략 수립 및 가설 검증
+- [ ] **Step 7. 분석 실행 플랜**: `PipelineGenerator` (3-7단계 상세 분석 파이프라인 생성)
+- [ ] **Step 7.2 가설 템플릿**: 업종별 가설 엔진 (`RETAIL`, `FINANCE` 등)
+- [ ] **Step 8. 사고 과정 시각화**: `AgentMessageBus` (비동기 큐 기반 메시지 브로드캐스팅)
+- [ ] **Step 8.2 상태 변환기**: LLM 상태를 "스키마 해석 중" 등 한국어로 번환 출력
+- [ ] **Step 9. 사용자 정렬**: `HypothesisScreen` (가설 선택 및 수정 UI)
+- [ ] **Step 9.2 제약조건 입력**: `ConstraintScreen` (날짜/지역 필터 수동 입력)
 
 ---
 
-## 🚧 Phase 4: 글로벌 배포 및 도구 확장
-
-- [ ] Tableau XML / Power BI DAX Intelligence 확장
-- [ ] `npm install -g bi-agent` 전역 패키징 및 CLI 최적화
-- [ ] 에러 자가 치유(Self-healing) 로직 강화
+## 📊 Phase 4: 리포트 조립 및 인터랙티브 설계
+- [ ] **Step 10. 최적 쿼리 생성**: `SQLGenerator` 고도화 (Dialect 검증 및 설명 추가)
+- [ ] **Step 10.2 자가 치유**: `QueryHealer` (실행 오류 발생 시 LLM 자동 수정 루프)
+- [ ] **Step 11. 레이아웃 디자인**: `ChartRecommender` (데이터 특성별 차트 자동 매핑)
+- [ ] **Step 11.2 테마 엔진**: 프리미엄 테마 3종 추가 및 폰트 메타데이터 연동
+- [ ] **Step 12. 인터랙션 주입**: `varList`/`eventList` 자동 생성 및 JSON 바인딩
 
 ---
 
-**마지막 업데이트**: 2026-01-28
+## 🏁 Phase 5: 결과 검수 및 최종 익스포트
+- [ ] **Step 13. 초안 브리핑**: `SummaryGenerator` (한국어 요약 및 인사이트 추출)
+- [ ] **Step 13.2 프리뷰 서버**: 로컬 Flask 서버 기반 대시보드 미리보기 가동
+- [ ] **Step 14. 반복적 교정**: `/refine` 루프 (차트 변경, 필터 추가 실시간 처리)
+- [ ] **Step 15. 최종 출력**: `JSONValidator` (InHouse 스키마 검증) 및 패키징 (Excel, PDF)
+
+---
+
+## 🚨 긴급 & 기술적 이슈
+- [ ] **Section 9 Dependencies**: `flask`, `openpyxl`, `weasyprint`, `pyperclip` 등 추가
+- [ ] **TUI 성능**: 대용량 데이터 스캔 시 비동기 처리 최적화
+- [ ] **Tableau 연기**: `.twb` 생성 로직은 MVP 이후 단계로 조정
+
+---
+Copyright © 2026 BI-Agent Team. All rights reserved.

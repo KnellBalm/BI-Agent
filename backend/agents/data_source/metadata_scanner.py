@@ -37,7 +37,7 @@ class MetadataScanner:
     def scan_table(self, conn_id: str, table_name: str) -> Dict[str, Any]:
         """Performs detailed profiling of a single table."""
         # 1. Fetch Sample Data
-        query = f"SELECT * FROM {table_name} LIMIT 100"
+        query = f'SELECT * FROM "{table_name}" LIMIT 100'
         df = self.conn_mgr.run_query(conn_id, query)
         
         # 2. Use DataProfiler for statistical summary

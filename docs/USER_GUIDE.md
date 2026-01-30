@@ -1,114 +1,70 @@
-# BI-Agent 사용 가이드
+# BI-Agent 사용자 가이드 (V2.1)
 
-BI-Agent는 자연어로 데이터를 조회하고 BI 대시보드를 수정할 수 있는 AI Agent입니다.
-
-## 설치
-
-### 1. 저장소 클론
-
-```bash
-git clone https://github.com/your-org/bi-agent.git
-cd bi-agent
-```
-
-### 2. 의존성 설치
-
-```bash
-# Node.js 패키지
-npm install
-
-# Python 패키지
-pip install -r backend/requirements.txt
-```
-
-### 3. 환경 변수 설정
-
-```bash
-cp .env.example .env
-# .env 파일을 열고 GEMINI_API_KEY 입력
-```
+BI-Agent는 자연어로 데이터 분석 의도를 설명하고, AI 에이전트들의 협업을 통해 인터랙티브한 BI 대시보드를 생성하는 **지능형 분석 워크스페이스(TUI)**입니다.
 
 ---
 
-## 사용 방법
+## 🚀 기동 및 초기 설정
 
-### Claude Desktop에서 사용
-
-1. Claude Desktop 설정 파일 열기:
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-2. MCP 서버 등록:
-
-```json
-{
-  "mcpServers": {
-    "bi-agent": {
-      "command": "node",
-      "args": ["/path/to/bi-agent/bin/bi-agent-mcp.js"],
-      "env": {
-        "GEMINI_API_KEY": "your-api-key"
-      }
-    }
-  }
-}
-```
-
-3. Claude Desktop 재시작
-
-4. 자연어로 질문:
-   - "PostgreSQL에서 이번 달 매출 상위 10개 제품 보여줘"
-   - "매출 대시보드에 이익률 필드 추가해줘"
-
-### CLI로 직접 사용
-
+### 1. 프로그램 실행
 ```bash
-python backend/main.py
+# 가상환경 활성화 후
+python -m backend.orchestrator.bi_agent_console
 ```
+
+### 2. LLM 인증 (Step 2)
+처음 실행 시 `AuthScreen`이 나타납니다.
+- **Gemini, Claude, OpenAI** 중 원하는 모델을 선택합니다.
+- API 키를 입력하거나 `~/.bi-agent/credentials.json` 파일에 저장된 키를 자동으로 읽어옵니다.
 
 ---
 
-## 제공 기능
+## 🛠️ 주요 TUI 명령어
 
-| 도구 | 설명 |
-|------|------|
-| query_data | 자연어로 DB 조회 (PostgreSQL, MySQL, Excel) |
-| modify_bi | BI 대시보드 수정 (필드/쿼리/시각화) |
-| list_connections | 등록된 연결 목록 조회 |
-| register_connection | 새 데이터 연결 등록 |
+콘솔 하단의 입력창에서 다음 명령어를 사용할 수 있습니다.
 
----
-
-## 데이터 소스 연결
-
-### PostgreSQL
-
-```
-# 대화로 연결 등록
-"test_pg라는 이름으로 localhost:5433의 biagent_test DB에 연결해줘. 사용자는 biagent, 비밀번호는 biagent123"
-```
-
-### 테스트용 Docker DB
-
-```bash
-cd /mnt/z/GitHub/docker-db
-docker compose up -d
-```
+| 명령어 | 설명 | 예시 |
+|--------|------|------|
+| `/connect` | **데이터 소스 연결** (Step 3). 모달 창을 통해 Excel, DB 연결을 수행합니다. | `/connect` |
+| `/intent` | **분석 의도 선언** (Step 4). 복합적인 분석 요청을 입력합니다. | `/intent 최근 3개월간 카테고리별 매출 추이 분석해줘` |
+| `/analyze` | 단일 테이블에 대한 빠른 탐색 및 분석을 시작합니다. | `/analyze sales_table` |
+| `/project` | 프로젝트 전환 또는 새 프로젝트 생성을 수행합니다. | `/project` |
+| `/login` | LLM API 키 설정 화면을 다시 엽니다. | `/login` |
+| `/help` | 사용 가능한 전체 명령어 목록을 확인합니다. | `/help` |
+| `/exit` | 프로그램을 종료합니다. | `/exit` |
 
 ---
 
-## 문제 해결
+## 📊 상세 분석 워크플로우
 
-### "GEMINI_API_KEY not found"
+### 1단계: 데이터 연결 (`/connect`)
+Excel 파일이나 데이터베이스 정보를 입력하여 연결합니다. 연결 즉시 테이블 목록과 기본적인 데이터 통계가 스캔되어 출력됩니다.
 
-`.env` 파일에 API 키가 설정되어 있는지 확인하세요.
+### 2단계: 분석 의도 입력 (`/intent`)
+자연어로 무엇을 분석하고 싶은지 입력합니다. BI-Agent가 내부적으로 5~7단계의 **분석 실행 플랜(Pipeline)**을 수립합니다.
 
-### MCP 서버 연결 실패
+### 3단계: 가설 및 테이블 확정 (Step 5, 9)
+- 시스템이 추천한 테이블 중 분석에 사용할 테이블을 선택합니다.
+- 생성된 분석 가설들을 검토하고, 필요한 경우 직접 수정하거나 제약 조건(날짜 범위 등)을 입력합니다.
 
-1. Node.js 18+ 설치 확인
-2. Python 3.10+ 설치 확인
-3. 경로가 절대 경로인지 확인
+### 4단계: 에이전트 협업 관찰 (Step 8)
+- **DataMaster**: 쿼리 생성 및 데이터 추출
+- **Strategist**: 인사이트 추출 및 가설 검증
+- **Designer**: 차트 추천 및 레이아웃 구성
+위 에이전트들이 서로 메시지를 주고받으며 분석을 수행하는 과정을 실시간으로 확인할 수 있습니다.
+
+### 5단계: 결과 리뷰 및 익스포트 (Step 13, 15)
+- 생성된 리포트의 요약 브리핑을 읽습니다.
+- 로컬 웹 서버를 통해 실제 대시보드 화면을 미리 봅니다.
+- 만족스러운 경우 `output/` 폴더에 JSON, Excel, PDF 형태로 결과물을 저장합니다.
 
 ---
 
-**최종 업데이트**: 2026-01-22
+## 💡 팁
+- **단축키**: 모달 창에서는 `ESC`로 닫기, `Enter`로 확인, 방향키로 항목 선택이 가능합니다.
+- **자동완성**: 명령어 입력 중 `Tab` 키를 누르면 명령어 및 데이터 소스 이름이 자동 완성됩니다.
+- **에러 복구**: 쿼리 실행 중 에러가 발생하면 AI가 스스로 수정(Self-healing)을 시도합니다.
+
+---
+**최지막 업데이트**: 2026-01-30
+Copyright © 2026 BI-Agent Team. All rights reserved.

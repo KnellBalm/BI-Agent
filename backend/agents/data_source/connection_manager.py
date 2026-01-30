@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional, List
 import pandas as pd
 from backend.utils.logger_setup import setup_logger
 from backend.utils.path_config import path_manager
+from backend.utils.diagnostic_logger import diagnostic_logger
 
 # Initialize localized logger
 logger = setup_logger("connection_manager", "connections.log")
@@ -16,14 +17,15 @@ class ConnectionManager:
     """
     Manages connections to various data sources.
     Uses a local registry (connections.json) for persisting connection details.
+    Supports SSH tunneling for remote database access.
     """
     
     def __init__(self, project_id: str = "default"):
         self.project_id = project_id
-        self.project_dir = path_manager.get_project_path(project_id)
-        self.registry_path = self.project_dir / "connections.json"
-        self._ensure_registry_exists()
-        self.active_sessions: Dict[str, Any] = {}
+        self.registry_path = path_manager.get_project_path(project_id) / "connections.json"
+        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+        self._active_connections = {}  # conn_id -> actual connection object
+        self._ssh_tunnels = {}  # conn_id -> SSHTunnelForwarder instance
         logger.info(f"ConnectionManager initialized for project '{project_id}' at {self.registry_path}")
         
         # Auto-onboarding: Create sample if registry is empty
@@ -32,8 +34,12 @@ class ConnectionManager:
     def _auto_onboard_sample(self):
         """Checks if registry is empty and adds a sample SQLite source if needed."""
         try:
-            with open(self.registry_path, 'r', encoding='utf-8') as f:
-                registry = json.load(f)
+            # Ensure registry exists and is not empty
+            if not os.path.exists(self.registry_path):
+                registry = {}
+            else:
+                with open(self.registry_path, 'r', encoding='utf-8') as f:
+                    registry = json.load(f)
             
             if not registry:
                 logger.info(f"Empty registry for project '{self.project_id}'. Auto-onboarding sample sales data.")
@@ -56,19 +62,13 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"Auto-onboarding failed: {e}")
 
-    def _ensure_registry_exists(self):
-        """Creates config directory and empty registry file if not exists."""
-        try:
-            os.makedirs(os.path.dirname(self.registry_path), exist_ok=True)
-            if not os.path.exists(self.registry_path):
-                with open(self.registry_path, 'w', encoding='utf-8') as f:
-                    json.dump({}, f)
-                logger.info(f"Created new connection registry at {self.registry_path}")
-        except Exception as e:
-            logger.error(f"Failed to ensure registry existence: {e}")
+    # _ensure_registry_exists method removed as its functionality is now handled in __init__ and _auto_onboard_sample
 
     def register_connection(self, conn_id: str, conn_type: str, config: Dict[str, Any], name: str = "", category: str = "DB"):
-        """Registers a new connection configuration after validation."""
+        """
+        Registers a new connection in the local registry.
+        Supports SSH tunneling via config['ssh'] = {host, port, username, key_path or password, remote_host, remote_port}
+        """
         allowed_types = ["sqlite", "postgres", "mysql", "snowflake", "bigquery", "excel", "duckdb"]
         if conn_type not in allowed_types:
             logger.error(f"Unsupported connection type attempted: {conn_type}")
@@ -78,22 +78,33 @@ class ConnectionManager:
         self._validate_config(conn_type, config)
 
         try:
-            with open(self.registry_path, 'r', encoding='utf-8') as f:
-                registry = json.load(f)
+            if not os.path.exists(self.registry_path):
+                registry = {}
+            else:
+                with open(self.registry_path, 'r', encoding='utf-8') as f:
+                    registry = json.load(f)
+            
+            # SSH 터널링 설정 확인
+            ssh_config = config.pop('ssh', None)  # SSH 설정은 별도 관리
             
             registry[conn_id] = {
                 "type": conn_type,
                 "name": name or conn_id,
                 "category": category,
                 "config": config,
+                "ssh": ssh_config,  # SSH 설정 저장
                 "created_at": datetime.datetime.now().isoformat(),
                 "last_accessed": None
             }
             
             with open(self.registry_path, 'w', encoding='utf-8') as f:
-                json.dump(registry, f, indent=2)
+                json.dump(registry, f, indent=2, ensure_ascii=False)
             
-            logger.info(f"Successfully registered connection: {conn_id} ({conn_type})")
+            logger.info(f"Connection '{conn_id}' registered successfully (type: {conn_type}, SSH: {bool(ssh_config)})")
+            
+            # SSH 터널이 필요한 경우 즉시 생성
+            if ssh_config:
+                self._start_ssh_tunnel(conn_id, ssh_config, config)
             return conn_id
         except Exception as e:
             logger.error(f"Failed to register connection {conn_id}: {e}")
@@ -116,8 +127,8 @@ class ConnectionManager:
 
     def get_connection(self, conn_id: str):
         """Retrieves an active connection session or initializes a new one."""
-        if conn_id in self.active_sessions:
-            return self.active_sessions[conn_id]
+        if conn_id in self._active_connections:
+            return self._active_connections[conn_id]
 
         try:
             with open(self.registry_path, 'r', encoding='utf-8') as f:
@@ -131,8 +142,19 @@ class ConnectionManager:
             conn_type = conn_info["type"]
             config = self._inject_env_vars(conn_info["config"])
             
+            # If SSH tunnel is configured, ensure it's started and update config
+            if conn_info.get("ssh"):
+                if conn_id not in self._ssh_tunnels:
+                    self._start_ssh_tunnel(conn_id, conn_info["ssh"], config)
+                
+                # Update config to use the local tunnel port
+                tunnel = self._ssh_tunnels[conn_id]
+                config['host'] = '127.0.0.1'
+                config['port'] = tunnel.local_bind_port
+                logger.debug(f"Using SSH tunnel for {conn_id}: localhost:{tunnel.local_bind_port}")
+
             session = self._initialize_session(conn_type, config)
-            self.active_sessions[conn_id] = session
+            self._active_connections[conn_id] = session
 
             # Update last_accessed timestamp
             conn_info["last_accessed"] = datetime.datetime.now().isoformat()
@@ -168,6 +190,7 @@ class ConnectionManager:
                 raise NotImplementedError(f"Connection type '{conn_type}' is not supported yet.")
         except Exception as e:
             logger.error(f"Failed to initialize {conn_type} session: {e}")
+            diagnostic_logger.log_error("SESSION_INIT_FAILED", str(e), {"conn_type": conn_type, "config": config})
             raise RuntimeError(f"Session initialization failed: {e}")
 
     def run_query(self, conn_id: str, query: str) -> pd.DataFrame:
@@ -195,6 +218,7 @@ class ConnectionManager:
             return df
         except Exception as e:
             logger.error(f"Query failed on {conn_id}: {e}")
+            diagnostic_logger.log_error("QUERY_FAILED", str(e), {"conn_id": conn_id, "query": query})
             raise RuntimeError(f"Query execution failed: {e}")
 
     def _inject_env_vars(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -210,6 +234,62 @@ class ConnectionManager:
                     v = v.replace(f"${{{var}}}", env_val)
             new_config[k] = v
         return new_config
+
+    def _sanitize_table_name(self, name: str) -> str:
+        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+        if not sanitized[0].isalpha():
+            sanitized = "t_" + sanitized
+        return sanitized
+
+    def _start_ssh_tunnel(self, conn_id: str, ssh_config: Dict[str, Any], db_config: Dict[str, Any]):
+        """
+        SSH 터널을 시작하고 로컬 포트로 포워딩합니다.
+        ssh_config: {host, port, username, key_path or password, remote_host, remote_port}
+        """
+        try:
+            from sshtunnel import SSHTunnelForwarder
+            # diagnostic_logger is already imported at the top
+            
+            ssh_kwargs = {
+                'ssh_address_or_host': (ssh_config['host'], ssh_config.get('port', 22)),
+                'ssh_username': ssh_config['username'],
+                'remote_bind_address': (ssh_config.get('remote_host', '127.0.0.1'), ssh_config['remote_port']),
+            }
+            
+            # 인증 방식: 키 파일 또는 비밀번호
+            if 'key_path' in ssh_config and ssh_config['key_path']:
+                ssh_kwargs['ssh_pkey'] = ssh_config['key_path']
+            elif 'password' in ssh_config and ssh_config['password']:
+                ssh_kwargs['ssh_password'] = ssh_config['password']
+            else:
+                raise ValueError("SSH authentication requires either 'key_path' or 'password'")
+            
+            tunnel = SSHTunnelForwarder(**ssh_kwargs)
+            tunnel.start()
+            
+            self._ssh_tunnels[conn_id] = tunnel
+            
+            # DB config의 host와 port를 로컬 터널 포트로 변경 (이 변경은 db_config 객체에만 적용되며, registry에 저장된 config에는 영향을 주지 않음)
+            # get_connection에서 이 정보를 사용하여 실제 연결을 수립할 때 적용됨.
+            # db_config['host'] = '127.0.0.1' # This modification is not needed here, as get_connection will handle it.
+            # db_config['port'] = tunnel.local_bind_port # Same here.
+            
+            logger.info(f"SSH tunnel started for '{conn_id}': localhost:{tunnel.local_bind_port} -> {ssh_config['host']}:{ssh_config.get('remote_host', '127.0.0.1')}:{ssh_config['remote_port']}")
+            
+        except Exception as e:
+            logger.error(f"Failed to start SSH tunnel for '{conn_id}': {e}")
+            diagnostic_logger.log_error("SSH_TUNNEL_START_FAILED", str(e), {"conn_id": conn_id, "ssh_config": ssh_config})
+            raise
+
+    def close_ssh_tunnel(self, conn_id: str):
+        """연결 ID에 대한 SSH 터널을 종료합니다."""
+        if conn_id in self._ssh_tunnels:
+            try:
+                self._ssh_tunnels[conn_id].stop()
+                del self._ssh_tunnels[conn_id]
+                logger.info(f"SSH tunnel closed for '{conn_id}'")
+            except Exception as e:
+                logger.error(f"Error closing SSH tunnel for '{conn_id}': {e}")
 
     def close_all(self):
         """Cleanly closes all active sessions."""
