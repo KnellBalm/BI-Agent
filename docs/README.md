@@ -29,6 +29,7 @@ graph TD
 
 - [**core/**](./core/) : 프로젝트의 핵심 심장부 (전략, 설계, 실행, 기록)
 - [**guides/**](./guides/) : 설치 및 사용자 매뉴얼
+  - [**문서 작성 가이드**](./guides/DOCS_WRITING_GUIDE.md) : **(필독)** 일관된 문서 작성을 위한 원칙
 - [**mcp/**](./mcp/) : Model Context Protocol 기술 가이드
 
 ---
