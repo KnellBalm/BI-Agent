@@ -1,5 +1,10 @@
-# BI-Agent 개발 TODO (Roadmap 2.1 기반)
-> 마지막 업데이트: 2026-01-31
+# BI-Agent 개발 현황 (TODO.md)
+
+> [ 🗺️ 전략/로드맵 ](./PLAN.md) · [ 🛠️ 상세 설계 (DETAILED_SPEC)](./DETAILED_SPEC.md) · **[ 📋 현재 실행 ]** · [ 📜 변경 이력 (CHANGELOG)](./CHANGELOG.md)
+
+---
+
+> 마지막 업데이트: 2026-02-01 (유기적 문서 체계 적용)
 > 목표: 15단계 초정밀 여정 구현을 통한 분석가 최적화 워크스페이스 구축
 
 ---

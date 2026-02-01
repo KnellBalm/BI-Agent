@@ -26,7 +26,7 @@
 *   **테스트 커버리지 94%**: 60개 테스트 스위트, 핵심 비즈니스 로직 100% 커버
 *   **타입 안정성 완전 확보**: 모든 공개 API 타입 힌팅, ruff/mypy/black 린팅 100% 통과
 
-상세 변경 내역은 [CHANGELOG.md](./docs/CHANGELOG.md)를 참조하세요.
+상세 변경 내역은 [CHANGELOG.md](./docs/core/CHANGELOG.md)를 참조하세요.
 
 ---
 
@@ -172,11 +172,12 @@ npm install
 
 ---
 
-## 📖 Related Documents
+## 📖 Documentation & Guides
 
-* [**MASTER_SPEC.md**](./docs/BI_AGENT_MASTER_SPEC.md): 상세 기술 명세서
-* [**PLAN.md**](./docs/PLAN.md): 로드맵 및 설계 철학
-* [**USER_GUIDE.md**](./docs/guides/USER_GUIDE.md): 기능 활용 가이드
+* [**Documentation Hub**](./docs/README.md): **모든 문서의 통합 안내서 (추천)**
+* [**Roadmap (PLAN)**](./docs/core/PLAN.md): 프로젝트 비전 및 15단계 마일스톤
+* [**Technical Spec (DETAILED_SPEC)**](./docs/core/DETAILED_SPEC.md): 세부 구현 및 기술 명세
+* [**User Guide**](./docs/guides/USER_GUIDE.md): 실무 기능 활용 가이드
 
 ---
 

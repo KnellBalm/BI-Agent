@@ -1,9 +1,13 @@
-# BI-Agent 상세 구현 계획
+# BI-Agent 상세 구현 계획 (DETAILED_SPEC.md)
+
+> [ 🗺️ 전략/로드맵 ](./PLAN.md) · **[ 🛠️ 상세 설계 ]** · [ 📋 현재 실행 (TODO)](./TODO.md) · [ 📜 변경 이력 (CHANGELOG)](./CHANGELOG.md)
+
+---
 
 **플랜 ID:** `bi-agent-detailed-implementation`
 **생성일:** 2026-01-30
-**수정일:** 2026-01-30 (Iteration 2 - Critic 피드백 반영)
-**기반 문서:** docs/PLAN.md (로드맵 2.1)
+**최종 수정:** 2026-02-01 (유기적 문서 체계 적용)
+**기반 문서:** [docs/core/PLAN.md](./PLAN.md)
 
 ---
 
@@ -216,6 +220,15 @@ Phase 2로 진행하기 전:
 | 테스트 통과 | `pytest tests/test_intents.py -v` (테스트 파일 생성 필요) |
 
 ---
+
+## BI-Agent 개발 현황 (TODO.md)
+
+> [ 🗺️ 전략/로드맵 ](./PLAN.md) · [ 🛠️ 상세 설계 (DETAILED_SPEC)](./DETAILED_SPEC.md) · **[ 📋 현재 실행 ]** · [ 📜 변경 이력 (CHANGELOG)](./CHANGELOG.md)
+
+---
+
+> 마지막 업데이트: 2026-02-01 (유기적 문서 체계 적용)
+> 목표: 15단계 초정밀 여정 구현을 통한 분석가 최적화 워크스페이스 구축
 
 ## 1. 현재 상태 평가
 

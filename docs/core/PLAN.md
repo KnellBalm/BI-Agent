@@ -1,5 +1,9 @@
 # BI-Agent 초정밀 사용자 여정 및 세부 구현 명세 (Roadmap 2.1)
 
+> **[ 🗺️ 전략/로드맵 ]** · [ 🛠️ 상세 설계 (DETAILED_SPEC)](./DETAILED_SPEC.md) · [ 📋 현재 실행 (TODO)](./TODO.md) · [ 📜 변경 이력 (CHANGELOG)](./CHANGELOG.md)
+
+---
+
 ## 🎯 Recent Updates (2026-01-31)
 
 **V2.1.0-production** 릴리스를 통해 다음을 달성했습니다:
