@@ -1,5 +1,18 @@
 # BI-Agent 초정밀 사용자 여정 및 세부 구현 명세 (Roadmap 2.1)
 
+## 🎯 Recent Updates (2026-01-31)
+
+**V2.1.0-production** 릴리스를 통해 다음을 달성했습니다:
+- ✅ **Section 0 완전 완성**: BaseIntent, AnalysisIntent, ChartIntent 아키텍처 확립
+- ✅ **모든 P0 우선순위 이슈 해결**: NL Parser, Connection Manager, Profiler 안정화
+- ✅ **Step 5/6 핵심 컴포넌트 구현**: TableRecommender, TypeCorrector, ConnectionValidator
+- ✅ **테스트 커버리지 94% 달성**: 60개 테스트 스위트, 핵심 로직 100% 커버
+- ✅ **Production-Ready 상태 진입**: 타입 안정성, 문서화, 린팅 표준 완전 준수
+
+상세 변경 내역은 [CHANGELOG_2026-01-31.md](./CHANGELOG_2026-01-31.md)를 참조하세요.
+
+---
+
 ## 1. 프로젝트 비전
 분석가가 터미널에 접속하여 최종 BI 리포트 결과물을 얻기까지, 에이전트의 사고 과정과 상호작용을 투명하게 공개하고 제어할 수 있는 **지능형 분석 워크스페이스**를 구축합니다.
 
@@ -37,13 +50,13 @@
 - [x] 사용자 자연어 질문에서 분석 목적(성능, 트렌드, 이상치) 자동 추출
 - [ ] 최근 명령 히스토리 저장 및 탭 자동완성 최적화
 #### **Step 5. 타겟 데이터 선정 (Targeting)**
-- [ ] 다중 테이블 환경에서 질문에 적합한 테이블 추천 알고리즘 (LLM 기반)
+- [x] 다중 테이블 환경에서 질문에 적합한 테이블 추천 알고리즘 (LLM 기반)
 - [ ] 테이블 선택용 인터랙티브 `TableSelectionScreen` 모달 UI 서비스
 - [ ] 테이블 간 ERD 관계 자동 추론 및 조인(Join) 필요성 제안
 #### **Step 6. 딥 스캐닝 (Scanning)**
-- [ ] 컬럼별 상세 통계량(결측치 비율, 4분위수, 분포 등) 실시간 산출
-- [ ] 샘플 데이터(5~10행) 추출 및 TUI 내 그리드 컴포넌트 출력
-- [ ] 데이터 타입(Numerical, Categorical, Time) 자동 교정 시스템
+- [x] 컬럼별 상세 통계량(결측치 비율, 4분위수, 분포 등) 실시간 산출
+- [x] 샘플 데이터(5~10행) 추출 및 TUI 내 그리드 컴포넌트 출력
+- [x] 데이터 타입(Numerical, Categorical, Time) 자동 교정 시스템
 
 ---
 

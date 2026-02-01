@@ -9,6 +9,7 @@ import pandas as pd
 from backend.utils.logger_setup import setup_logger
 from backend.utils.path_config import path_manager
 from backend.utils.diagnostic_logger import diagnostic_logger
+from backend.agents.data_source.connection_validator import test_connection
 
 # Initialize localized logger
 logger = setup_logger("connection_manager", "connections.log")
@@ -77,15 +78,30 @@ class ConnectionManager:
         # Basic Pre-flight check before registration
         self._validate_config(conn_type, config)
 
+        # SSH 터널링 설정 확인 (테스트 전에 추출)
+        ssh_config = config.get('ssh', None)
+
+        # Test connection before registration
+        logger.info(f"Testing connection before registering '{conn_id}'...")
+        test_result = test_connection(conn_type, config.copy(), ssh_config)
+
+        if not test_result.success:
+            error_msg = f"Connection test failed: {test_result.error_message}"
+            suggestions_str = "\n".join(f"  - {s}" for s in test_result.suggestions)
+            logger.error(f"{error_msg}\nSuggestions:\n{suggestions_str}")
+            raise RuntimeError(f"{error_msg}\n\nSuggestions:\n{suggestions_str}")
+
+        logger.info(f"Connection test passed ({test_result.latency_ms:.0f}ms)")
+
         try:
             if not os.path.exists(self.registry_path):
                 registry = {}
             else:
                 with open(self.registry_path, 'r', encoding='utf-8') as f:
                     registry = json.load(f)
-            
-            # SSH 터널링 설정 확인
-            ssh_config = config.pop('ssh', None)  # SSH 설정은 별도 관리
+
+            # SSH 터널링 설정을 config에서 제거하여 별도 관리
+            ssh_config = config.pop('ssh', None)
             
             registry[conn_id] = {
                 "type": conn_type,
@@ -293,11 +309,11 @@ class ConnectionManager:
 
     def close_all(self):
         """Cleanly closes all active sessions."""
-        for conn_id, session in self.active_sessions.items():
+        for conn_id, session in self._active_connections.items():
             try:
                 if hasattr(session, 'close'):
                     session.close()
                 logger.info(f"Closed session for {conn_id}")
             except Exception as e:
                 logger.error(f"Error closing session for {conn_id}: {e}")
-        self.active_sessions.clear()
+        self._active_connections.clear()

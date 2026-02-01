@@ -31,12 +31,23 @@ class DataProfiler:
         if self.df is None:
             raise ValueError("No data loaded to profile.")
 
+        column_details = self._get_column_details()
+        overall_quality = self._calculate_overall_quality_score(column_details)
+
         summary = {
             "overview": self._get_overview(),
-            "columns": self._get_column_details(),
+            "columns": column_details,
+            "overall_quality_score": overall_quality,
             "sample": self.df.head(5).to_dict(orient='records')
         }
         return summary
+
+    def _calculate_overall_quality_score(self, column_details: List[Dict[str, Any]]) -> int:
+        """Calculates overall dataset quality score"""
+        if not column_details:
+            return 0
+        scores = [col.get("quality_score", 0) for col in column_details]
+        return round(sum(scores) / len(scores))
 
     def _get_overview(self) -> Dict[str, Any]:
         """Gets high-level summary of the dataset"""
@@ -50,44 +61,127 @@ class DataProfiler:
         }
 
     def _get_column_details(self) -> List[Dict[str, Any]]:
-        """Analyzes each column in detail"""
+        """Analyzes each column in detail with enhanced statistics"""
         column_info = []
-        
+
         for col in self.df.columns:
             series = self.df[col]
             dtype = str(series.dtype)
-            
-            # Basic info
+            col_type = self._infer_type(series)
+            total_count = len(series)
+            missing_count = int(series.isnull().sum())
+
+            # Basic info with enhancements
             details = {
                 "name": col,
-                "type": self._infer_type(series),
+                "type": col_type,
                 "native_dtype": dtype,
-                "missing": int(series.isnull().sum()),
-                "unique": int(series.nunique())
+                "missing": missing_count,
+                "missing_pct": round((missing_count / total_count) * 100, 2) if total_count > 0 else 0.0,
+                "unique": int(series.nunique()),
+                "mode": self._get_mode(series),
+                "quality_score": self._calculate_column_quality_score(series, col_type)
             }
-            
+
             # Statistical info based on type
-            if details["type"] == "numerical":
+            if col_type == "numerical":
+                clean_series = series.dropna()
+                if not clean_series.empty:
+                    details.update({
+                        "mean": round(float(clean_series.mean()), 4),
+                        "std": round(float(clean_series.std()), 4),
+                        "min": float(clean_series.min()),
+                        "max": float(clean_series.max()),
+                        "median": float(clean_series.median()),
+                        "q25": float(clean_series.quantile(0.25)),
+                        "q50": float(clean_series.quantile(0.50)),
+                        "q75": float(clean_series.quantile(0.75)),
+                        "distribution": self._get_distribution(clean_series)
+                    })
+                else:
+                    details.update({
+                        "mean": 0.0, "std": 0.0, "min": 0.0, "max": 0.0,
+                        "median": 0.0, "q25": 0.0, "q50": 0.0, "q75": 0.0,
+                        "distribution": {"bins": [], "counts": []}
+                    })
+            elif col_type == "categorical":
                 details.update({
-                    "mean": float(series.mean()) if not series.empty else 0,
-                    "std": float(series.std()) if not series.empty else 0,
-                    "min": float(series.min()) if not series.empty else 0,
-                    "max": float(series.max()) if not series.empty else 0,
-                    "median": float(series.median()) if not series.empty else 0
+                    "top_values": series.value_counts().head(5).to_dict(),
+                    "distribution": self._get_categorical_distribution(series)
                 })
-            elif details["type"] == "categorical":
-                details.update({
-                    "top_values": series.value_counts().head(5).to_dict()
-                })
-            elif details["type"] == "datetime":
-                details.update({
-                    "min": str(series.min()),
-                    "max": str(series.max())
-                })
-            
+            elif col_type == "datetime":
+                clean_series = series.dropna()
+                if not clean_series.empty:
+                    details.update({
+                        "min": str(clean_series.min()),
+                        "max": str(clean_series.max())
+                    })
+
             column_info.append(details)
-            
+
         return column_info
+
+    def _get_mode(self, series: pd.Series) -> Any:
+        """Gets the most frequent value in a series"""
+        clean_series = series.dropna()
+        if clean_series.empty:
+            return None
+        mode_result = clean_series.mode()
+        if len(mode_result) == 0:
+            return None
+        mode_val = mode_result.iloc[0]
+        if isinstance(mode_val, (np.integer, np.floating)):
+            return float(mode_val) if isinstance(mode_val, np.floating) else int(mode_val)
+        elif pd.api.types.is_datetime64_any_dtype(type(mode_val)):
+            return str(mode_val)
+        return mode_val
+
+    def _get_distribution(self, series: pd.Series, bins: int = 10) -> Dict[str, Any]:
+        """Gets histogram distribution for numerical data"""
+        try:
+            counts, edges = np.histogram(series, bins=bins)
+            bin_labels = [f"{round(edges[i], 2)}-{round(edges[i+1], 2)}" for i in range(len(edges) - 1)]
+            return {
+                "bins": bin_labels,
+                "counts": [int(c) for c in counts]
+            }
+        except (ValueError, TypeError):
+            return {"bins": [], "counts": []}
+
+    def _get_categorical_distribution(self, series: pd.Series, top_n: int = 10) -> Dict[str, Any]:
+        """Gets value distribution for categorical data"""
+        value_counts = series.value_counts()
+        top_values = value_counts.head(top_n)
+        bins = [str(v) for v in top_values.index.tolist()]
+        counts = top_values.tolist()
+        return {"bins": bins, "counts": counts}
+
+    def _calculate_column_quality_score(self, series: pd.Series, col_type: str) -> int:
+        """Calculates a quality score (0-100) for a column based on completeness and consistency"""
+        total = len(series)
+        if total == 0:
+            return 0
+
+        # Completeness score (no missing values = high score)
+        missing_pct = series.isnull().sum() / total
+        completeness_score = (1 - missing_pct) * 100
+
+        # Uniqueness score (depends on column type)
+        unique_ratio = series.nunique() / total if total > 0 else 0
+        if col_type == "categorical":
+            # For categorical, moderate uniqueness is good
+            if unique_ratio < 0.05:
+                uniqueness_score = unique_ratio * 1000
+            elif unique_ratio > 0.5:
+                uniqueness_score = max(0, 100 - (unique_ratio - 0.5) * 100)
+            else:
+                uniqueness_score = 100
+        else:
+            uniqueness_score = min(100, unique_ratio * 100 + 50)
+
+        # Weighted final score
+        final_score = completeness_score * 0.7 + uniqueness_score * 0.3
+        return round(max(0, min(100, final_score)))
 
     def _infer_type(self, series: pd.Series) -> str:
         """Infers a logical BI type for a column"""

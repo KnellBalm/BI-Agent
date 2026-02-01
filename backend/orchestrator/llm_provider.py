@@ -7,8 +7,11 @@ import anthropic
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from backend.orchestrator.quota_manager import quota_manager
+from backend.utils.logger_setup import setup_logger
 
 load_dotenv()
+
+logger = setup_logger("llm_provider", "llm_provider.log")
 
 class LLMProvider(ABC):
     """
