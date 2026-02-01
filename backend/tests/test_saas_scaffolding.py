@@ -10,7 +10,7 @@ async def test_saas_scaffolding():
     from backend.orchestrator.llm_provider import GeminiProvider, OllamaProvider, FailoverLLMProvider
     gemini = GeminiProvider()
     ollama = OllamaProvider()
-    llm = FailoverLLMProvider(primary=gemini, secondary=ollama)
+    llm = FailoverLLMProvider(providers=[gemini, ollama])
     
     generator = SQLGenerator(llm=llm)
     agent = DataSourceAgent(sql_generator=generator)

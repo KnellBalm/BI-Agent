@@ -8,10 +8,13 @@ version = "0.1.0"
 description = "Autonomous Business Intelligence Agent with Proactive Insights"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [
+    {name = "BI-Agent Team", email = "info@bi-agent.ai"},
+]
 license = {text = "MIT"}
 dependencies = [
     "textual>=0.47.1",
-    "google-generativeai",
+    "google-genai",
     "pandas",
     "duckdb",
     "plotly",
@@ -28,5 +31,9 @@ dependencies = [
 [project.scripts]
 bi-agent = "backend.orchestrator.bi_agent_console:run_app"
 
-[tool.setuptools]
-packages = ["backend", "backend.orchestrator", "backend.agents", "backend.utils", "backend.agents.data_source", "backend.agents.bi_tool"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.js", "*.json", "*.css", "*.md"]

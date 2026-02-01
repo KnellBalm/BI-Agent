@@ -6,13 +6,13 @@ from backend.orchestrator.quota_manager import QuotaManager
 async def test_failover():
     print("=== Failover Test: Gemini to Ollama ===")
     
-    # 1. QuotaManager with no keys (to force failover)
-    qm = QuotaManager(config_str="[]")
+    # 1. QuotaManager (uses default auth_manager.home_dir / usage_cache.json)
+    qm = QuotaManager()
     
     gemini = GeminiProvider(quota_manager=qm)
     ollama = OllamaProvider(model_name="llama3") # Ollama must be running locally
     
-    llm = FailoverLLMProvider(primary=gemini, secondary=ollama)
+    llm = FailoverLLMProvider(providers=[gemini, ollama])
     
     print("\n[Test 1] Generating with Failover...")
     try:

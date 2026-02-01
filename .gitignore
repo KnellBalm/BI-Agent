@@ -88,3 +88,5 @@ usage_cache.json
 # Local Test Data
 backend/data/*.json
 config/connections.json
+
+test_*

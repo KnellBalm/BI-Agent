@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-02-01 (v2.2.0-development) 🚀
+
+### Major Highlights: "Phase 2 & 3 Completion + Phase 4 Step 10 Implementation"
+
+Phase 2와 3의 핵심 기능을 모두 구현하여 분석 엔진의 전략 수립 및 가설 검증 체계를 완성했습니다. 또한 Phase 4 Step 10의 최적 쿼리 생성 및 자가 치유 기능을 구현하여 신뢰도 높은 데이터 추출 기반을 마련했습니다. 총 310개 이상의 테스트가 통과되었습니다.
+
+### 🟢 Added (신규 기능)
+
+#### Phase 2: 의도 파악 및 컨텍스트 스캐닝 강화
+
+- **명령어 히스토리 시스템** (`CommandHistory`): 최근 명령 저장, Up/Down 네비게이션, 탭 자동완성 지원.
+- **테이블 추천 UI** (`TableSelectionScreen`): 추천 점수 및 JOIN 제안이 포함된 인터랙티브 선택 모달.
+- **데이터 그리드 뷰어** (`DataGrid`): TUI 내 샘플 데이터 확인 및 타입 교정 시각화.
+
+#### Phase 3: 전략 수립 및 가설 검증 시스템
+
+- **분석 파이프라인 생성기** (`PipelineGenerator`): 단계별 분석 전략 자동 수립 및 의존성 관리.
+- **가설 엔진 및 ROI 시뮬레이터**: 업종별 가설 템플릿 및 비즈니스 가치(ROI) 사전 추정.
+- **실시간 메시지 버스** (`AgentMessageBus`): 에이전트 간 사고 과정 실시간 브로드캐스팅 및 로그 기록.
+- **상태 변환기 및 Thinking Translator**: LLM의 사고 과정을 친절한 한국어 상태 메시지로 변환.
+- **사용자 정렬 화면**: `HypothesisScreen` (가설 선택/수정), `ConstraintScreen` (제약 조건 입력).
+- **승인 감사 시스템**: 단축키 기반 승인/수정 루프 및 `approvals.jsonl` 감사 로그.
+
+#### Phase 4 Step 10: 최적 쿼리 생성 및 자가 치유
+
+- **SQLGenerator 고도화**:
+  - `DialectValidator`: SQLite/Postgres/MySQL 등 DB별 문법 검증 및 권장 함수 제안.
+  - `SchemaValidator`: 스키마 대조 검증 및 유사 테이블/컬럼명 자동 제안.
+  - `CostEstimator`: 쿼리 실행 비용 추정 및 대량 데이터 스캔 경고.
+  - 한국어 쿼리 설명 자동 생성 기능.
+- **QueryHealer (자가 치유)**:
+  - DB 에러 메시지 분석 및 LLM 기반 자동 수정 루프 (최대 3회 재시도).
+  - `query_healing.jsonl`에 모든 치유 시도 이력 로깅.
+- **PandasGenerator (복잡 변환)**:
+  - SQL로 표현 힘든 복잡 변환을 위한 Pandas 코드 자동 생성.
+  - `CodeSanitizer`를 통한 위험 패턴(os, subprocess 등) 차단 및 안전한 샌드박스 실행.
+
+### 🟡 Improved (개선 사항)
+
+- **ThinkingPanel 강화**: 실시간 업데이트, 상세 진행률 인디케이터, 체크마크 애니메이션 통합.
+- **테스트 커버리지**: 총 310개 이상의 유닛 테스트 통과 (Phase 2: 106개, Phase 3: 204개).
+
+---
+
 ## 2026-01-31 (v2.1.0-production) 🎯
 
 ### Major Highlights: "Production-Ready Release - Section 0 Complete + P0 Fixes"

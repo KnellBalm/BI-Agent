@@ -21,11 +21,13 @@ from backend.orchestrator.error_viewer_screen import ErrorViewerScreen
 import pandas as pd
 from backend.orchestrator.hud_statusline import HUDStatusLine
 from backend.orchestrator.message_components import (
-    MessageBubble, 
-    ThinkingPanel, 
+    MessageBubble,
+    ThinkingPanel,
     StreamingMessageView,
     ToolActivityTracker
 )
+from backend.orchestrator.command_history import CommandHistory
+from backend.orchestrator.screens.table_selection_screen import TableSelectionScreen
 
 # Initialize localized logger
 logger = setup_logger("tui", "tui.log")
@@ -189,7 +191,7 @@ class AuthScreen(ModalScreen):
             detail_container.mount(Label(""))
             detail_container.mount(Label(f"[bold]방법 2: credentials.json 파일 편집[/bold]"))
             detail_container.mount(Label(f"  파일: ~/.bi-agent/credentials.json"))
-            detail_container.mount(Label(f'  {{"providers": {{"{info['cred_key']}": {{"key": "your-api-key-here"}}}}}}'))
+            detail_container.mount(Label(f'  {{"providers": {{"{info["cred_key"]}": {{"key": "your-api-key-here"}}}}}}'))
             detail_container.mount(Label(""))
             detail_container.mount(Label(f"[bold]API 키 발급:[/bold] {info['api_url']}", classes="api-link"))
             
@@ -766,6 +768,10 @@ class BI_AgentConsole(App):
         self._init_orchestrator(self.current_project)
         self.palette_visible = False
 
+        # Initialize command history
+        self.command_history = CommandHistory()
+        logger.info(f"Command history initialized with {len(self.command_history.entries)} entries")
+
     def on_exception(self, event) -> None:
         """Textual 프레임워크 레벨에서 발생하는 모든 예외를 캐치하여 로깅"""
         import traceback
@@ -981,27 +987,52 @@ class BI_AgentConsole(App):
             menu.remove_class("visible")
             self.palette_visible = False
 
+        # Reset navigation when user starts typing
+        if event.value:
+            self.command_history.reset_navigation()
+
     def on_key(self, event) -> None:
-        """Handle global keys for menu navigation and Tab autocomplete."""
+        """Handle global keys for menu navigation, Tab autocomplete, and history navigation."""
         menu = self.query_one("#command-menu", OptionList)
         user_input = self.query_one("#user-input", Input)
-        
-        # Tab 자동완성: 입력값이 /로 시작하면 일치하는 명령어 자동완성
+
+        # === HISTORY NAVIGATION (Up/Down arrows when NOT in palette mode) ===
+        if user_input.has_focus and not self.palette_visible:
+            if event.key == "up":
+                # Navigate to previous command
+                prev_cmd = self.command_history.get_previous()
+                if prev_cmd is not None:
+                    user_input.value = prev_cmd
+                    user_input.cursor_position = len(user_input.value)
+                    event.prevent_default()
+                    return
+            elif event.key == "down":
+                # Navigate to next command
+                next_cmd = self.command_history.get_next()
+                if next_cmd is not None:
+                    user_input.value = next_cmd
+                    user_input.cursor_position = len(user_input.value)
+                    event.prevent_default()
+                    return
+
+        # === TAB COMPLETION ===
         if event.key == "tab" and user_input.has_focus:
             current_text = user_input.value.strip()
+
+            # Tab completion for slash commands
             if current_text.startswith("/"):
-                commands = ["intent", "analyze", "explore", "connect", "project", "login", "help"]
-                prefix = current_text[1:].lower()  # / 제거
-                
-                # 접두사와 일치하는 명령어 찾기
+                commands = ["intent", "analyze", "explore", "connect", "project", "login", "help", "errors"]
+                prefix = current_text[1:].lower()  # Remove /
+
+                # Find matching commands
                 matches = [cmd for cmd in commands if cmd.startswith(prefix)]
-                
+
                 if len(matches) == 1:
-                    # 정확히 하나만 일치하면 자동완성
+                    # Exactly one match - autocomplete
                     user_input.value = "/" + matches[0]
                     user_input.cursor_position = len(user_input.value)
                 elif len(matches) > 1:
-                    # 여러 개 일치하면 공통 접두사까지 완성
+                    # Multiple matches - complete to common prefix
                     common = matches[0]
                     for m in matches[1:]:
                         while not m.startswith(common):
@@ -1009,31 +1040,67 @@ class BI_AgentConsole(App):
                     if len(common) > len(prefix):
                         user_input.value = "/" + common
                         user_input.cursor_position = len(user_input.value)
-                
+
                 event.prevent_default()
                 return
-        
+
+            # Tab completion for Korean BI phrases and history
+            else:
+                suggestions = self.command_history.get_suggestions(current_text)
+
+                if len(suggestions) == 1:
+                    # Single suggestion - autocomplete
+                    user_input.value = suggestions[0]
+                    user_input.cursor_position = len(user_input.value)
+                elif len(suggestions) > 1:
+                    # Multiple suggestions - complete to common prefix
+                    common = suggestions[0]
+                    for s in suggestions[1:]:
+                        # Find common prefix
+                        for i, (c1, c2) in enumerate(zip(common, s)):
+                            if c1 != c2:
+                                common = common[:i]
+                                break
+                        else:
+                            # One is prefix of the other
+                            common = common[:min(len(common), len(s))]
+
+                    if len(common) > len(current_text):
+                        user_input.value = common
+                        user_input.cursor_position = len(user_input.value)
+                    else:
+                        # Show suggestions in notification
+                        suggestion_text = ", ".join(suggestions[:5])
+                        if len(suggestions) > 5:
+                            suggestion_text += f"... (+{len(suggestions) - 5} more)"
+                        self.notify(f"Suggestions: {suggestion_text}", timeout=3)
+
+                event.prevent_default()
+                return
+
+        # === PALETTE MENU NAVIGATION ===
         if self.palette_visible and user_input.has_focus:
             if event.key == "escape":
                 menu.remove_class("visible")
                 self.palette_visible = False
                 event.prevent_default()
             elif event.key == "up":
-                # 입력창에서 메뉴 항목 위로 이동
+                # Navigate menu items upward
                 if menu.highlighted is not None and menu.highlighted > 0:
                     menu.highlighted -= 1
                 event.prevent_default()
             elif event.key == "down":
-                # 입력창에서 메뉴 항목 아래로 이동
+                # Navigate menu items downward
                 if menu.highlighted is not None and menu.highlighted < menu.option_count - 1:
                     menu.highlighted += 1
                 event.prevent_default()
             elif event.key == "enter":
-                # 메뉴에서 선택된 항목 실행
+                # Execute selected menu item
                 if menu.highlighted is not None:
                     option = menu.get_option_at_index(menu.highlighted)
                     if option and option.id:
                         command_map = {
+                            "intent": "/intent",
                             "analyze": "/analyze",
                             "explore": "/explore",
                             "connect": "/connect",
@@ -1099,17 +1166,22 @@ class BI_AgentConsole(App):
             return
 
         chat_log = self.query_one("#chat-log", VerticalScroll)
-        
+
+        # Save to command history
+        context = "slash_command" if user_text.startswith("/") else "query"
+        self.command_history.add_command(user_text, context=context)
+        logger.debug(f"Command saved to history: {user_text[:50]}...")
+
         # 사용자 메시지 추가
         user_msg = MessageBubble(role="user", content=user_text)
         chat_log.mount(user_msg)
         chat_log.scroll_end(animate=False)
-        
+
         self.query_one("#user-input", Input).value = ""
-        
+
         # 크래시 방지: 제거된 HUD 참조 제거
         # (기존 hud = self.query_one("#hud-status") 부분 삭제)
-        
+
         if user_text.startswith("/"):
             await self.handle_command(user_text)
         else:
@@ -1244,12 +1316,62 @@ class BI_AgentConsole(App):
         """Execute the orchestrator's intent analysis and display the plan."""
         chat_log = self.query_one("#chat-log", VerticalScroll)
         try:
-            # Step 1: LLM을 통한 플랜 생성
-            # 데모를 위해 첫 번째 연결을 사용
+            # Step 1: Get connection
             with open(self.registry_path, 'r', encoding='utf-8') as f:
                 registry = json.load(f)
             conn_id = list(registry.keys())[0] if registry else "default_db"
 
+            # Step 2: Get table recommendations (if orchestrator supports it)
+            # Example integration with TableRecommender:
+            try:
+                from backend.agents.data_source.table_recommender import TableRecommender
+                from backend.agents.bi_tool.analysis_intent import AnalysisIntent
+                from backend.orchestrator.llm_provider import LLMProvider
+
+                # Create temporary AnalysisIntent from user intent string
+                # (In production, this would be properly parsed)
+                temp_intent = AnalysisIntent(
+                    title="User Intent Analysis",
+                    purpose=intent,
+                    target_metrics=["revenue", "performance"],  # Example
+                    hypothesis=None,
+                    filters={}
+                )
+
+                # Get schema from connection manager
+                from backend.agents.data_source.metadata_scanner import MetadataScanner
+                scanner = MetadataScanner(self.conn_mgr)
+                schema = scanner.scan_source(conn_id)
+
+                # Initialize TableRecommender
+                llm = LLMProvider()
+                recommender = TableRecommender(llm, schema)
+
+                # Get recommendations
+                recommendations = await recommender.recommend_tables(temp_intent)
+
+                if recommendations:
+                    # Show table selection screen
+                    def on_tables_selected(selected_tables: List[str]):
+                        """Callback when user selects tables"""
+                        logger.info(f"User selected tables: {selected_tables}")
+                        msg = MessageBubble(
+                            role="system",
+                            content=f"[green]Selected tables: {', '.join(selected_tables)}[/green]\n"
+                                    f"[dim]Proceeding with analysis...[/dim]"
+                        )
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+
+                    # Push table selection screen
+                    self.push_screen(TableSelectionScreen(recommendations, callback=on_tables_selected))
+                    return
+
+            except Exception as e:
+                logger.warning(f"Table recommendation failed, using default flow: {e}")
+                # Fall back to original flow
+
+            # Step 3: Original plan generation
             result = await self.orchestrator.handle_intent(intent, conn_id)
             
             if "status" in result and result["status"] == "error":
