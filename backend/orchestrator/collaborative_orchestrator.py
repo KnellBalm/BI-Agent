@@ -37,19 +37,39 @@ class CollaborativeOrchestrator:
         self.dash_gen = DashboardGenerator(project_id)
         self.packager = OutputPackager(project_id)
 
-    async def handle_intent(self, query: str, conn_id: str) -> Dict[str, Any]:
+        # Thinking 2.0 Integration
+        from backend.orchestrator.agent_message_bus import AgentMessageBus
+        from backend.orchestrator.thinking_translator import ThinkingTranslator
+        self.bus = AgentMessageBus()
+        self.thinking = ThinkingTranslator(self.bus)
+
+    async def handle_intent(self, query: str, conn_id: str = None) -> Dict[str, Any]:
         """
         User intent analysis and Step-by-step PLAN generation.
         """
-        print(f"🎯 Analyzing intent: {query}")
+        if not conn_id:
+            conn_id = context_manager.active_conn_id
+            
+        print(f"🎯 Analyzing intent: {query} (Conn: {conn_id})")
+        
+        # Thinking 2.0: Strategy Alignment
+        from backend.orchestrator.thinking_translator import AgentState
+        await self.thinking.transition_to(AgentState.STRATEGY_ALIGNMENT, agent="Strategist")
+
         try:
             # Get schema context if possible
             schema_context = ""
-            try:
-                meta = self.scanner.scan_source(conn_id)
-                schema_context = f"Available tables and columns: {json.dumps(meta.get('tables', []), indent=2)}"
-            except:
-                schema_context = "Data source context currently unavailable."
+            if context_manager.active_table and (not conn_id or conn_id == context_manager.active_conn_id):
+                # Use pinned context if available
+                schema_context = f"Pinned Context: Table '{context_manager.active_table}', Schema: {json.dumps(context_manager.active_schema, indent=2)}"
+            elif conn_id:
+                try:
+                    meta = self.scanner.scan_source(conn_id)
+                    schema_context = f"Available tables and columns: {json.dumps(meta.get('tables', []), indent=2)}"
+                except:
+                    schema_context = "Data source context currently unavailable."
+            else:
+                schema_context = "No data source connection or pinned context available. Guide the user to /connect or /explore."
 
             prompt = f"""
             You are a Senior BI Strategist. The user wants to analyze something: "{query}"
@@ -77,34 +97,52 @@ class CollaborativeOrchestrator:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    async def run(self, query: str, conn_id: str) -> Dict[str, Any]:
+    async def run(self, query: str, conn_id: str = None) -> Dict[str, Any]:
         """
         Entrance Hall 등에서 호출하는 메인 진입점입니다.
         """
         return await self.handle_complex_request(query, conn_id)
 
-    async def handle_complex_request(self, user_query: str, conn_id: str) -> Dict[str, Any]:
-
+    async def handle_complex_request(self, user_query: str, conn_id: str = None) -> Dict[str, Any]:
+        if not conn_id:
+            conn_id = context_manager.active_conn_id
+            
         try:
             # --- [Step 1: DataMaster] Context Discovery ---
-            try:
-                meta = self.scanner.scan_source(conn_id)
-                is_simulation = False
-            except Exception as e:
-                print(f"⚠️ Connection failed for {conn_id}: {e}. Triggering Plan B: Virtual Schema.")
-                meta = await self._handle_connection_failure(user_query)
-                is_simulation = True
-
-            if not meta["tables"]:
-                return {"status": "error", "message": "No tables found in data source."}
+            from backend.orchestrator.thinking_translator import AgentState
+            await self.thinking.transition_to(AgentState.SCHEMA_ANALYSIS, agent="DataMaster")
+            context_manager.update_journey_step(5) # Analyze start
             
-            # Pick the most relevant table (Simplified)
-            target_table = meta["tables"][0]
-            table_name = target_table['table_name']
+            target_table = None
+            is_simulation = False
+            
+            # Check if we have a pinned context that matches
+            if context_manager.active_table and (not conn_id or conn_id == context_manager.active_conn_id):
+                # USE PINNED CONTEXT
+                conn_id = context_manager.active_conn_id
+                target_table = context_manager.active_schema
+                print(f"📌 [DataMaster] Using pinned context: {conn_id}.{context_manager.active_table}")
+            elif conn_id:
+                try:
+                    meta = self.scanner.scan_source(conn_id)
+                    if meta["tables"]:
+                        target_table = meta["tables"][0] # Default to first table
+                except Exception as e:
+                    print(f"⚠️ Connection failed for {conn_id}: {e}. Triggering Plan B: Virtual Schema.")
+                    meta = await self._handle_connection_failure(user_query)
+                    target_table = meta["tables"][0]
+                    is_simulation = True
+            
+            if not target_table:
+                return {"status": "error", "message": "No data source or pinned table available. Use /connect or /explore first."}
+            
+            table_name = target_table.get('table_name', context_manager.active_table)
             sim_prefix = "[SIMULATION] " if is_simulation else ""
-            print(f"🔍 [DataMaster] {sim_prefix}Selected table: {table_name}")
+            print(f"🔍 [DataMaster] {sim_prefix}Target table: {table_name}")
 
             # --- [Step 2: Strategist] Goal Definition (Metric Aware) ---
+            await self.thinking.transition_to(AgentState.HYPOTHESIS_GENERATION, agent="Strategist")
+            
             active_metrics = self.metric_store.get_metrics_for_table(table_name)
             metric_context = ""
             if active_metrics:
@@ -120,6 +158,8 @@ class CollaborativeOrchestrator:
             print(f"🎯 [Strategist] Plan: {strategy['reasoning']}")
  
             # --- [Step 3: VisualDesigner] Composition ---
+            await self.thinking.transition_to(AgentState.VISUALIZATION, agent="Designer")
+            
             profile = {
                 "columns": target_table["columns"],
                 "overview": {"rows": target_table["row_count_estimate"]},
@@ -129,6 +169,59 @@ class CollaborativeOrchestrator:
             print(f"🎨 [Designer] Suggested {len(config['visuals'])} visuals.")
 
             # --- [Step 4: Generation] Assembly ---
+            await self.thinking.transition_to(AgentState.SUMMARY_GENERATION, agent="System")
+            
+            # --- [Step 5: Real Data Execution for TUI Charts] ---
+            # Extract data for VisualAnalysisScreen
+            tui_data = {"metrics": [], "charts": []}
+            
+            if not is_simulation and conn_id:
+                try:
+                    # Replace 'dataset' placeholder with actual table name
+                    sql = config.get("dynamic_query", f"SELECT * FROM {table_name} LIMIT 100").replace("dataset", table_name)
+                    # Simple parameter substitution if any
+                    for param in config.get("varList", []):
+                        sql = sql.replace(f"{{{{ {param['id']} }}}}", str(param['value']))
+                    
+                    df = self.conn_mgr.run_query(conn_id, sql)
+                    
+                    # 1. KPIs
+                    for visual in config.get("visuals", []):
+                        if visual["type"] == "Label":
+                            col = visual["config"]["measure"]
+                            agg = visual["config"]["agg"]
+                            val = 0
+                            if agg == "sum": val = df[col].sum()
+                            elif agg == "avg": val = df[col].mean()
+                            
+                            tui_data["metrics"].append({
+                                "label": f"{agg.upper()}({col})",
+                                "value": f"{val:,.0f}" if isinstance(val, (int, float)) else str(val),
+                                "delta": "LIVE",
+                                "color": "green"
+                            })
+                    
+                    # 2. Main Chart
+                    for visual in config.get("visuals", []):
+                        if visual["type"] == "BarChart":
+                            dim = visual["config"]["dimension"]
+                            meas = visual["config"]["measure"]
+                            agg = visual["config"]["agg"]
+                            
+                            if agg == "sum":
+                                chart_df = df.groupby(dim)[meas].sum().reset_index()
+                            else:
+                                chart_df = df.groupby(dim)[meas].mean().reset_index()
+                            
+                            tui_data["charts"].append({
+                                "title": f"{meas} by {dim}",
+                                "label_col": dim,
+                                "value_col": meas,
+                                "data": chart_df.to_dict(orient="records")
+                            })
+                except Exception as e:
+                    print(f"⚠️ Failed to fetch live data for visuals: {e}")
+
             generator = InHouseGenerator(profile, theme_name="premium_dark")
             generator.build_connector()
             
@@ -149,10 +242,17 @@ class CollaborativeOrchestrator:
             output_path = path_manager.get_output_path(conn_id) / f"collaborative_data{suffix}.json"
             generator.dump_to_file(str(output_path))
             
+            # Journey Progress: Result
+            context_manager.update_journey_step(6)
+            
             result = {
                 "status": "success",
                 "is_simulation": is_simulation,
-                "path": output_path,
+                "table": table_name,
+                "output_file": str(output_path),
+                "visuals": config.get("visuals", []),
+                "profile": profile,
+                "tui_data": tui_data,
                 "reasoning": strategy["reasoning"],
                 "summary": {
                     "table": target_table["table_name"],

@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from typing import Any, Dict, List, Optional
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -10,12 +11,29 @@ load_dotenv()
 class MCPClient:
     """
     MCP 서버와의 통신을 관리하는 클라이언트 래퍼 클래스
+
+    Python (.py) 및 JavaScript (.js) MCP 서버를 모두 지원합니다.
     """
     def __init__(self, server_path: str, args: List[str] = None, env: Dict[str, str] = None):
+        # Auto-detect server type by file extension
+        if server_path.endswith('.py'):
+            command = sys.executable  # Use same Python as client
+            server_env = {
+                **os.environ,
+                "PYTHONUNBUFFERED": "1",  # Disable output buffering for stdio
+                "PYTHONIOENCODING": "utf-8",  # Ensure UTF-8 encoding
+                **(env or {})
+            }
+        elif server_path.endswith('.js'):
+            command = "node"
+            server_env = {**os.environ, **(env or {})}
+        else:
+            raise ValueError(f"Unknown server type: {server_path}. Must be .py or .js")
+
         self.server_parameters = StdioServerParameters(
-            command="node",
+            command=command,
             args=[server_path] + (args or []),
-            env={**os.environ, **(env or {})}
+            env=server_env
         )
         self.session: Optional[ClientSession] = None
         self._exit_stack = None

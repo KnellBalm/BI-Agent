@@ -19,7 +19,12 @@ class AuthManager:
             self.home_dir = Path.home() / ".bi-agent"
             self.creds_path = self.home_dir / "credentials.json"
             self.home_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure the directory has restricted permissions (700)
+            os.chmod(self.home_dir, 0o700)
             self.credentials = self._load_credentials()
+            # If file exists, ensure it has restricted permissions (600)
+            if self.creds_path.exists():
+                os.chmod(self.creds_path, 0o600)
             logger.info(f"AuthManager initialized at {self.creds_path}")
         except Exception as e:
             logger.error(f"Failed to initialize AuthManager: {e}")
@@ -53,8 +58,12 @@ class AuthManager:
 
     def save_credentials(self):
         try:
-            with open(self.creds_path, 'w', encoding='utf-8') as f:
+            # Create file with 600 permissions using os.open for atomicity
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+            mode = 0o600
+            with os.fdopen(os.open(self.creds_path, flags, mode), 'w', encoding='utf-8') as f:
                 json.dump(self.credentials, f, indent=2)
+            logger.info(f"Credentials saved securely to {self.creds_path}")
         except Exception as e:
             logger.error(f"Failed to save credentials: {e}")
 
@@ -89,6 +98,61 @@ class AuthManager:
             return True
         except Exception as e:
             logger.error(f"OAuth login flow error: {e}")
+            return False
+
+    async def verify_key(self, provider: str, key: str) -> bool:
+        """
+        입력된 API 키가 유효한지 실제 API 호출을 통해 검증합니다 (Ping test).
+        """
+        try:
+            if provider == "gemini":
+                import google.generativeai as genai
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel('gemini-1.5-flash-8b') # 저렴하고 빠른 모델로 테스트
+                # 간단한 응답 생성 테스트
+                response = model.generate_content("hello", generation_config={"max_output_tokens": 1})
+                return True
+            
+            elif provider == "claude":
+                # httpx를 사용하여 직접 API 호출 (anthropic 패키지가 없을 수 있으므로)
+                import httpx
+                headers = {
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json"
+                }
+                async with httpx.AsyncClient() as client:
+                    # 빈 메시지 생성을 시도하여 키 유효성 확인
+                    response = await client.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers=headers,
+                        json={
+                            "model": "claude-3-haiku-20240307",
+                            "max_tokens": 1,
+                            "messages": [{"role": "user", "content": "hi"}]
+                        },
+                        timeout=5.0
+                    )
+                    return response.status_code == 200
+            
+            elif provider == "openai":
+                import httpx
+                headers = {
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json"
+                }
+                async with httpx.AsyncClient() as client:
+                    # 모델 목록 조회로 키 유효성 확인
+                    response = await client.get(
+                        "https://api.openai.com/v1/models",
+                        headers=headers,
+                        timeout=5.0
+                    )
+                    return response.status_code == 200
+            
+            return False
+        except Exception as e:
+            logger.error(f"Failed to verify {provider} key: {e}")
             return False
 
     def is_authenticated(self, provider: str = "gemini") -> bool:

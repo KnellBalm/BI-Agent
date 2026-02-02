@@ -2,11 +2,32 @@
 
 Model Context Protocol (MCP) 서버는 AI Agent가 데이터 소스에 접근할 수 있도록 하는 표준화된 인터페이스입니다.
 
+## Python vs JavaScript MCP 서버
+
+BI-Agent는 **Python**과 **JavaScript** 두 가지 구현을 지원합니다:
+
+| 특징 | Python 구현 (.py) | JavaScript 구현 (.js) |
+|------|------------------|---------------------|
+| **상태** | ✅ **기본값 (권장)** | 레거시 (하위 호환용) |
+| **통합** | 네이티브 (FastAPI, langgraph) | Node.js 런타임 필요 |
+| **성능** | 빠름 (asyncio) | 빠름 (Promise) |
+| **SDK** | mcp>=1.23.0 (FastMCP) | @modelcontextprotocol/sdk@0.5.0 |
+| **타입 안전성** | Pydantic 모델 | TypeScript |
+
+**기본적으로 Python 서버가 사용됩니다.** JavaScript 서버로 전환하려면:
+```bash
+export MCP_USE_PYTHON=false
+```
+
 ## 설치된 MCP 서버
+
+모든 MCP 서버는 Python (.py)과 JavaScript (.js) 두 가지 버전으로 제공됩니다.
 
 ### 1. PostgreSQL MCP 서버
 
-**위치**: `backend/mcp_servers/postgres_server.js`
+**위치**:
+- Python: `backend/mcp_servers/postgres_server.py` (기본값)
+- JavaScript: `backend/mcp_servers/postgres_server.js` (레거시)
 
 **기능**:
 - PostgreSQL 데이터베이스 쿼리 실행 (읽기 전용)
@@ -20,7 +41,11 @@ Model Context Protocol (MCP) 서버는 AI Agent가 데이터 소스에 접근할
 
 **실행**:
 ```bash
+# Python 버전 (기본값)
 npm run mcp:postgres
+
+# JavaScript 버전 (레거시)
+npm run mcp:postgres:js
 ```
 
 **환경 변수** (.env 파일):
@@ -46,7 +71,9 @@ POSTGRES_PASSWORD=your_password
 
 ### 2. MySQL MCP 서버
 
-**위치**: `backend/mcp_servers/mysql_server.js`
+**위치**:
+- Python: `backend/mcp_servers/mysql_server.py` (기본값)
+- JavaScript: `backend/mcp_servers/mysql_server.js` (레거시)
 
 **기능**:
 - MySQL/MariaDB 데이터베이스 쿼리 실행 (읽기 전용)
@@ -60,7 +87,11 @@ POSTGRES_PASSWORD=your_password
 
 **실행**:
 ```bash
+# Python 버전 (기본값)
 npm run mcp:mysql
+
+# JavaScript 버전 (레거시)
+npm run mcp:mysql:js
 ```
 
 **환경 변수** (.env 파일):
@@ -84,7 +115,9 @@ MYSQL_PASSWORD=your_password
 
 ### 3. Excel MCP 서버
 
-**위치**: `backend/mcp_servers/excel_server.js`
+**위치**:
+- Python: `backend/mcp_servers/excel_server.py` (기본값)
+- JavaScript: `backend/mcp_servers/excel_server.js` (레거시)
 
 **기능**:
 - Excel 파일 읽기 (.xlsx, .xls)
@@ -99,7 +132,11 @@ MYSQL_PASSWORD=your_password
 
 **실행**:
 ```bash
+# Python 버전 (기본값)
 npm run mcp:excel
+
+# JavaScript 버전 (레거시)
+npm run mcp:excel:js
 ```
 
 **예시 - 파일 읽기**:
@@ -127,6 +164,94 @@ npm run mcp:excel
     "sheet_name": "Users"
   }
 }
+```
+
+---
+
+### 4. BigQuery MCP 서버
+
+**위치**:
+- Python: `backend/mcp_servers/bigquery_server.py` (기본값)
+- JavaScript: `backend/mcp_servers/bigquery_server.js` (레거시)
+
+**기능**:
+- Google BigQuery 쿼리 실행
+- 데이터셋 목록 조회
+- 테이블 목록 조회
+
+**사용 가능한 도구**:
+- `query`: BigQuery SQL 실행
+- `list_datasets`: 프로젝트 내 데이터셋 목록
+- `list_tables`: 데이터셋 내 테이블 목록
+
+**실행**:
+```bash
+# Python 버전 (기본값)
+npm run mcp:bigquery
+
+# JavaScript 버전 (레거시)
+npm run mcp:bigquery:js
+```
+
+---
+
+### 5. Snowflake MCP 서버
+
+**위치**:
+- Python: `backend/mcp_servers/snowflake_server.py` (기본값)
+- JavaScript: `backend/mcp_servers/snowflake_server.js` (레거시)
+
+**기능**:
+- Snowflake 데이터 웨어하우스 쿼리 실행
+- 테이블 목록 조회
+
+**사용 가능한 도구**:
+- `query`: Snowflake SQL 실행
+- `list_tables`: 스키마 내 테이블 목록
+
+**실행**:
+```bash
+# Python 버전 (기본값)
+npm run mcp:snowflake
+
+# JavaScript 버전 (레거시)
+npm run mcp:snowflake:js
+```
+
+**환경 변수**:
+```env
+SNOWFLAKE_USER=your_username
+SNOWFLAKE_PASSWORD=your_password
+SNOWFLAKE_ACCOUNT=your_account
+SNOWFLAKE_WAREHOUSE=your_warehouse
+SNOWFLAKE_DATABASE=your_database
+SNOWFLAKE_SCHEMA=your_schema
+SNOWFLAKE_ROLE=your_role
+```
+
+---
+
+### 6. GCP Manager MCP 서버
+
+**위치**:
+- Python: `backend/mcp_servers/gcp_manager_server.py` (기본값)
+- JavaScript: `backend/mcp_servers/gcp_manager_server.js` (레거시)
+
+**기능**:
+- GCP 쿼터 사용량 조회
+- GCP 빌링 정보 조회
+
+**사용 가능한 도구**:
+- `get_quota_usage`: 서비스별 쿼터 사용량
+- `get_billing_info`: 프로젝트 빌링 정보
+
+**실행**:
+```bash
+# Python 버전 (기본값)
+npm run mcp:gcp
+
+# JavaScript 버전 (레거시)
+npm run mcp:gcp:js
 ```
 
 ---
@@ -175,36 +300,60 @@ MCP 클라이언트를 사용하여 Python Agent에서 MCP 서버를 호출할 �
 ### 설치
 
 ```bash
-pip install mcp
+pip install mcp>=1.23.0
 ```
 
-### 사용 예시
+### Python MCP 서버 사용 (권장)
 
 ```python
 import asyncio
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from backend.agents.data_source.mcp_client import MCPClient
 
 async def query_postgres():
-    server_params = StdioServerParameters(
-        command="node",
-        args=["backend/mcp_servers/postgres_server.js"],
-    )
+    # MCPClient가 자동으로 .py/.js 감지
+    client = MCPClient("backend/mcp_servers/postgres_server.py")
 
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
+    try:
+        await client.connect()
 
-            # 도구 호출
-            result = await session.call_tool("query", {
-                "sql": "SELECT * FROM users LIMIT 10"
-            })
+        # 도구 호출
+        result = await client.call_tool("query", {
+            "sql": "SELECT * FROM users LIMIT 10"
+        })
 
-            print(result.content[0].text)
+        print(result.content[0].text)
+    finally:
+        await client.disconnect()
 
 # 실행
 asyncio.run(query_postgres())
 ```
+
+### JavaScript MCP 서버 사용 (레거시)
+
+```python
+import asyncio
+from backend.agents.data_source.mcp_client import MCPClient
+
+async def query_postgres_js():
+    # .js 파일을 전달하면 자동으로 node 명령어 사용
+    client = MCPClient("backend/mcp_servers/postgres_server.js")
+
+    try:
+        await client.connect()
+        result = await client.call_tool("query", {
+            "sql": "SELECT * FROM users LIMIT 10"
+        })
+        print(result.content[0].text)
+    finally:
+        await client.disconnect()
+
+asyncio.run(query_postgres_js())
+```
+
+**MCPClient의 자동 감지 기능**:
+- `.py` 파일 → Python 실행 (`sys.executable`), `PYTHONUNBUFFERED=1`, `PYTHONIOENCODING=utf-8` 설정
+- `.js` 파일 → Node.js 실행 (`node` 명령어)
 
 ---
 

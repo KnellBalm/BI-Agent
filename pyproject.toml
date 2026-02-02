@@ -26,6 +26,8 @@ dependencies = [
     "anthropic",
     "openai",
     "mcp",
+    "sshtunnel>=0.4.0",
+    "paramiko>=2.7.2,<4.0.0",
 ]
 
 [project.scripts]

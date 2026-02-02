@@ -29,16 +29,22 @@ class AgentState(Enum):
     DATA_PROFILING = "data_profiling"
     VISUALIZATION = "visualization"
     INSIGHT_EXTRACTION = "insight_extraction"
+    STRATEGY_ALIGNMENT = "strategy_alignment"
+    DESIGN_COMPOSITION = "design_composition"
+    SUMMARY_GENERATION = "summary_generation"
 
 
 # Korean labels for each agent state
 STATE_LABELS_KO: Dict[AgentState, str] = {
-    AgentState.SCHEMA_ANALYSIS: "스키마 해석 중...",
-    AgentState.HYPOTHESIS_GENERATION: "가설 생성 중...",
-    AgentState.QUERY_OPTIMIZATION: "쿼리 최적화 중...",
-    AgentState.DATA_PROFILING: "데이터 프로파일링 중...",
-    AgentState.VISUALIZATION: "시각화 생성 중...",
-    AgentState.INSIGHT_EXTRACTION: "인사이트 추출 중...",
+    AgentState.SCHEMA_ANALYSIS: "🔍 데이터 구조 파악 중...",
+    AgentState.HYPOTHESIS_GENERATION: "💡 분석 가설 세우는 중...",
+    AgentState.QUERY_OPTIMIZATION: "⚡ 최적의 쿼리 작성 중...",
+    AgentState.DATA_PROFILING: "📊 데이터 통계 추출 중...",
+    AgentState.VISUALIZATION: "🎨 시각화 구성 요소 설계 중...",
+    AgentState.INSIGHT_EXTRACTION: "🧠 비즈니스 인사이트 도출 중...",
+    AgentState.STRATEGY_ALIGNMENT: "🏁 전략적 분석 방향 조정 중...",
+    AgentState.DESIGN_COMPOSITION: "🖼️ 대시보드 레이아웃 배치 중...",
+    AgentState.SUMMARY_GENERATION: "📝 최종 요약 리포트 작성 중...",
 }
 
 

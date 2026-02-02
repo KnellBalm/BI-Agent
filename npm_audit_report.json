@@ -1,0 +1,541 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@aws-sdk/client-s3": {
+      "name": "@aws-sdk/client-s3",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/middleware-flexible-checksums",
+        "@aws-sdk/middleware-sdk-s3",
+        "@aws-sdk/middleware-user-agent",
+        "@aws-sdk/signature-v4-multi-region",
+        "@aws-sdk/util-user-agent-node"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/client-s3"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/client-sso": {
+      "name": "@aws-sdk/client-sso",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/middleware-user-agent",
+        "@aws-sdk/util-user-agent-node"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/client-sso"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/core": {
+      "name": "@aws-sdk/core",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/xml-builder"
+      ],
+      "effects": [
+        "@aws-sdk/client-s3",
+        "@aws-sdk/client-sso",
+        "@aws-sdk/credential-provider-env",
+        "@aws-sdk/credential-provider-http",
+        "@aws-sdk/credential-provider-ini",
+        "@aws-sdk/credential-provider-login",
+        "@aws-sdk/credential-provider-process",
+        "@aws-sdk/credential-provider-sso",
+        "@aws-sdk/credential-provider-web-identity",
+        "@aws-sdk/middleware-flexible-checksums",
+        "@aws-sdk/middleware-sdk-s3",
+        "@aws-sdk/middleware-user-agent",
+        "@aws-sdk/nested-clients",
+        "@aws-sdk/token-providers"
+      ],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/core"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-env": {
+      "name": "@aws-sdk/credential-provider-env",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-env"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-http": {
+      "name": "@aws-sdk/credential-provider-http",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core"
+      ],
+      "effects": [
+        "@aws-sdk/credential-provider-node"
+      ],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-http"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-ini": {
+      "name": "@aws-sdk/credential-provider-ini",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-env",
+        "@aws-sdk/credential-provider-http",
+        "@aws-sdk/credential-provider-login",
+        "@aws-sdk/credential-provider-process",
+        "@aws-sdk/credential-provider-sso",
+        "@aws-sdk/credential-provider-web-identity",
+        "@aws-sdk/nested-clients"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-ini"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-login": {
+      "name": "@aws-sdk/credential-provider-login",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/nested-clients"
+      ],
+      "effects": [
+        "@aws-sdk/credential-provider-ini"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-login"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-node": {
+      "name": "@aws-sdk/credential-provider-node",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/credential-provider-env",
+        "@aws-sdk/credential-provider-http",
+        "@aws-sdk/credential-provider-ini",
+        "@aws-sdk/credential-provider-process",
+        "@aws-sdk/credential-provider-sso",
+        "@aws-sdk/credential-provider-web-identity"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-node"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-process": {
+      "name": "@aws-sdk/credential-provider-process",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-process"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-sso": {
+      "name": "@aws-sdk/credential-provider-sso",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/client-sso",
+        "@aws-sdk/core",
+        "@aws-sdk/token-providers"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-sso"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/credential-provider-web-identity": {
+      "name": "@aws-sdk/credential-provider-web-identity",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/nested-clients"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/credential-provider-web-identity"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/middleware-flexible-checksums": {
+      "name": "@aws-sdk/middleware-flexible-checksums",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/middleware-flexible-checksums"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/middleware-sdk-s3": {
+      "name": "@aws-sdk/middleware-sdk-s3",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core"
+      ],
+      "effects": [
+        "@aws-sdk/signature-v4-multi-region"
+      ],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/middleware-sdk-s3"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/middleware-user-agent": {
+      "name": "@aws-sdk/middleware-user-agent",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core"
+      ],
+      "effects": [
+        "@aws-sdk/util-user-agent-node"
+      ],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/middleware-user-agent"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/nested-clients": {
+      "name": "@aws-sdk/nested-clients",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/middleware-user-agent",
+        "@aws-sdk/util-user-agent-node"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/nested-clients"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/signature-v4-multi-region": {
+      "name": "@aws-sdk/signature-v4-multi-region",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/middleware-sdk-s3"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/signature-v4-multi-region"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/token-providers": {
+      "name": "@aws-sdk/token-providers",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/core",
+        "@aws-sdk/nested-clients"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/token-providers"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/util-user-agent-node": {
+      "name": "@aws-sdk/util-user-agent-node",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@aws-sdk/middleware-user-agent"
+      ],
+      "effects": [],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/util-user-agent-node"
+      ],
+      "fixAvailable": true
+    },
+    "@aws-sdk/xml-builder": {
+      "name": "@aws-sdk/xml-builder",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "fast-xml-parser"
+      ],
+      "effects": [
+        "@aws-sdk/core"
+      ],
+      "range": ">=3.894.0",
+      "nodes": [
+        "node_modules/@aws-sdk/xml-builder"
+      ],
+      "fixAvailable": true
+    },
+    "@google-cloud/storage": {
+      "name": "@google-cloud/storage",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "fast-xml-parser"
+      ],
+      "effects": [],
+      "range": ">=7.12.1",
+      "nodes": [
+        "node_modules/@google-cloud/storage"
+      ],
+      "fixAvailable": true
+    },
+    "@modelcontextprotocol/sdk": {
+      "name": "@modelcontextprotocol/sdk",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1111155,
+          "name": "@modelcontextprotocol/sdk",
+          "dependency": "@modelcontextprotocol/sdk",
+          "title": "Model Context Protocol (MCP) TypeScript SDK does not enable DNS rebinding protection by default",
+          "url": "https://github.com/advisories/GHSA-w48q-cv73-mx4w",
+          "severity": "high",
+          "cwe": [
+            "CWE-350",
+            "CWE-1188"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<1.24.0"
+        },
+        {
+          "source": 1111906,
+          "name": "@modelcontextprotocol/sdk",
+          "dependency": "@modelcontextprotocol/sdk",
+          "title": "Anthropic's MCP TypeScript SDK has a ReDoS vulnerability",
+          "url": "https://github.com/advisories/GHSA-8r9q-7v3j-jr4g",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<1.25.2"
+        }
+      ],
+      "effects": [
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "range": "<=1.25.1",
+      "nodes": [
+        "node_modules/@modelcontextprotocol/sdk",
+        "node_modules/@modelcontextprotocol/server-postgres/node_modules/@modelcontextprotocol/sdk"
+      ],
+      "fixAvailable": false
+    },
+    "@modelcontextprotocol/server-postgres": {
+      "name": "@modelcontextprotocol/server-postgres",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "@modelcontextprotocol/sdk"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/@modelcontextprotocol/server-postgres"
+      ],
+      "fixAvailable": false
+    },
+    "fast-xml-parser": {
+      "name": "fast-xml-parser",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112708,
+          "name": "fast-xml-parser",
+          "dependency": "fast-xml-parser",
+          "title": "fast-xml-parser has RangeError DoS Numeric Entities Bug",
+          "url": "https://github.com/advisories/GHSA-37qj-frw5-hhjh",
+          "severity": "high",
+          "cwe": [
+            "CWE-248"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=4.3.6 <=5.3.3"
+        }
+      ],
+      "effects": [
+        "@aws-sdk/xml-builder",
+        "@google-cloud/storage"
+      ],
+      "range": "4.3.6 - 5.3.3",
+      "nodes": [
+        "node_modules/@aws-sdk/xml-builder/node_modules/fast-xml-parser",
+        "node_modules/fast-xml-parser"
+      ],
+      "fixAvailable": true
+    },
+    "snowflake-sdk": {
+      "name": "snowflake-sdk",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1102097,
+          "name": "snowflake-sdk",
+          "dependency": "snowflake-sdk",
+          "title": "snowflake-sdk may incorrectly validate temporary credential cache file permissions",
+          "url": "https://github.com/advisories/GHSA-xfhv-wqj6-rx99",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-281"
+          ],
+          "cvss": {
+            "score": 4.4,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": ">=1.12.0 <=2.0.1"
+        },
+        {
+          "source": 1104100,
+          "name": "snowflake-sdk",
+          "dependency": "snowflake-sdk",
+          "title": "NodeJS Driver for Snowflake has race condition when checking access to Easy Logging configuration file",
+          "url": "https://github.com/advisories/GHSA-wmjq-jrm2-9wfr",
+          "severity": "low",
+          "cwe": [
+            "CWE-367"
+          ],
+          "cvss": {
+            "score": 3.3,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N"
+          },
+          "range": ">=1.10.0 <=2.0.3"
+        }
+      ],
+      "effects": [],
+      "range": "1.10.0 - 2.0.3",
+      "nodes": [
+        "node_modules/snowflake-sdk"
+      ],
+      "fixAvailable": true
+    },
+    "xlsx": {
+      "name": "xlsx",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1108110,
+          "name": "xlsx",
+          "dependency": "xlsx",
+          "title": "Prototype Pollution in sheetJS",
+          "url": "https://github.com/advisories/GHSA-4r6h-8v6p-xvw6",
+          "severity": "high",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 7.8,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H"
+          },
+          "range": "<0.19.3"
+        },
+        {
+          "source": 1108111,
+          "name": "xlsx",
+          "dependency": "xlsx",
+          "title": "SheetJS Regular Expression Denial of Service (ReDoS)",
+          "url": "https://github.com/advisories/GHSA-5pgg-2g8v-p4x9",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<0.20.2"
+        }
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/xlsx"
+      ],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 24,
+      "critical": 0,
+      "total": 25
+    },
+    "dependencies": {
+      "prod": 490,
+      "dev": 257,
+      "optional": 3,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 748
+    }
+  }
+}

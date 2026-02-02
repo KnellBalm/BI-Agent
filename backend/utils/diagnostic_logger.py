@@ -41,6 +41,23 @@ class DiagnosticLogger:
             # Fallback to standard print if file logging fails
             print(f"FAILED TO WRITE DIAGNOSTIC LOG: {e}")
 
+    def log_success(self, event_type: str, message: str, context: Optional[Dict[str, Any]] = None):
+        """Logs a successful event for diagnostic purposes."""
+        entry = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "project_id": self.project_id,
+            "event_type": event_type,
+            "status": "SUCCESS",
+            "message": message,
+            "context": context or {}
+        }
+        
+        try:
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as e:
+            print(f"FAILED TO WRITE SUCCESS LOG: {e}")
+
     def get_last_error(self) -> Optional[Dict[str, Any]]:
         """Retrieves the most recent error entry."""
         if not os.path.exists(self.log_file):

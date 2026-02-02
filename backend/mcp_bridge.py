@@ -87,10 +87,17 @@ class MCPBridge:
             conn_type = params.get("type")
             config = params.get("config", {})
             
+            # Use Python MCP servers by default (set MCP_USE_PYTHON=false to use JavaScript)
+            use_python = os.getenv("MCP_USE_PYTHON", "true").lower() == "true"
+            extension = ".py" if use_python else ".js"
+
             server_paths = {
-                "postgres": os.path.join(project_root, "backend/mcp_servers/postgres_server.js"),
-                "mysql": os.path.join(project_root, "backend/mcp_servers/mysql_server.js"),
-                "excel": os.path.join(project_root, "backend/mcp_servers/excel_server.js"),
+                "postgres": os.path.join(project_root, f"backend/mcp_servers/postgres_server{extension}"),
+                "mysql": os.path.join(project_root, f"backend/mcp_servers/mysql_server{extension}"),
+                "excel": os.path.join(project_root, f"backend/mcp_servers/excel_server{extension}"),
+                "bigquery": os.path.join(project_root, f"backend/mcp_servers/bigquery_server{extension}"),
+                "snowflake": os.path.join(project_root, f"backend/mcp_servers/snowflake_server{extension}"),
+                "gcp_manager": os.path.join(project_root, f"backend/mcp_servers/gcp_manager_server{extension}"),
             }
             
             conn_info = {

@@ -48,28 +48,45 @@ class ErrorViewerScreen(ModalScreen):
     def on_mount(self) -> None:
         import pathlib
         project_root = pathlib.Path(__file__).parent.parent
+        # tui.log도 함께 확인
+        tui_log_path = project_root / "logs" / "tui.log"
         error_log_path = project_root / "logs" / "textual_errors.log"
+        content_text = ""
         
         content_widget = self.query_one("#error-content", Static)
-        
-        if not error_log_path.exists():
-            content_widget.update("[dim green]✨ No errors recorded yet! Everything is working smoothly.[/dim]")
-            return
-        
-        try:
-            with open(error_log_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            
-            # 최근 부분만 표시 (너무 길면)
-            if len(content) > 10000:
-                content = "... (showing last 10000 characters)\\n" + content[-10000:]
-            
-            if content.strip():
-                content_widget.update(content)
-            else:
-                content_widget.update("[dim green]✨ No errors recorded yet! Everything is working smoothly.[/dim]")
-        except Exception as e:
-            content_widget.update(f"[red]Failed to read error log: {e}[/red]")
+
+        # Read tui.log
+        if tui_log_path.exists():
+            try:
+                with open(tui_log_path, "r", encoding="utf-8") as f:
+                    tui_content = f.read()
+                    if tui_content.strip():
+                        content_text += "[bold cyan]--- TUI Logic Log (logs/tui.log) ---[/bold cyan]\n"
+                        # Display last 5000 characters
+                        if len(tui_content) > 5000:
+                            content_text += "... (showing last 5000 characters)\n"
+                        content_text += tui_content[-5000:] + "\n\n"
+            except Exception as e:
+                content_text += f"[red]Failed to read tui.log: {e}[/red]\n\n"
+
+        # Read textual_errors.log
+        if error_log_path.exists():
+            try:
+                with open(error_log_path, "r", encoding="utf-8") as f:
+                    err_content = f.read()
+                    if err_content.strip():
+                        content_text += "[bold red]--- Textual App Errors (logs/textual_errors.log) ---[/bold red]\n"
+                        # Display last 5000 characters
+                        if len(err_content) > 5000:
+                            content_text += "... (showing last 5000 characters)\n"
+                        content_text += err_content[-5000:]
+            except Exception as e:
+                content_text += f"[red]Failed to read textual_errors.log: {e}[/red]\n\n"
+
+        if content_text.strip():
+            content_widget.update(content_text)
+        else:
+            content_widget.update("[dim green]✨ No logs recorded yet! Everything is working smoothly.[/dim]")
     
     def action_dismiss(self) -> None:
         self.dismiss()

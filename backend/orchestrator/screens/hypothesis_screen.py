@@ -525,8 +525,8 @@ class HypothesisScreen(ModalScreen[HypothesisSelectionResult]):
         else:
             content.append("☐ Not Selected\n", style="dim")
 
-        content.append("\n")
-        content.append("[dim]Press Space to toggle selection\n")
+        content.append("\n[dim]")
+        content.append("Press Space to toggle selection\n")
         content.append("Press E to edit text\n")
         content.append("Press P to set priority[/dim]")
 

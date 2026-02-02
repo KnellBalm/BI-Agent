@@ -13,7 +13,17 @@ pymysql>=1.1.0          # MySQL
 sshtunnel>=0.4.0        # SSH tunneling for remote DB access
 
 # MCP Protocol
-mcp>=0.1.0
+mcp>=1.23.0  # Required for November 2025 protocol update
+
+# Async Database Drivers
+asyncpg>=0.29.0  # Async PostgreSQL driver
+aiomysql>=0.2.0  # Async MySQL driver
+
+# Cloud Providers (for BigQuery, Snowflake, GCP Manager)
+google-cloud-bigquery>=3.0.0
+google-cloud-monitoring>=2.0.0
+google-cloud-billing>=1.0.0
+snowflake-connector-python>=3.6.0
 
 # Utilities
 python-dotenv>=1.0.0

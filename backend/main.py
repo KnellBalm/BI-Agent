@@ -40,39 +40,36 @@ from backend.orchestrator.llm_provider import GeminiProvider, OllamaProvider, Fa
 from backend.agents.data_source.data_source_agent import DataSourceAgent
 from backend.agents.bi_tool.bi_tool_agent import BIToolAgent
 from backend.agents.bi_tool.json_parser import BIJsonParser
+from backend.orchestrator.interaction_ui import InteractionUI
+from backend.orchestrator.dashboard_view import DashboardView
 
 console = Console()
 
 async def interactive_loop():
-    console.clear()
-    console.print(Panel.fit(
-        "[bold cyan]BI Agent Professional Workspace[/bold cyan]\n"
-        "[dim]Terminal User Interface (TUI) powered by Rich[/dim]",
-        border_style="bright_blue"
-    ))
-    
-    console.print("[yellow]팁: '데이터베이스 목록' 또는 '새 연결 등록' 등으로 연결 관리 가능[/yellow]")
+    # 초기화
+    ui = InteractionUI()
+    dashboard = DashboardView(console=console)
+    quota_manager = QuotaManager()
+    conn_manager = ConnectionManager()
+    data_agent = DataSourceAgent()
     
     # 설정 로드
-    quota_manager = QuotaManager()
     project_id = os.getenv("GCP_PROJECT_ID")
     if project_id and project_id != "your-project-id":
         with console.status("[bold green]GCP 할당량 동기화 중..."):
             await quota_manager.sync_with_gcp(project_id)
     
-    # LLM Provider 설정 (Failover: Gemini -> Ollama)
+    # LLM Provider 설정
     gemini = GeminiProvider(quota_manager=quota_manager)
     ollama = OllamaProvider()
     llm = FailoverLLMProvider(primary=gemini, secondary=ollama)
     
-    conn_manager = ConnectionManager()
-    data_agent = DataSourceAgent()
     bi_json_path = os.getenv("BI_JSON_PATH", "backend/data/bi_solution.json")
     parser = BIJsonParser(bi_json_path)
     bi_agent = BIToolAgent(parser=parser)
     orchestrator = Orchestrator(llm=llm, data_agent=data_agent, bi_agent=bi_agent, connection_manager=conn_manager)
     
-    # 기본 연결 등록 (최초 실행 시)
+    # 기본 연결 등록
     if not conn_manager.get_connection("test_pg"):
         test_connection_info = {
             "type": "postgres",
@@ -83,46 +80,73 @@ async def interactive_loop():
         }
         conn_manager.register_connection("test_pg", test_connection_info)
     
+    # 시스템 정보 수집 함수
+    def get_system_snapshot():
+        conns = conn_manager.list_connections()
+        return {
+            "llm_type": f"Failover ({llm.primary.__class__.__name__})",
+            "db_connection": "Connected" if conns else "No Connections",
+            "quota": quota_manager.get_status_summary() if hasattr(quota_manager, 'get_status_summary') else "Sync Enabled"
+        }
+
+    # '대문(Front Door)' 출력
+    dashboard.draw(get_system_snapshot())
+    
     context = {}
 
     while True:
         try:
-            user_input = Prompt.ask("\n[bold green]➜[/bold green] [white]어떤 작업을 도와드릴까요?[/white]")
-            if user_input.lower() in ['exit', 'quit', '종료']:
-                console.print("[bold red]프로그램을 종료합니다.[/bold red]")
-                break
+            user_input = Prompt.ask("\n[bold green]➜[/bold green] [white]질문을 입력하거나 슬래시(/) 명령어를 사용하세요[/white]")
             
             if not user_input.strip():
                 continue
-                
-            with console.status("[bold yellow]에이전트가 사고하는 중... (Chain of Thought)", spinner="dots"):
+
+            # 슬래시 명령어 처리
+            if user_input.startswith("/"):
+                cmd = user_input.lower().split()[0]
+                if cmd in ["/exit", "/quit", "/종료"]:
+                    console.print("[bold red]프로그램을 종료합니다. Bye![/bold red]")
+                    break
+                elif cmd == "/clear":
+                    dashboard.draw(get_system_snapshot())
+                    continue
+                elif cmd == "/help":
+                    console.print(dashboard.render_tips())
+                    continue
+                elif cmd == "/list":
+                    conns = conn_manager.list_connections()
+                    table = Table(title="Connection List", box=box.ROUNDED)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Type", style="green")
+                    for c in conns:
+                        table.add_row(c['id'], c['type'])
+                    console.print(table)
+                    continue
+                # 기타 명령어는 orchestrator가 처리하도록 하되, 힌트 제공 가능
+
+            # 일반 질문 처리
+            ui.add_log(f"User Request: {user_input}")
+            ui.show_announcement("에이전트가 분석 중입니다...")
+            
+            with console.status("[bold yellow]사고 과정 (Chain of Thought)...", spinner="bouncingBar"):
                 result = await orchestrator.run(user_input, context=context)
             
-            # 사고 과정 시각화 (Mockup for now, could be integrated into Orchestrator)
-            # console.print(Panel(Text("사고 과정: ...", style="dim"), title="CoT", border_style="dim"))
-            
-            # 최종 응답 출력
+            # 최종 응답 출력 (Gemini 스타일 박스 요약)
             response_text = result.get('final_response', result.get('bi_result', '결과가 없습니다.'))
-            console.print(Panel(Text(response_text), title="[bold cyan]Agent Response[/bold cyan]", border_style="cyan"))
+            ui.show_final_response(response_text)
             
-            # 데이터 결과가 있는 경우 표로 출력
+            # 데이터 결과 시각화
             if "data_result" in result and result["data_result"]:
-                import pandas as pd
-                df = pd.DataFrame(result["data_result"])
-                if not df.empty:
-                    table = Table(title="[bold blue]Data View[/bold blue]", show_header=True, header_style="bold magenta")
-                    for col in df.columns:
-                        table.add_column(col)
-                    for _, row in df.head(10).iterrows(): # 최대 10개만
-                        table.add_row(*[str(v) for v in row.values])
-                    console.print(table)
-                    if len(df) > 10:
-                        console.print(f"[dim]... and {len(df)-10} more rows[/dim]")
+                table = ui.create_data_table(result["data_result"])
+                console.print(table)
+            
+            ui.add_log("Task completed successfully.", level="SUCCESS")
 
         except KeyboardInterrupt:
             console.print("\n[bold red]Interrupted. 종료합니다.[/bold red]")
             break
         except Exception as e:
+            ui.add_log(f"Error: {str(e)}", level="ERROR")
             console.print(Panel(f"[bold red]Error:[/bold red] {str(e)}", title="System Error", border_style="red"))
 
     # 리소스 정리
@@ -137,10 +161,7 @@ if __name__ == "__main__":
     bi_json_path = "backend/data/bi_solution.json"
     if not os.path.exists(bi_json_path):
         import json
-        sample_bi = {
-            "datamodel": [],
-            "report": []
-        }
+        sample_bi = {"datamodel": [], "report": []}
         with open(bi_json_path, "w", encoding="utf-8") as f:
             json.dump(sample_bi, f, indent=4)
             

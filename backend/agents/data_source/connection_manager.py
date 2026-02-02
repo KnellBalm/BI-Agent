@@ -120,11 +120,45 @@ class ConnectionManager:
             
             # SSH 터널이 필요한 경우 즉시 생성
             if ssh_config:
+                self.close_ssh_tunnel(conn_id) # Close existing if updating
                 self._start_ssh_tunnel(conn_id, ssh_config, config)
             return conn_id
         except Exception as e:
             logger.error(f"Failed to register connection {conn_id}: {e}")
             raise RuntimeError(f"Registration failed: {e}")
+
+    def delete_connection(self, conn_id: str):
+        """Removes a connection from registry and closes its resources."""
+        try:
+            if not os.path.exists(self.registry_path):
+                return
+
+            with open(self.registry_path, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+
+            if conn_id in registry:
+                # Close potential active resources
+                self.close_ssh_tunnel(conn_id)
+                if conn_id in self._active_connections: # Changed from self.active_sessions to self._active_connections
+                    try:
+                        session = self._active_connections.pop(conn_id) # Changed from self.active_sessions to self._active_connections
+                        if hasattr(session, 'close'):
+                            session.close()
+                    except Exception as e:
+                        logger.debug(f"Error closing session for {conn_id}: {e}")
+                
+                # Remove from registry
+                del registry[conn_id]
+                
+                with open(self.registry_path, 'w', encoding='utf-8') as f:
+                    json.dump(registry, f, indent=2, ensure_ascii=False)
+                
+                logger.info(f"Connection '{conn_id}' deleted successfully.")
+            else:
+                logger.warning(f"Attempted to delete non-existent connection: {conn_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete connection {conn_id}: {e}")
+            raise RuntimeError(f"Deletion failed: {e}")
 
     def _validate_config(self, conn_type: str, config: Dict[str, Any]):
         """Performs pre-flight validation on the provided configuration."""
@@ -205,8 +239,9 @@ class ConnectionManager:
             else:
                 raise NotImplementedError(f"Connection type '{conn_type}' is not supported yet.")
         except Exception as e:
-            logger.error(f"Failed to initialize {conn_type} session: {e}")
-            diagnostic_logger.log_error("SESSION_INIT_FAILED", str(e), {"conn_type": conn_type, "config": config})
+            logger.error(f"Failed to initialize session for {conn_type}: {e}")
+            safe_config = {k: v for k, v in config.items() if 'pass' not in k.lower()}
+            diagnostic_logger.log_error("SESSION_INIT_FAILED", str(e), {"conn_type": conn_type, "config": safe_config})
             raise RuntimeError(f"Session initialization failed: {e}")
 
     def run_query(self, conn_id: str, query: str) -> pd.DataFrame:
@@ -270,6 +305,8 @@ class ConnectionManager:
                 'ssh_address_or_host': (ssh_config['host'], ssh_config.get('port', 22)),
                 'ssh_username': ssh_config['username'],
                 'remote_bind_address': (ssh_config.get('remote_host', '127.0.0.1'), ssh_config['remote_port']),
+                'allow_agent': False,  # Avoid paramiko 4.x DSSKey issue
+                'host_pkey_directories': [],  # Avoid scanning for keys which triggers DSSKey
             }
             
             # 인증 방식: 키 파일 또는 비밀번호
@@ -278,7 +315,7 @@ class ConnectionManager:
             elif 'password' in ssh_config and ssh_config['password']:
                 ssh_kwargs['ssh_password'] = ssh_config['password']
             else:
-                raise ValueError("SSH authentication requires either 'key_path' or 'password'")
+                raise ValueError("SSH 인증 정보가 필요합니다 (키 파일 또는 비밀번호)")
             
             tunnel = SSHTunnelForwarder(**ssh_kwargs)
             tunnel.start()
@@ -294,7 +331,8 @@ class ConnectionManager:
             
         except Exception as e:
             logger.error(f"Failed to start SSH tunnel for '{conn_id}': {e}")
-            diagnostic_logger.log_error("SSH_TUNNEL_START_FAILED", str(e), {"conn_id": conn_id, "ssh_config": ssh_config})
+            safe_ssh = {k: v for k, v in ssh_config.items() if 'pass' not in k.lower()}
+            diagnostic_logger.log_error("SSH_TUNNEL_START_FAILED", str(e), {"conn_id": conn_id, "ssh_config": safe_ssh})
             raise
 
     def close_ssh_tunnel(self, conn_id: str):

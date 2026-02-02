@@ -456,6 +456,8 @@ class ConnectionValidator:
                 'ssh_address_or_host': (ssh_config['host'], ssh_config.get('port', 22)),
                 'ssh_username': ssh_config['username'],
                 'remote_bind_address': (ssh_config.get('remote_host', '127.0.0.1'), ssh_config['remote_port']),
+                'allow_agent': False,  # Avoid paramiko agent issues
+                'host_pkey_directories': [],  # Avoid scanning for keys
             }
 
             if 'key_path' in ssh_config and ssh_config['key_path']:
@@ -467,8 +469,8 @@ class ConnectionValidator:
                     success=False,
                     latency_ms=0,
                     error_code="SSH_AUTH_MISSING",
-                    error_message="SSH authentication requires either 'key_path' or 'password'",
-                    suggestions=["Provide either ssh_config['key_path'] or ssh_config['password']"]
+                    error_message="SSH 인증 정보가 필요합니다 (키 파일 또는 비밀번호)",
+                    suggestions=["SSH 키 경로 또는 비밀번호를 입력해 주세요"]
                 )
 
             tunnel = SSHTunnelForwarder(**ssh_kwargs)
