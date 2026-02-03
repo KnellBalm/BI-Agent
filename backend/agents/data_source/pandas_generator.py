@@ -21,7 +21,7 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
-from backend.orchestrator.llm_provider import LLMProvider, GeminiProvider
+from backend.orchestrator import LLMProvider, GeminiProvider
 
 
 class TransformationType(Enum):
@@ -134,29 +134,64 @@ class CodeSanitizer:
     @classmethod
     def is_safe(cls, code: str) -> tuple[bool, List[str]]:
         """
-        코드 안전성 검사
+        AST 분석을 통한 정적 코드 안전성 검사
         
         Returns:
             (is_safe, warnings)
         """
+        import ast
         warnings = []
-        code_lower = code.lower()
         
-        # 위험한 패턴 검사
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            return False, [f"구문 오류: {e}"]
+
+        class SafetyVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.warnings = []
+
+            def visit_Import(self, node):
+                for name in node.names:
+                    if name.name.split('.')[0].lower() not in [a.lower() for a in CodeSanitizer.ALLOWED_IMPORTS]:
+                        self.warnings.append(f"허용되지 않은 import: {name.name}")
+                self.generic_visit(node)
+
+            def visit_ImportFrom(self, node):
+                if node.module and node.module.split('.')[0].lower() not in [a.lower() for a in CodeSanitizer.ALLOWED_IMPORTS]:
+                    self.warnings.append(f"허용되지 않은 import: {node.module}")
+                self.generic_visit(node)
+
+            def visit_Call(self, node):
+                # Check for forbidden functions
+                func_name = ""
+                if isinstance(node.func, ast.Name):
+                    func_name = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    func_name = node.func.attr
+                
+                if func_name in ["eval", "exec", "compile", "open", "getattr", "setattr", "delattr", "input", "breakpoint", "__import__"]:
+                    self.warnings.append(f"위험한 함수 호출 감지: {func_name}")
+                
+                self.generic_visit(node)
+
+            def visit_Attribute(self, node):
+                # Check for sensitive attributes like __class__, __subclasses__, etc.
+                if node.attr.startswith("__") and node.attr.endswith("__") and node.attr not in ["__init__", "__str__", "__repr__"]:
+                     self.warnings.append(f"위험한 속성 접근 감지: {node.attr}")
+                self.generic_visit(node)
+
+        visitor = SafetyVisitor()
+        visitor.visit(tree)
+        warnings.extend(visitor.warnings)
+        
+        # 기본 문자열 패턴 검사 (백업)
+        code_lower = code.lower()
         for pattern in cls.FORBIDDEN_PATTERNS:
             if pattern.lower() in code_lower:
-                warnings.append(f"위험한 패턴 감지: {pattern}")
-        
-        # 허용되지 않은 import 검사
-        import re
-        import_matches = re.findall(r'import\s+(\w+)', code)
-        from_matches = re.findall(r'from\s+(\w+)', code)
-        
-        all_imports = import_matches + from_matches
-        for imp in all_imports:
-            if imp.lower() not in [a.lower() for a in cls.ALLOWED_IMPORTS]:
-                warnings.append(f"허용되지 않은 import: {imp}")
-        
+                if not any(pattern.lower() in w.lower() for w in warnings):
+                    warnings.append(f"위험한 패턴 감지: {pattern}")
+
         is_safe = len(warnings) == 0
         return is_safe, warnings
 
@@ -301,8 +336,8 @@ Python 코드:"""
                 "result_df": None,
             }
             
-            # 코드 실행
-            exec(code, namespace)
+            # 코드 실행 (Sanitizer로 검증됨)
+            exec(code, namespace)  # nosec B102
             
             result_df = namespace.get("result_df")
             

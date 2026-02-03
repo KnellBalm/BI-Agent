@@ -12,7 +12,7 @@ from pathlib import Path
 
 from backend.agents.bi_tool.pipeline_generator import PipelineGenerator
 from backend.agents.bi_tool.analysis_intent import AnalysisIntent
-from backend.orchestrator.llm_provider import GeminiProvider
+from backend.orchestrator import GeminiProvider
 
 
 async def main():

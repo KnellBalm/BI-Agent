@@ -38,7 +38,7 @@ async def test_excel_mcp():
 
 async def test_sql_generation():
     print("\n--- Testing SQL Generation ---")
-    from backend.orchestrator.quota_manager import QuotaManager
+    from backend.orchestrator import QuotaManager
     from backend.orchestrator.llm_provider import GeminiProvider
     
     quota_manager = QuotaManager()

@@ -1,7 +1,7 @@
 import asyncio
 import os
 from backend.orchestrator.llm_provider import GeminiProvider, OllamaProvider, FailoverLLMProvider
-from backend.orchestrator.quota_manager import QuotaManager
+from backend.orchestrator import QuotaManager
 
 async def test_failover():
     print("=== Failover Test: Gemini to Ollama ===")

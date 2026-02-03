@@ -1,15 +1,17 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from backend.orchestrator.orchestrators.base_orchestrator import AbstractOrchestrator
 from backend.agents.bi_tool.bi_tool_agent import BIToolAgent
 from backend.agents.bi_tool.guide_assistant import GuideAssistant
 from backend.agents.bi_tool.tableau_metadata import TableauMetadataEngine
 from backend.agents.bi_tool.pbi_logic_generator import PBILogicGenerator
 from backend.agents.bi_tool.cloud_bi_connector import CloudBIConnector
 
-class InteractionOrchestrator:
+class InteractionOrchestrator(AbstractOrchestrator):
     """
     사용자의 요청에 따라 Ask(가이드) 및 Agent(수정) 모드를 관리하는 총괄 오케스트레이터
     """
-    def __init__(self, bi_agent: BIToolAgent = None):
+    def __init__(self, bi_agent: Optional[BIToolAgent] = None):
+        super().__init__()
         self.bi_agent = bi_agent
         self.guide = GuideAssistant()
         self.pbi = PBILogicGenerator()
@@ -24,6 +26,14 @@ class InteractionOrchestrator:
         if any(kw in user_input for kw in agent_keywords):
             return "agent"
         return "ask"
+
+    async def run(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        AbstractOrchestrator.run 인터페이스 구현
+        """
+        tool_type = context.get("tool_type", "native") if context else "native"
+        mode = context.get("mode") if context else None
+        return self.handle_request(user_input, tool_type, mode, context)
 
     def handle_request(self, user_input: str, tool_type: str, mode: Optional[str] = None, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -96,7 +106,8 @@ class InteractionOrchestrator:
             event_list=config["eventList"]
         )
         
-        output_path = "/tmp/generated_dashboard.json"
+        import tempfile
+        output_path = os.path.join(tempfile.gettempdir(), "generated_dashboard.json")
         generator.dump_to_file(output_path)
         return {"status": "success", "path": output_path, "config": config}
 

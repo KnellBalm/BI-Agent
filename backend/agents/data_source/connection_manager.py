@@ -81,9 +81,11 @@ class ConnectionManager:
         # SSH 터널링 설정 확인 (테스트 전에 추출)
         ssh_config = config.get('ssh', None)
 
-        # Test connection before registration
+        # Test connection before registration - Apply env vars for testing
         logger.info(f"Testing connection before registering '{conn_id}'...")
-        test_result = test_connection(conn_type, config.copy(), ssh_config)
+        test_config = self._inject_env_vars(config.copy())
+        test_ssh_config = self._inject_env_vars(ssh_config.copy()) if ssh_config else None
+        test_result = test_connection(conn_type, test_config, test_ssh_config)
 
         if not test_result.success:
             error_msg = f"Connection test failed: {test_result.error_message}"

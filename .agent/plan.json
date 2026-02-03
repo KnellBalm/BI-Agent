@@ -1,0 +1,46 @@
+{
+    "session_id": "eb339375-a31a-49a9-a139-6ea60d458b26",
+    "goal": "Fix QA findings in backend directory",
+    "tasks": [
+        {
+            "id": "T1",
+            "agent": "backend-agent",
+            "title": "Security - Secrets Management",
+            "priority": "P0",
+            "dependencies": [],
+            "description": "Remove plain text passwords from connections.json and use env vars."
+        },
+        {
+            "id": "T2",
+            "agent": "backend-agent",
+            "title": "Security - SQLi & XMLi Hardening",
+            "priority": "P0",
+            "dependencies": [],
+            "description": "Implement parameterized queries and use defusedxml."
+        },
+        {
+            "id": "T3",
+            "agent": "backend-agent",
+            "title": "Security - Isolated Code Execution",
+            "priority": "P1",
+            "dependencies": [],
+            "description": "Strengthen sanitization for PandasGenerator exec()."
+        },
+        {
+            "id": "T4",
+            "agent": "backend-agent",
+            "title": "Performance - Lazy Metadata Scanning",
+            "priority": "P1",
+            "dependencies": [],
+            "description": "Deferred profiling in MetadataScanner for performance."
+        },
+        {
+            "id": "T5",
+            "agent": "backend-agent",
+            "title": "Maintenance - Path & Quality Improvements",
+            "priority": "P2",
+            "dependencies": [],
+            "description": "Fix hardcoded paths and silent catch blocks."
+        }
+    ]
+}

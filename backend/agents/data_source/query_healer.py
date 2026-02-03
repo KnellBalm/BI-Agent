@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List, Callable, Awaitable
 from pathlib import Path
 from enum import Enum
 
-from backend.orchestrator.llm_provider import LLMProvider, GeminiProvider
+from backend.orchestrator import LLMProvider, GeminiProvider
 
 
 class ErrorType(Enum):
@@ -375,7 +375,8 @@ JSON만 반환하십시오."""
                 log_entry = attempt.to_dict()
                 f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
         except Exception as e:
-            # 로깅 실패는 무시
+            # 로깅 실패 시 콘솔에 출력 (Silent pass 방지)
+            print(f"Logging failed in log_healing_attempt: {e}")
             pass
     
     def get_healing_history(self, limit: int = 100) -> List[Dict[str, Any]]:

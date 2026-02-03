@@ -2,8 +2,9 @@ import json
 from datetime import datetime
 from typing import TypedDict, List, Dict, Any, Union, Optional
 from langgraph.graph import StateGraph, END
-from backend.orchestrator.llm_provider import LLMProvider, GeminiProvider
-from backend.orchestrator.connection_manager import ConnectionManager
+from backend.orchestrator.orchestrators.base_orchestrator import AbstractOrchestrator
+from backend.orchestrator.providers.llm_provider import LLMProvider, GeminiProvider
+from backend.orchestrator.managers.connection_manager import ConnectionManager
 from backend.agents.data_source.data_source_agent import DataSourceAgent
 from backend.agents.bi_tool.bi_tool_agent import BIToolAgent
 
@@ -20,7 +21,7 @@ class AgentState(TypedDict):
     final_response: str
     context: Dict[str, Any] # connection_info 등을 포함
 
-class Orchestrator:
+class Orchestrator(AbstractOrchestrator):
     """
     전체 Agent 시스템을 조율하는 메인 클래스 (LangGraph 기반)
     """
@@ -28,10 +29,9 @@ class Orchestrator:
                  data_agent: Optional[DataSourceAgent] = None,
                  bi_agent: Optional[BIToolAgent] = None,
                  connection_manager: Optional[ConnectionManager] = None):
-        self.llm = llm or GeminiProvider()
+        super().__init__(llm or GeminiProvider(), connection_manager or ConnectionManager())
         self.data_agent = data_agent
         self.bi_agent = bi_agent
-        self.connection_manager = connection_manager or ConnectionManager()
         self.workflow = self._create_workflow()
 
     def _create_workflow(self) -> StateGraph:

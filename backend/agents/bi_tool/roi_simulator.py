@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
-from backend.orchestrator.llm_provider import LLMProvider
+from backend.orchestrator import LLMProvider
 from backend.agents.bi_tool.analysis_intent import AnalysisIntent
 from backend.utils.logger_setup import setup_logger
 

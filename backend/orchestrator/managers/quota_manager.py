@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from backend.agents.data_source.mcp_client import MCPClient
 
-from backend.orchestrator.auth_manager import auth_manager
+from .auth_manager import auth_manager
 
 logger = logging.getLogger(__name__)
 

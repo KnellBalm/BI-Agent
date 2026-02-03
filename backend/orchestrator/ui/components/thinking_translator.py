@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
 
-from backend.orchestrator.agent_message_bus import (
+from backend.orchestrator.messaging.agent_message_bus import (
     AgentMessageBus,
     AgentMessage,
     MessageType,

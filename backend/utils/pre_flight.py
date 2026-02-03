@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt
-from backend.orchestrator.auth_manager import auth_manager
+from backend.orchestrator import auth_manager
 from backend.utils.logger_setup import setup_logger
 
 # Setup logger for pre-flight checks
@@ -78,7 +78,7 @@ class PreFlightChecker:
         API 키가 환경변수나 credentials.json에 설정되어 있는지 확인합니다.
         Gemini CLI/Claude CLI처럼 자동으로 감지합니다.
         """
-        from backend.orchestrator.auth_manager import auth_manager
+        from backend.orchestrator import auth_manager
         
         found_keys = []
         

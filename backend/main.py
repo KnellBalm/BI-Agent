@@ -33,10 +33,14 @@ from rich.prompt import Prompt
 from rich.text import Text
 from rich.progress import SpinnerColumn, Progress, TextColumn
 
-from backend.orchestrator.orchestrator import Orchestrator
-from backend.orchestrator.quota_manager import QuotaManager
-from backend.orchestrator.connection_manager import ConnectionManager
-from backend.orchestrator.llm_provider import GeminiProvider, OllamaProvider, FailoverLLMProvider
+from backend.orchestrator import (
+    Orchestrator,
+    QuotaManager,
+    ConnectionManager,
+    GeminiProvider,
+    OllamaProvider,
+    FailoverLLMProvider
+)
 from backend.agents.data_source.data_source_agent import DataSourceAgent
 from backend.agents.bi_tool.bi_tool_agent import BIToolAgent
 from backend.agents.bi_tool.json_parser import BIJsonParser

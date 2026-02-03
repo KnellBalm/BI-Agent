@@ -6,7 +6,10 @@ and provides conversion utilities between .twb XML and Meta JSON format.
 """
 
 import json
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from pathlib import Path

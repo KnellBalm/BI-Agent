@@ -86,7 +86,7 @@ class AgentMessageBus:
 
     Example:
         # In bi_agent_console.py
-        from backend.orchestrator.agent_message_bus import AgentMessageBus
+        from backend.orchestrator.messaging.agent_message_bus import AgentMessageBus
 
         def on_mount(self) -> None:
             bus = AgentMessageBus()

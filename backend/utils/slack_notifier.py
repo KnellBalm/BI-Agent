@@ -68,7 +68,8 @@ class SlackNotifier:
             response = requests.post(
                 self.webhook_url, 
                 data=json.dumps(payload),
-                headers={'Content-Type': 'application/json'}
+                headers={'Content-Type': 'application/json'},
+                timeout=10
             )
             response.raise_for_status()
             logger.info(f"Successfully sent Slack notification for project '{project_name}'.")
@@ -91,7 +92,7 @@ class SlackNotifier:
             ]
         }
         try:
-            requests.post(self.webhook_url, json=payload)
+            requests.post(self.webhook_url, json=payload, timeout=10)
             return True
         except Exception as e:
             logger.error(f"Failed to send Slack alert: {e}")

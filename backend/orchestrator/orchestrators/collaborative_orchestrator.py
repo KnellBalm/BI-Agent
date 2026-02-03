@@ -11,12 +11,13 @@ from backend.agents.data_source.connection_manager import ConnectionManager
 from backend.agents.data_source.metadata_scanner import MetadataScanner
 
 from backend.agents.bi_tool.metric_store import MetricStore
-from backend.orchestrator.llm_provider import GeminiProvider, OllamaProvider, FailoverLLMProvider
+from backend.orchestrator.providers.llm_provider import GeminiProvider, OllamaProvider, FailoverLLMProvider
+from backend.orchestrator.orchestrators.base_orchestrator import AbstractOrchestrator
 from backend.utils.dashboard_generator import DashboardGenerator
 from backend.utils.output_packager import OutputPackager
 from backend.utils.path_config import path_manager
 
-class CollaborativeOrchestrator:
+class CollaborativeOrchestrator(AbstractOrchestrator):
     """
     Advanced orchestrator that implements a multi-agent collaboration flow.
     """
@@ -38,8 +39,8 @@ class CollaborativeOrchestrator:
         self.packager = OutputPackager(project_id)
 
         # Thinking 2.0 Integration
-        from backend.orchestrator.agent_message_bus import AgentMessageBus
-        from backend.orchestrator.thinking_translator import ThinkingTranslator
+        from backend.orchestrator.messaging.agent_message_bus import AgentMessageBus
+        from backend.orchestrator.ui.components.thinking_translator import ThinkingTranslator
         self.bus = AgentMessageBus()
         self.thinking = ThinkingTranslator(self.bus)
 
@@ -53,7 +54,7 @@ class CollaborativeOrchestrator:
         print(f"🎯 Analyzing intent: {query} (Conn: {conn_id})")
         
         # Thinking 2.0: Strategy Alignment
-        from backend.orchestrator.thinking_translator import AgentState
+        from backend.orchestrator.ui.components.thinking_translator import AgentState
         await self.thinking.transition_to(AgentState.STRATEGY_ALIGNMENT, agent="Strategist")
 
         try:
@@ -109,7 +110,7 @@ class CollaborativeOrchestrator:
             
         try:
             # --- [Step 1: DataMaster] Context Discovery ---
-            from backend.orchestrator.thinking_translator import AgentState
+            from backend.orchestrator.ui.components.thinking_translator import AgentState
             await self.thinking.transition_to(AgentState.SCHEMA_ANALYSIS, agent="DataMaster")
             context_manager.update_journey_step(5) # Analyze start
             
@@ -417,8 +418,11 @@ class CollaborativeOrchestrator:
         }
 
 if __name__ == "__main__":
+    import tempfile
+    import os
+    temp_json = os.path.join(tempfile.gettempdir(), "collab_test.json")
     # Test with mockup
-    orchestrator = CollaborativeOrchestrator("/tmp/collab_test.json")
+    orchestrator = CollaborativeOrchestrator(temp_json)
     orchestrator.conn_mgr.register_connection("test_db", "sqlite", {"path": ":memory:"})
     
     # Setup mock data via DataMaster-like direct access for setup
@@ -427,8 +431,7 @@ if __name__ == "__main__":
     conn.execute("INSERT INTO sales VALUES ('Seoul', 5000, '2023-01-01'), ('Busan', 3000, '2023-01-01')")
     conn.commit()
     
-    result = orchestrator.handle_complex_request("Show me regional sales performance", "test_db")
+    result = asyncio.run(orchestrator.handle_complex_request("Show me regional sales performance", "test_db"))
     print(json.dumps(result, indent=2))
     
-    import os
-    os.remove("/tmp/collab_test.json")
+    os.remove(temp_json)

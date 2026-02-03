@@ -30,6 +30,11 @@ class AuthManager:
             logger.error(f"Failed to initialize AuthManager: {e}")
             self.credentials = {"providers": {}}
 
+    def load_credentials(self):
+        """환경 및 로컬 파일에서 인증 정보를 다시 로드합니다."""
+        self.credentials = self._load_credentials()
+        return self.credentials
+
     def _load_credentials(self) -> Dict[str, Any]:
         if self.creds_path.exists():
             try:

@@ -171,7 +171,7 @@ class ThinkingPanel(Static):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        from backend.orchestrator.agent_message_bus import AgentMessageBus
+        from backend.orchestrator.messaging.agent_message_bus import AgentMessageBus
         self.message_bus = AgentMessageBus()
         self.step_details: dict[str, dict] = {}  # step_id -> {status, description, details, etc.}
         self._pulse_timer = None
@@ -190,7 +190,7 @@ class ThinkingPanel(Static):
 
     def _handle_message(self, message) -> None:
         """Handle incoming messages from AgentMessageBus"""
-        from backend.orchestrator.agent_message_bus import MessageType
+        from backend.orchestrator.messaging.agent_message_bus import MessageType
 
         try:
             if message.message_type == MessageType.THINKING:
