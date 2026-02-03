@@ -12,59 +12,7 @@ from rich.markdown import Markdown
 
 class MessageBubble(Static):
     """
-    대화 메시지 버블 컴포넌트
-    
-    역할별로 다른 스타일 적용:
-    - user: 사용자 메시지
-    - agent: AI 에이전트 응답
-    - system: 시스템 메시지
-    - thinking: 에이전트 사고 과정
-    """
-    
-    DEFAULT_CSS = """
-    MessageBubble {
-        width: 100%;
-        padding: 1 2;
-        margin: 0 0 1 0;
-    }
-    
-    .msg-user {
-        background: #111214;
-        border-right: thick #3b82f6;
-        text-align: right;
-    }
-    
-    .msg-agent {
-        background: #1a1b1e;
-        border-left: thick #10b981;
-    }
-    
-    .msg-system {
-        background: #1a1b1e;
-        border-left: thick #f59e0b;
-        color: #f59e0b;
-    }
-    
-    .msg-thinking {
-        background: #161b22;
-        border-left: thick #7c3aed;
-        color: #a78bfa;
-        text-style: italic;
-    }
-    
-    .msg-header {
-        text-style: bold;
-        margin-bottom: 0;
-    }
-    
-    .msg-timestamp {
-        color: #4b5563;
-        text-style: dim;
-    }
-    
-    .msg-content {
-        color: #e2e8f0;
-    }
+    고급스러운 대화 메시지 버블 컴포넌트
     """
     
     def __init__(
@@ -80,39 +28,48 @@ class MessageBubble(Static):
         self.timestamp = timestamp or datetime.now()
         self.add_class(f"msg-{role}")
     
-    def render(self) -> str:
-        """메시지 렌더링"""
-        # 역할별 아이콘 및 컬러
-        icons = {
-            "user": "👤",
-            "agent": "🤖",
-            "system": "⚙️",
-            "thinking": "💭"
-        }
-        colors = {
-            "user": "#60a5fa",
-            "agent": "#34d399",
-            "system": "#fbbf24",
-            "thinking": "#a78bfa"
+    def on_mount(self) -> None:
+        """마운트 시 페이드인 효과 적용"""
+        self.styles.opacity = 0.0
+        self.styles.animate("opacity", value=1.0, duration=0.3, easing="out_quad")
+
+    def render(self) -> Markdown:
+        """메시지 렌더링 (Markdown 지원)"""
+        themes = {
+            "user": ("●", "medium_purple"),
+            "agent": ("◆", "cornflower_blue"),
+            "system": ("○", "bright_black"),
         }
         
-        icon = icons.get(self.role, "💬")
-        color = colors.get(self.role, "#cbd5e1")
-        time_str = self.timestamp.strftime("%H:%M:%S")
+        icon, color = themes.get(self.role, ("●", "white"))
+        time_str = self.timestamp.strftime("%H:%M")
         
-        # 헤더
-        header = f"[{color}]{icon} {self.role.title()}[/{color}] [dim]{time_str}[/dim]"
+        # 헤더 구성 (미니멀 스타일)
+        header = f"[{color}][bold]{icon} {self.role.upper()}[/bold] [dim]{time_str}[/dim][/{color}]"
         
-        # 컨텐츠
-        content = self._format_content()
-        
-        return f"{header}\n{content}"
+        return Markdown(f"{header}\n\n{self.content}")
+
+
+class ThinkingBubble(Static):
+    """
+    에이전트가 생각 중임을 나타내는 애니메이션 버블
+    """
     
-    def _format_content(self) -> str:
-        """컨텐츠 포맷팅 (마크다운, 코드 블록 등)"""
-        # 간단한 마크다운 지원
-        # 추후 Rich의 Markdown 클래스 사용 가능
-        return self.content
+    
+    
+    dots = reactive(1)
+    
+    def on_mount(self) -> None:
+        """도트 애니메이션 시작"""
+        self.set_interval(0.5, self._update_dots)
+    
+    def _update_dots(self) -> None:
+        """도트 개수 순환 업데이트"""
+        self.dots = (self.dots % 3) + 1
+    
+    def render(self) -> str:
+        """로딩 메시지 렌더링 (미니멀 CLI 스타일)"""
+        return f"[dim]◆ [italic]thinking{'.' * self.dots}[/italic][/dim]"
 
 
 class ThinkingPanel(Static):
@@ -123,45 +80,7 @@ class ThinkingPanel(Static):
     AgentMessageBus를 통해 자동으로 메시지를 수신하여 업데이트
     """
 
-    DEFAULT_CSS = """
-    ThinkingPanel {
-        width: 100%;
-        height: auto;
-        min-height: 10;
-        background: #161b22;
-        border: solid #7c3aed;
-        padding: 1 2;
-        margin: 1 0;
-    }
-
-    .thinking-header {
-        color: #7c3aed;
-        text-style: bold italic;
-        margin-bottom: 1;
-    }
-
-    .thinking-content {
-        color: #cbd5e1;
-    }
-
-    .thinking-step {
-        margin-left: 2;
-        color: #94a3b8;
-    }
-
-    .active-step {
-        color: #f59e0b;
-        text-style: bold;
-    }
-
-    .completed-step {
-        color: #22c55e;
-    }
-
-    .error-step {
-        color: #ef4444;
-    }
-    """
+    
 
     # Reactive attributes for real-time updates
     thinking_content = reactive("")
@@ -257,12 +176,13 @@ class ThinkingPanel(Static):
         lines = []
 
         # Header
-        lines.append("[bold cyan]🤖 Agent 사고 과정[/bold cyan]")
+        lines.append("[bold indigo]💭 Agent Thinking Process[/bold indigo]")
         lines.append("")
+        lines.append("[dim]-------------------------------------------[/dim]")
 
         # Current thinking (with pulsing animation)
         if self.current_step:
-            lines.append(f"[yellow]⏳ {self.current_step}[/yellow]")
+            lines.append(f"[indigo]➜ {self.current_step}[/indigo]")
             lines.append("")
 
         # Step list with checkmarks
@@ -359,12 +279,13 @@ class StreamingMessageView(Static):
         width: 100%;
         height: auto;
         padding: 1 2;
-        background: #1a1b1e;
-        border-left: thick #10b981;
+        background: #000000;
+        border-left: thick #4f46e5;
+        margin-bottom: 1;
     }
     
     .streaming-header {
-        color: #10b981;
+        color: #4f46e5;
         text-style: bold;
         margin-bottom: 1;
     }
@@ -374,8 +295,8 @@ class StreamingMessageView(Static):
     }
     
     .streaming-cursor {
-        background: #10b981;
-        color: #0c0c0e;
+        background: #4f46e5;
+        color: #000000;
     }
     """
     

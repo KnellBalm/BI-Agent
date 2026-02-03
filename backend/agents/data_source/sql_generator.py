@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 
-from backend.orchestrator import LLMProvider, GeminiProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider, GeminiProvider
 
 
 class DatabaseDialect(Enum):

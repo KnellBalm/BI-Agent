@@ -1,46 +1,34 @@
 {
-    "session_id": "eb339375-a31a-49a9-a139-6ea60d458b26",
-    "goal": "Fix QA findings in backend directory",
-    "tasks": [
-        {
-            "id": "T1",
-            "agent": "backend-agent",
-            "title": "Security - Secrets Management",
-            "priority": "P0",
-            "dependencies": [],
-            "description": "Remove plain text passwords from connections.json and use env vars."
-        },
-        {
-            "id": "T2",
-            "agent": "backend-agent",
-            "title": "Security - SQLi & XMLi Hardening",
-            "priority": "P0",
-            "dependencies": [],
-            "description": "Implement parameterized queries and use defusedxml."
-        },
-        {
-            "id": "T3",
-            "agent": "backend-agent",
-            "title": "Security - Isolated Code Execution",
-            "priority": "P1",
-            "dependencies": [],
-            "description": "Strengthen sanitization for PandasGenerator exec()."
-        },
-        {
-            "id": "T4",
-            "agent": "backend-agent",
-            "title": "Performance - Lazy Metadata Scanning",
-            "priority": "P1",
-            "dependencies": [],
-            "description": "Deferred profiling in MetadataScanner for performance."
-        },
-        {
-            "id": "T5",
-            "agent": "backend-agent",
-            "title": "Maintenance - Path & Quality Improvements",
-            "priority": "P2",
-            "dependencies": [],
-            "description": "Fix hardcoded paths and silent catch blocks."
-        }
-    ]
+  "project": "BI-Agent TUI Stabilization",
+  "version": "v2.3-stable",
+  "tasks": [
+    {
+      "id": "STAB-01",
+      "title": "Remove Duplicate CSS in TCSS",
+      "description": "Remove the duplicate ThinkingBubble definition in bi_agent_console.tcss.",
+      "priority": "P0",
+      "agent": "frontend",
+      "status": "done"
+    },
+    {
+      "id": "STAB-02",
+      "title": "Final Code Cleanup & Imports",
+      "description": "Remove unused imports and ensure all methods in SidebarManager and HubStatusLine follow the new standards.",
+      "priority": "P1",
+      "agent": "backend",
+      "status": "done"
+    },
+    {
+      "id": "STAB-03",
+      "title": "Final QA & Syntax Verification",
+      "description": "Run py_compile on all modified files and perform a final manual-style verification of the help text and UI colors.",
+      "priority": "P2",
+      "agent": "qa",
+      "status": "done"
+    }
+  ],
+  "api_contracts": {
+    "SidebarManager": "Method compose() returns ComposeResult. Must be called with yield from.",
+    "BI_AgentConsole": "Uses yield from for all delegate components in compose()."
+  }
 }

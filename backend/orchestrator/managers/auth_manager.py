@@ -95,8 +95,7 @@ class AuthManager:
         try:
             # AI Studio API Key 발급 페이지 안내가 가장 확실한 '구독 혜택 활용' 방법임
             url = "https://aistudio.google.com/app/apikey"
-            console_msg = "\n[bold cyan]Google AI Studio[/bold cyan]로 이동하여 API Key를 발급받으세요."
-            console_msg += "\n유료 구독(Gemini Pro) 계정으로 로그인 시 높은 할당량의 무료 티어를 쓸 수 있습니다."
+            logger.info("Opening AI Studio for API Key...")
             
             # TUI 환경이 아닐 경우 목적으로 간단히 브라우저만 오픈
             webbrowser.open(url)

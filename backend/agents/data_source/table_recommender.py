@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Any, Optional
 from backend.agents.bi_tool.analysis_intent import AnalysisIntent
-from backend.orchestrator import LLMProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider
 from backend.utils.logger_setup import setup_logger
 
 logger = setup_logger("table_recommender", "table_recommender.log")

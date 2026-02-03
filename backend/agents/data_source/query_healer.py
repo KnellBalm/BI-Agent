@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List, Callable, Awaitable
 from pathlib import Path
 from enum import Enum
 
-from backend.orchestrator import LLMProvider, GeminiProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider, GeminiProvider
 
 
 class ErrorType(Enum):

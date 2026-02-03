@@ -54,15 +54,15 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
     CSS = """
     TableSelectionScreen {
         align: center middle;
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(0, 0, 0, 0.9);
     }
 
     #table-modal {
         width: 90%;
-        max-width: 120;
+        max-width: 140;
         height: 85%;
-        background: #1a1b1e;
-        border: thick #7c3aed;
+        background: #000000;
+        border: thick #4f46e5;
         padding: 1;
     }
 
@@ -70,7 +70,7 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
         text-align: center;
         color: #f8fafc;
         text-style: bold;
-        background: #7c3aed;
+        background: #4f46e5;
         padding: 1;
         margin-bottom: 1;
     }
@@ -82,14 +82,14 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
     }
 
     #left-panel {
-        width: 60%;
+        width: 55%;
         height: 100%;
-        border-right: solid #2d2f34;
+        border-right: solid #111111;
         padding-right: 1;
     }
 
     #right-panel {
-        width: 40%;
+        width: 45%;
         height: 100%;
         padding-left: 1;
     }
@@ -101,20 +101,20 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
 
     #search-input {
         width: 100%;
-        background: #111214;
-        border: solid #2d2f34;
+        background: #050505;
+        border: solid #111111;
         color: #f8fafc;
         margin-top: 1;
     }
 
     #search-input:focus {
-        border: solid #7c3aed;
+        border: solid #4f46e5;
     }
 
     #table-list {
         height: 1fr;
-        background: #111214;
-        border: solid #2d2f34;
+        background: #050505;
+        border: solid #111111;
         margin-bottom: 1;
     }
 
@@ -123,29 +123,25 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
     }
 
     .option-list--option-highlighted {
-        background: #7c3aed;
+        background: #4f46e5;
         color: #f8fafc;
     }
 
     #detail-panel {
         height: 1fr;
-        background: #111214;
-        border: solid #2d2f34;
+        background: #050505;
+        border: solid #111111;
         padding: 1;
     }
 
     #detail-title {
-        color: #7c3aed;
+        color: #4f46e5;
         text-style: bold;
         margin-bottom: 1;
     }
 
-    .detail-section {
-        margin-bottom: 1;
-    }
-
     .section-label {
-        color: #94a3b8;
+        color: #64748b;
         text-style: bold;
         margin-bottom: 0;
     }
@@ -156,17 +152,17 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
     }
 
     .score-high {
-        color: #10b981;
+        color: #22c55e;
         text-style: bold;
     }
 
     .score-medium {
-        color: #fbbf24;
+        color: #f59e0b;
         text-style: bold;
     }
 
     .score-low {
-        color: #6b7280;
+        color: #64748b;
     }
 
     #button-bar {
@@ -177,34 +173,34 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
     }
 
     #confirm-btn {
-        background: #10b981;
+        background: #22c55e;
         color: white;
         margin-right: 2;
         min-width: 16;
     }
 
     #confirm-btn:hover {
-        background: #059669;
+        background: #16a34a;
     }
 
     #cancel-btn {
-        background: #6b7280;
+        background: #475569;
         color: white;
         min-width: 16;
     }
 
     #cancel-btn:hover {
-        background: #4b5563;
+        background: #334155;
     }
 
     #selection-counter {
-        color: #7c3aed;
+        color: #4f46e5;
         text-align: center;
         margin-top: 1;
     }
 
     .join-relationship {
-        color: #8b5cf6;
+        color: #818cf8;
         margin-left: 2;
     }
     """
@@ -218,9 +214,10 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
 
     def __init__(
         self,
-        recommendations: List[TableRecommendation],
+        recommendations: Optional[List[TableRecommendation]] = None,
         relationships: Optional[List[ERDRelationship]] = None,
-        callback: Optional[Callable[[List[str]], None]] = None
+        callback: Optional[Callable[[List[str]], None]] = None,
+        initial_query: Optional[str] = None
     ):
         """
         Initialize table selection screen.
@@ -229,16 +226,17 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
             recommendations: List of TableRecommendation objects from TableRecommender
             relationships: Optional list of ERDRelationship objects for JOIN visualization
             callback: Optional callback function(selected_tables: List[str])
+            initial_query: Optional initial search filter
         """
         super().__init__()
-        self.recommendations = recommendations
+        self.recommendations = recommendations or []
         self.relationships = relationships or []
         self.callback = callback
         self.selected_tables: Set[str] = set()
-        self.filtered_recommendations = recommendations.copy()
-        self.current_filter = ""
+        self.filtered_recommendations = self.recommendations.copy()
+        self.current_filter = initial_query or ""
 
-        logger.info(f"TableSelectionScreen initialized with {len(recommendations)} recommendations")
+        logger.info(f"TableSelectionScreen initialized with {len(self.recommendations)} recommendations, filter: '{self.current_filter}'")
 
     def compose(self) -> ComposeResult:
         """Compose the UI layout."""
@@ -281,7 +279,14 @@ class TableSelectionScreen(ModalScreen[TableSelectionResult]):
 
     def on_mount(self) -> None:
         """Populate table list on mount."""
-        self._populate_table_list()
+        # Initial filter apply if query provided
+        if self.current_filter:
+            search_input = self.query_one("#search-input", Input)
+            search_input.value = self.current_filter
+            self._apply_filter()
+        else:
+            self._populate_table_list()
+            
         self._update_selection_counter()
 
         # Focus on search input initially

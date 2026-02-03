@@ -21,7 +21,7 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
-from backend.orchestrator import LLMProvider, GeminiProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider, GeminiProvider
 
 
 class TransformationType(Enum):

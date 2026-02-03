@@ -6,7 +6,8 @@ from textual.widgets import Label, Input, OptionList, Button
 from textual.widgets.option_list import Option
 from textual.screen import ModalScreen
 
-from backend.orchestrator import auth_manager, context_manager
+from backend.orchestrator.managers.auth_manager import auth_manager
+from backend.orchestrator.managers.context_manager import context_manager
 from backend.utils.path_config import path_manager
 
 logger = logging.getLogger("tui")

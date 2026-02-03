@@ -118,16 +118,7 @@ class InputHandler(InputHandlerProtocol):
         return False
 
     def _execute_palette_command(self, command_id: str, user_input: Input):
-        command_map = {
-            "intent": "/intent",
-            "analyze": "/analyze",
-            "explore": "/explore",
-            "connect": "/connect",
-            "project": "/project",
-            "login": "/login",
-            "help": "/help"
-        }
-        cmd = command_map.get(command_id, "/" + command_id)
+        cmd = "/" + command_id.replace("cmd_", "")
         user_input.value = ""
         self.palette.hide()
         import asyncio

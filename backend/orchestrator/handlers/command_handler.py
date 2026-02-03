@@ -7,8 +7,7 @@ from textual.containers import VerticalScroll
 from textual.widgets import Label
 
 from backend.orchestrator.handlers.protocols import HandlerContext, CommandHandlerProtocol
-from backend.orchestrator import MessageBubble
-from backend.orchestrator.screens import AuthScreen, ConnectionScreen
+from backend.orchestrator.ui.components.message_components import MessageBubble
 
 logger = logging.getLogger("tui")
 
@@ -45,6 +44,7 @@ class CommandHandler(CommandHandlerProtocol):
                     # 비동기 워커로 스캔 실행 (UI 프리징 방지)
                     self.app.run_worker(self.app._run_scan(conn_id))
             
+            from backend.orchestrator.screens.connection_screen import ConnectionScreen
             self.context.push_screen(ConnectionScreen(callback=on_connected))
             
         elif cmd == "/project":
@@ -52,6 +52,7 @@ class CommandHandler(CommandHandlerProtocol):
                 self.app.action_switch_project()
                 
         elif cmd == "/login":
+            from backend.orchestrator.screens.auth_screen import AuthScreen
             self.context.push_screen(AuthScreen())
             
         elif cmd == "/explore":
@@ -69,15 +70,15 @@ class CommandHandler(CommandHandlerProtocol):
                 
         elif cmd == "/help":
             help_content = (
-                "[bold cyan]◈ BI-Agent 사용 가이드 ◈[/bold cyan]\n\n"
-                "[bold #38bdf8]명령어 일람:[/bold #38bdf8]\n"
+                "[bold indigo]◈ BI-Agent 사용 가이드 ◈[/bold indigo]\n\n"
+                "[bold indigo]명령어 일람:[/bold indigo]\n"
                 "• [b]/login[/b]   - LLM API 키 설정 (AI 활성화 핵심)\n"
                 "• [b]/connect[/b] - DB/File 연결 (sqlite, postgres, excel)\n"
                 "• [b]/explore[/b] - 테이블 목록 및 상세 스키마 탐색\n"
                 "• [b]/analyze[/b] - 자연어 질문 기반 데이터 분석 및 시각화\n"
                 "• [b]/errors[/b]  - 시스템 장애 및 로직 에러 로그 확인\n"
                 "• [b]/quit[/b] 또는 [b]/exit[/b] - 앱 종료\n\n"
-                "[bold #38bdf8]단축키 가이드:[/bold #38bdf8]\n"
+                "[bold indigo]단축키 가이드:[/bold indigo]\n"
                 "• [b]/[/b] : 명령어 입력 시작 (입력창 포커스 + / 자동입력) ⭐\n"
                 "• [b]q[/b] : 앱 종료\n"
                 "• [b]v[/b] : 분석 시각화 리포트/차트 보기\n"

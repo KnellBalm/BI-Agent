@@ -12,7 +12,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-from backend.orchestrator import LLMProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider
 from backend.agents.bi_tool.analysis_intent import AnalysisIntent
 from backend.utils.logger_setup import setup_logger
 

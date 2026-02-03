@@ -1,0 +1,196 @@
+/* BI-Agent Console Premium Cinematic Black (Fixed Frame Style) */
+
+/* Global Variables */
+$primary: #4f46e5; /* Deep Indigo */
+$primary-light: #818cf8;
+$bg-main: #000000;
+$bg-side: #050505;
+$text-main: #f8fafc;
+$text-dim: #64748b;
+$border-soft: #111111;
+
+Screen {
+    background: $bg-main;
+}
+
+#hud-status {
+    height: 1;
+    background: $bg-side;
+    color: $primary;
+    text-style: bold;
+    border-bottom: solid $border-soft;
+}
+
+#main-layout {
+    height: 1fr;
+}
+
+/* Chat Area & Frame */
+#chat-area {
+    width: 75%;
+    height: 1fr;
+    border-right: solid $border-soft;
+}
+
+#entry-banner {
+    height: 4;
+    content-align: center middle;
+    padding: 0 4;
+    color: $primary;
+    background: $bg-main;
+    border-bottom: solid #0a0a0a;
+}
+
+#chat-log {
+    height: 1fr;
+    padding: 1 6; /* Spacing for a premium feel */
+    scrollbar-background: transparent;
+    scrollbar-color: #1e1b4b;
+    scrollbar-color-hover: $primary;
+}
+
+/* Sidebar Styling */
+#sidebar {
+    width: 25%;
+    background: $bg-side;
+    padding: 1 2;
+}
+
+.sidebar-title {
+    color: $primary;
+    text-style: bold;
+    margin-top: 1;
+    border-bottom: solid #111111;
+}
+
+#lbl-quota, #lbl-connections, #lbl-journey, #lbl-recommend {
+    color: $text-dim;
+    margin-left: 1;
+}
+
+/* Input Area (Bottom Fixed) */
+#input-container {
+    height: 3;
+    padding: 0 2;
+    background: #020202;
+    border-top: solid #0a0a0a;
+    align: left middle;
+}
+
+#user-input {
+    width: 1fr;
+    background: transparent;
+    border: none;
+    color: $text-main;
+}
+
+#user-input:focus {
+    border-bottom: tall $primary;
+}
+
+#send-btn {
+    width: 8;
+    background: transparent;
+    color: $primary;
+    border: none;
+    text-style: bold;
+}
+
+#send-btn:hover {
+    color: $primary-light;
+    text-style: underline;
+}
+
+/* Message Styling (Minimalist Premium) */
+MessageBubble {
+    width: 100%;
+    margin-bottom: 2;
+}
+
+.msg-user {
+    padding-left: 2;
+    border-left: solid #6366f1;
+}
+
+.msg-agent {
+    padding-left: 2;
+}
+
+.msg-system {
+    color: $text-dim;
+    text-style: dim italic;
+    padding: 0 2;
+}
+
+/* Thinking Bubble */
+ThinkingBubble {
+    color: $primary;
+    text-style: italic;
+    padding: 0 2;
+}
+
+/* OptionList/CommandPalette Styling */
+#command-menu {
+    display: none;
+    layer: overlay;
+    dock: bottom;
+    width: 100%;
+    height: auto;
+    max-height: 10;
+    offset-y: -3; /* Position above input */
+}
+
+#command-menu.visible {
+    display: block;
+}
+
+OptionList {
+    background: $bg-side;
+    border: tall $primary;
+    color: $text-main;
+}
+
+OptionList > .optionlist--option-highlighted {
+    background: $primary;
+    color: $text-main;
+}
+
+
+/* Thinking Panel */
+ThinkingPanel {
+    width: 100%;
+    height: auto;
+    min-height: 10;
+    background: $bg-side;
+    border: solid $primary;
+    padding: 1 2;
+    margin: 1 0;
+}
+
+.thinking-header {
+    color: $primary;
+    text-style: bold italic;
+    margin-bottom: 1;
+}
+
+.thinking-content {
+    color: $text-main;
+}
+
+.thinking-step {
+    margin-left: 2;
+    color: $text-dim;
+}
+
+.active-step {
+    color: #f59e0b;
+    text-style: bold;
+}
+
+.completed-step {
+    color: #22c55e;
+}
+
+.error-step {
+    color: #ef4444;
+}

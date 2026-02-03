@@ -11,85 +11,43 @@ from typing import List, Dict, Any
 class HUDStatusLine(Static):
     """
     Claude HUD 스타일의 실시간 상태바
-    
-    표시 정보:
-    - 현재 사용 중인 LLM 모델
-    - 컨텍스트 사용률 (시각적 프로그레스 바)
-    - 프로젝트 정보
-    - 도구 활동
-    - 에이전트 상태
-    - 세션 시간
     """
     
-    DEFAULT_CSS = """
-    HUDStatusLine {
-        height: 3;
-        background: #161b22;
-        border-bottom: solid #30363d;
-        padding: 0 2;
-        color: #f8fafc;
-    }
-    
-    .hud-line {
-        height: 1;
-    }
-    """
-    
-    # Reactive properties
     current_model = reactive("Gemini 2.0 Flash")
-    context_usage = reactive(0.0)  # 0-100
+    context_usage = reactive(0.0)
     project_name = reactive("default")
     active_tools = reactive([])
     active_agents = reactive([])
-    session_start = reactive(datetime.now())
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.session_start = datetime.now()
+
+    DEFAULT_CSS = """
+    HUDStatusLine {
+        height: 1;
+        background: #050505;
+        color: #f8fafc;
+        padding: 0 1;
+    }
+    """
     
     def render(self) -> str:
-        """HUD를 렌더링"""
-        lines = []
-        
-        # 첫 번째 라인: 세션 정보
-        lines.append(self._render_session_info())
-        
-        # 두 번째 라인: 도구 활동
-        lines.append(self._render_tool_activity())
-        
-        # 세 번째 라인: 에이전트 상태 (있을 경우)
-        if self.active_agents:
-            lines.append(self._render_agent_status())
-        
-        return "\n".join(lines)
-    
-    def _render_session_info(self) -> str:
-        """세션 정보 라인 렌더링"""
-        # 컨텍스트 바 생성
-        bar_length = 10
-        filled = int(self.context_usage / 10)
+        """HUD를 1줄로 집약적으로 렌더링"""
+        # 컨텍스트 바
+        bar_length = 5
+        filled = int(self.context_usage / 20)
         bar = "█" * filled + "░" * (bar_length - filled)
         
-        # 컬러 코딩
-        if self.context_usage < 50:
-            color = "green"
-        elif self.context_usage < 80:
-            color = "yellow"
-        else:
-            color = "red"
-        
-        # 세션 시간 계산
-        duration = datetime.now() - self.session_start
-        duration_str = self._format_duration(duration.total_seconds())
-        
-        # 모델명 단축
+        # 모델 및 프로젝트
         model_short = self._shorten_model_name(self.current_model)
         
+        # 도구 상태 요약
+        running_tools = [t for t in self.active_tools if t.get('status') == 'running']
+        tool_status = f" [yellow]⏳ {running_tools[0]['name']}[/yellow]" if running_tools else ""
+        
         return (
-            f"[bold cyan]{model_short}[/bold cyan] | "
-            f"[{color}]{bar} {self.context_usage:.0f}%[/{color}] | "
-            f"📂 [cyan]{self.project_name}[/cyan] | "
-            f"⏱️ {duration_str}"
+            f"[bold #4f46e5]BI-AGENT[/bold #4f46e5] | "
+            f"[bold indigo]{model_short}[/bold indigo] | "
+            f"CTX {bar} {self.context_usage:.0f}% | "
+            f"PRJ [indigo]{self.project_name}[/indigo] | "
+            f"{tool_status}"
         )
     
     def _render_tool_activity(self) -> str:

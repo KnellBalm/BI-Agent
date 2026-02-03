@@ -16,19 +16,19 @@ class ProjectScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="project-modal"):
-            yield Label("[bold white]Project Manager[/bold white]", id="project-title")
-            yield Label(f"Current: [cyan]{self.current_project}[/cyan]\n")
-            yield Label("Switch to or create a new project:")
+            yield Label("[bold indigo]🗂️ 프로젝트 관리자[/bold indigo]", id="project-title")
+            yield Label(f"현재 선택: [indigo]{self.current_project}[/indigo]\n")
+            yield Label("프로젝트를 선택하거나 새로 생성하세요:")
             yield ListView(id="project-list")
-            yield Input(id="new-project-input", placeholder="Enter new project name to create...")
-            yield Label("\n[dim]Esc:Cancel  Enter:Select/Create[/dim]")
+            yield Input(id="new-project-input", placeholder="새 프로젝트 이름을 입력하세요...")
+            yield Label("\n[dim]Esc:취소  Enter:선택/생성[/dim]")
 
     CSS = """
     #project-modal {
-        width: 50;
-        height: 20;
-        background: #1e293b;
-        border: thick #10b981;
+        width: 60;
+        height: 24;
+        background: #000000;
+        border: thick #4f46e5;
         padding: 2;
         align: center middle;
     }
@@ -37,8 +37,9 @@ class ProjectScreen(ModalScreen):
         margin-bottom: 1;
     }
     #project-list {
-        height: 8;
-        background: #0f172a;
+        height: 10;
+        background: #050505;
+        border: solid #111111;
         margin: 1 0;
     }
     """

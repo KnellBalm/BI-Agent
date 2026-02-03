@@ -6,10 +6,11 @@ and provides conversion utilities between .twb XML and Meta JSON format.
 """
 
 import json
+import xml.etree.ElementTree as XET
 try:
     import defusedxml.ElementTree as ET
 except ImportError:
-    import xml.etree.ElementTree as ET
+    ET = XET
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -216,7 +217,7 @@ class TableauMetaSchemaEngine:
 
         return datasources
 
-    def _extract_connection(self, ds_elem: ET.Element) -> ConnectionMeta:
+    def _extract_connection(self, ds_elem: XET.Element) -> ConnectionMeta:
         """Extract connection metadata from datasource element"""
         connection_elem = ds_elem.find('.//connection')
 
@@ -249,7 +250,7 @@ class TableauMetaSchemaEngine:
         # Default connection if not specified
         return ConnectionMeta(type='unknown')
 
-    def _extract_fields(self, ds_elem: ET.Element) -> List[FieldMeta]:
+    def _extract_fields(self, ds_elem: XET.Element) -> List[FieldMeta]:
         """Extract field metadata from datasource element"""
         fields = []
 
@@ -324,7 +325,7 @@ class TableauMetaSchemaEngine:
 
         return worksheets
 
-    def _determine_visual_type(self, ws_elem: ET.Element) -> str:
+    def _determine_visual_type(self, ws_elem: XET.Element) -> str:
         """Determine visualization type from worksheet element"""
         # Look for mark type in the worksheet
         mark_elem = ws_elem.find('.//mark')
@@ -349,7 +350,7 @@ class TableauMetaSchemaEngine:
 
         return 'table'  # Default to table if unknown
 
-    def _extract_dimensions_measures(self, ws_elem: ET.Element) -> tuple[List[str], List[str]]:
+    def _extract_dimensions_measures(self, ws_elem: XET.Element) -> tuple[List[str], List[str]]:
         """Extract dimensions and measures from worksheet rows/columns"""
         dimensions = []
         measures = []
@@ -368,7 +369,7 @@ class TableauMetaSchemaEngine:
 
         return dimensions, measures
 
-    def _parse_shelf_fields(self, shelf_elem: ET.Element, field_role: str) -> List[str]:
+    def _parse_shelf_fields(self, shelf_elem: XET.Element, field_role: str) -> List[str]:
         """Parse field names from a shelf element (rows/cols)"""
         fields = []
 
