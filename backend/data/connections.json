@@ -3,20 +3,20 @@
         "type": "postgres",
         "config": {
             "host": "localhost",
-            "port": "5433",
-            "dbname": "biagent_test",
-            "user": "biagent",
-            "password": "${POSTGRES_PASSWORD}"
+            "port": "5432",
+            "dbname": "",
+            "user": "",
+            "password": ""
         }
     },
     "test_mysql": {
         "type": "mysql",
         "config": {
             "host": "localhost",
-            "port": "3307",
-            "dbname": "biagent_test",
-            "user": "biagent",
-            "password": "${MYSQL_PASSWORD}"
+            "port": "3306",
+            "dbname": "",
+            "user": "",
+            "password": ""
         }
     }
 }
