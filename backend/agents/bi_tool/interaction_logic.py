@@ -39,7 +39,8 @@ class InteractionLogic:
                     "config": {"column": col_name, "variable": var_id},
                     "layout": {"width": 3, "height": 1}
                 })
-                query_parts.append(f"{col_name} <= '{{{{ {var_id} }}}}'")
+                # Identifier quoting applied for col_name
+                query_parts.append(f"\"{col_name}\" <= '{{{{ {var_id} }}}}'")
 
             elif col_type == "categorical" and col["unique"] <= 10:
                 var_id = f"v_{col_name}"
@@ -56,7 +57,8 @@ class InteractionLogic:
                     "config": {"column": col_name, "variable": var_id},
                     "layout": {"width": 3, "height": 1}
                 })
-                query_parts.append(f"{col_name} = '{{{{ {var_id} }}}}'")
+                # Identifier quoting applied for col_name
+                query_parts.append(f"\"{col_name}\" = '{{{{ {var_id} }}}}'")
 
         # 2. Identify KPIs (Measures)
         kpis = [col for col in columns if col["type"] == "numerical"]

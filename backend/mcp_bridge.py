@@ -21,9 +21,7 @@ sys.path.insert(0, project_root)
 from dotenv import load_dotenv
 load_dotenv(os.path.join(project_root, '.env'))
 
-from backend.orchestrator.orchestrator import Orchestrator
-from backend.orchestrator.connection_manager import ConnectionManager
-from backend.orchestrator.llm_provider import GeminiProvider
+from backend.orchestrator import Orchestrator, ConnectionManager, GeminiProvider
 from backend.agents.data_source.data_source_agent import DataSourceAgent
 from backend.agents.bi_tool.bi_tool_agent import BIToolAgent
 from backend.agents.bi_tool.json_parser import BIJsonParser

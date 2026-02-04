@@ -7,7 +7,7 @@ import json
 import asyncio
 from dataclasses import dataclass, asdict, field
 from typing import List, Optional, Dict, Any
-from backend.orchestrator.llm_provider import GeminiProvider, OllamaProvider, FailoverLLMProvider
+from backend.orchestrator import GeminiProvider, OllamaProvider, FailoverLLMProvider
 from backend.agents.bi_tool.base_intent import BaseIntent
 
 
@@ -119,7 +119,7 @@ Return ONLY the JSON, no additional text or explanation."""
         """
         if llm_provider is None:
             # Setup default failover: Gemini with QuotaManager -> Ollama
-            from backend.orchestrator.quota_manager import QuotaManager
+            from backend.orchestrator import QuotaManager
             qm = QuotaManager()
             primary = GeminiProvider(quota_manager=qm)
             secondary = OllamaProvider()

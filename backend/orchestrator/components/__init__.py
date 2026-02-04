@@ -1,7 +1,8 @@
 """
-Orchestrator UI Components
-Reusable Textual widgets for the BI-Agent TUI.
+BI-Agent Console UI Components
 """
-from backend.orchestrator.components.data_grid import SampleDataGrid, TypeCorrectionGrid
 
-__all__ = ["SampleDataGrid", "TypeCorrectionGrid"]
+from .sidebar_manager import SidebarManager
+from .command_palette import CommandPalette
+
+__all__ = ["SidebarManager", "CommandPalette"]

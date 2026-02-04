@@ -1,0 +1,46 @@
+{
+    "name": "bi-agent-orchestrator-merge",
+    "sessionId": "session-20260204-143000",
+    "status": "PLANNING",
+    "tasks": [
+        {
+            "id": "T0.1.1",
+            "agent": "pm",
+            "priority": "P0",
+            "title": "Setup Orchestrator Context",
+            "description": "Initialize session and context files for multi-agent support.",
+            "dependencies": []
+        },
+        {
+            "id": "T1.1.1",
+            "agent": "debug",
+            "priority": "P0",
+            "title": "Migrate Configuration Schema",
+            "description": "Backup and transform connections.json to the new V2 schema.",
+            "dependencies": [
+                "T0.1.1"
+            ]
+        },
+        {
+            "id": "T1.1.2",
+            "agent": "backend",
+            "priority": "P0",
+            "title": "Merge Refactor Branch",
+            "description": "Perform git merge and resolve potential imports conflicts.",
+            "dependencies": [
+                "T0.1.1"
+            ]
+        },
+        {
+            "id": "T2.1.1",
+            "agent": "qa",
+            "priority": "P1",
+            "title": "Manual Workflow Verification",
+            "description": "Verify TUI startup, slash commands, and data exploration flows.",
+            "dependencies": [
+                "T1.1.1",
+                "T1.1.2"
+            ]
+        }
+    ]
+}

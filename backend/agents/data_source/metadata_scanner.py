@@ -15,8 +15,11 @@ class MetadataScanner:
     def __init__(self, connection_manager: ConnectionManager):
         self.conn_mgr = connection_manager
 
-    def scan_source(self, conn_id: str) -> Dict[str, Any]:
-        """Scans the entire source and returns a metadata tree."""
+    def scan_source(self, conn_id: str, deep_scan: bool = False) -> Dict[str, Any]:
+        """
+        Scans the source. Returns table list by default (shallow).
+        If deep_scan=True, performs detailed profiling for all tables.
+        """
         conn_info = self._get_conn_info(conn_id)
         conn_type = conn_info["type"]
         
@@ -29,15 +32,19 @@ class MetadataScanner:
         table_names = self._list_tables(conn_id, conn_type)
         
         for table in table_names:
-            table_meta = self.scan_table(conn_id, table)
+            if deep_scan:
+                table_meta = self.scan_table(conn_id, table)
+            else:
+                table_meta = {"table_name": table, "is_lazy": True}
             metadata["tables"].append(table_meta)
             
         return metadata
 
     def scan_table(self, conn_id: str, table_name: str) -> Dict[str, Any]:
         """Performs detailed profiling of a single table."""
-        # 1. Fetch Sample Data
-        query = f'SELECT * FROM "{table_name}" LIMIT 100'
+        # 1. Fetch Sample Data - Sanitize table name by escaping existing double quotes
+        safe_table_name = table_name.replace('"', '""')
+        query = f'SELECT * FROM "{safe_table_name}" LIMIT 100'  # nosec B608
         df = self.conn_mgr.run_query(conn_id, query)
         
         # 2. Use DataProfiler for statistical summary
@@ -80,8 +87,10 @@ class MetadataScanner:
 
 import json # Required for Registry read in helper
 if __name__ == "__main__":
-    # Test with SQLite
-    mgr = ConnectionManager("/tmp/test_connections.json")
+    import tempfile
+    import os
+    temp_json = os.path.join(tempfile.gettempdir(), "test_connections.json")
+    mgr = ConnectionManager(temp_json)
     mgr.register_connection("test_db", "sqlite", {"path": ":memory:"})
     conn = mgr.get_connection("test_db")
     
@@ -95,4 +104,4 @@ if __name__ == "__main__":
     import pprint
     pprint.pprint(full_meta)
     
-    os.remove("/tmp/test_connections.json")
+    os.remove(temp_json)
