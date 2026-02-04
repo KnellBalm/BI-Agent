@@ -130,8 +130,8 @@ class BI_AgentConsole(App):
         # Auth 정보 로드
         auth_manager.load_credentials()
         
-        # 10초마다 사이드바/HUD 업데이트
-        self.set_timer(0, self._update_sidebar_loop)
+        # 0.1초마다 사이드바/HUD 업데이트 (간격을 0으로 하면 최신 Textual에서 ZeroDivisionError 발생 가능)
+        self.set_timer(0.1, self._update_sidebar_loop)
         self.set_timer(1, self._update_hud_loop)
         
         # 초기 포커스

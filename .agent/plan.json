@@ -1,46 +1,46 @@
 {
-    "session_id": "eb339375-a31a-49a9-a139-6ea60d458b26",
-    "goal": "Fix QA findings in backend directory",
+    "name": "bi-agent-orchestrator-merge",
+    "sessionId": "session-20260204-143000",
+    "status": "PLANNING",
     "tasks": [
         {
-            "id": "T1",
-            "agent": "backend-agent",
-            "title": "Security - Secrets Management",
+            "id": "T0.1.1",
+            "agent": "pm",
             "priority": "P0",
-            "dependencies": [],
-            "description": "Remove plain text passwords from connections.json and use env vars."
+            "title": "Setup Orchestrator Context",
+            "description": "Initialize session and context files for multi-agent support.",
+            "dependencies": []
         },
         {
-            "id": "T2",
-            "agent": "backend-agent",
-            "title": "Security - SQLi & XMLi Hardening",
+            "id": "T1.1.1",
+            "agent": "debug",
             "priority": "P0",
-            "dependencies": [],
-            "description": "Implement parameterized queries and use defusedxml."
+            "title": "Migrate Configuration Schema",
+            "description": "Backup and transform connections.json to the new V2 schema.",
+            "dependencies": [
+                "T0.1.1"
+            ]
         },
         {
-            "id": "T3",
-            "agent": "backend-agent",
-            "title": "Security - Isolated Code Execution",
+            "id": "T1.1.2",
+            "agent": "backend",
+            "priority": "P0",
+            "title": "Merge Refactor Branch",
+            "description": "Perform git merge and resolve potential imports conflicts.",
+            "dependencies": [
+                "T0.1.1"
+            ]
+        },
+        {
+            "id": "T2.1.1",
+            "agent": "qa",
             "priority": "P1",
-            "dependencies": [],
-            "description": "Strengthen sanitization for PandasGenerator exec()."
-        },
-        {
-            "id": "T4",
-            "agent": "backend-agent",
-            "title": "Performance - Lazy Metadata Scanning",
-            "priority": "P1",
-            "dependencies": [],
-            "description": "Deferred profiling in MetadataScanner for performance."
-        },
-        {
-            "id": "T5",
-            "agent": "backend-agent",
-            "title": "Maintenance - Path & Quality Improvements",
-            "priority": "P2",
-            "dependencies": [],
-            "description": "Fix hardcoded paths and silent catch blocks."
+            "title": "Manual Workflow Verification",
+            "description": "Verify TUI startup, slash commands, and data exploration flows.",
+            "dependencies": [
+                "T1.1.1",
+                "T1.1.2"
+            ]
         }
     ]
 }
