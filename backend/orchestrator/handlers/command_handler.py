@@ -8,7 +8,7 @@ from textual.widgets import Label
 
 from backend.orchestrator.handlers.protocols import HandlerContext, CommandHandlerProtocol
 from backend.orchestrator import MessageBubble
-from backend.orchestrator.screens import AuthScreen, ConnectionScreen
+from backend.orchestrator.screens import AuthScreen, ConnectionScreen, DatabaseExplorerScreen
 
 logger = logging.getLogger("tui")
 
@@ -40,12 +40,22 @@ class CommandHandler(CommandHandlerProtocol):
                     asyncio.create_task(self.app._handle_analyze_command(user_intent))
                 
         elif cmd == "/connect":
-            def on_connected(conn_id: str):
-                if conn_id and hasattr(self.app, "_run_scan"):
-                    # 비동기 워커로 스캔 실행 (UI 프리징 방지)
-                    self.app.run_worker(self.app._run_scan(conn_id))
-            
-            self.context.push_screen(ConnectionScreen(callback=on_connected))
+            # Handle subcommands: /connect, /connect load <file>, /connect list
+            if len(parts) == 1:
+                # Open connection screen
+                def on_connected(conn_id: str):
+                    if conn_id and hasattr(self.app, "_run_scan"):
+                        # 비동기 워커로 스캔 실행 (UI 프리징 방지)
+                        self.app.run_worker(self.app._run_scan(conn_id))
+
+                self.context.push_screen(ConnectionScreen(callback=on_connected))
+            elif parts[1] == "load" and len(parts) >= 3:
+                # Load connections from file
+                filepath = " ".join(parts[2:])
+                await self._load_connections_from_file(filepath, chat_log)
+            elif parts[1] == "list":
+                # List registered connections
+                await self._list_connections(chat_log)
             
         elif cmd == "/project":
             if hasattr(self.app, "action_switch_project"):
@@ -72,7 +82,9 @@ class CommandHandler(CommandHandlerProtocol):
                 "[bold cyan]◈ BI-Agent 사용 가이드 ◈[/bold cyan]\n\n"
                 "[bold #38bdf8]명령어 일람:[/bold #38bdf8]\n"
                 "• [b]/login[/b]   - LLM API 키 설정 (AI 활성화 핵심)\n"
-                "• [b]/connect[/b] - DB/File 연결 (sqlite, postgres, excel)\n"
+                "• [b]/connect[/b] - DB/File 연결 UI 열기\n"
+                "• [b]/connect load <file>[/b] - YAML/JSON 파일에서 연결 로드\n"
+                "• [b]/connect list[/b] - 등록된 연결 목록 보기\n"
                 "• [b]/explore[/b] - 테이블 목록 및 상세 스키마 탐색\n"
                 "• [b]/analyze[/b] - 자연어 질문 기반 데이터 분석 및 시각화\n"
                 "• [b]/errors[/b]  - 시스템 장애 및 로직 에러 로그 확인\n"
@@ -101,3 +113,94 @@ class CommandHandler(CommandHandlerProtocol):
 
     def can_handle(self, cmd: str) -> bool:
         return cmd.startswith("/")
+
+    async def _load_connections_from_file(self, filepath: str, chat_log: VerticalScroll) -> None:
+        """Load connections from YAML/JSON file."""
+        try:
+            from backend.agents.data_source.connection_file_loader import ConnectionFileLoader
+
+            msg = MessageBubble(role="system", content=f"[dim]Loading connections from {filepath}...[/dim]")
+            chat_log.mount(msg)
+            chat_log.scroll_end(animate=False)
+
+            # Load and normalize connections
+            loader = ConnectionFileLoader()
+            connections = loader.load_from_file(filepath)
+
+            # Register each connection using orchestrator's ConnectionManager
+            success_count = 0
+            failed = []
+
+            for conn_id, conn_data in connections.items():
+                try:
+                    conn_type = conn_data.pop("type")
+                    # conn_data now contains: {host, port, database, dbname, user, password} or {path}
+                    self.app.conn_mgr.register_connection(conn_id, conn_type, conn_data)
+                    success_count += 1
+                except Exception as e:
+                    failed.append(f"{conn_id}: {str(e)}")
+                    logger.error(f"Failed to register {conn_id}: {e}")
+
+            # Report results
+            if success_count > 0:
+                success_msg = MessageBubble(
+                    role="system",
+                    content=f"[green]✓ Successfully loaded {success_count} connection(s)[/green]"
+                )
+                chat_log.mount(success_msg)
+
+            if failed:
+                error_msg = MessageBubble(
+                    role="system",
+                    content=f"[red]✗ Failed to load {len(failed)} connection(s):\n{chr(10).join(failed)}[/red]"
+                )
+                chat_log.mount(error_msg)
+
+        except FileNotFoundError as e:
+            msg = MessageBubble(role="system", content=f"[red]File not found: {filepath}[/red]")
+            chat_log.mount(msg)
+        except ImportError as e:
+            msg = MessageBubble(role="system", content=f"[red]{str(e)}[/red]")
+            chat_log.mount(msg)
+        except Exception as e:
+            logger.error(f"Failed to load connections: {e}")
+            msg = MessageBubble(role="system", content=f"[red]Error loading connections: {e}[/red]")
+            chat_log.mount(msg)
+
+        chat_log.scroll_end(animate=False)
+
+    async def _list_connections(self, chat_log: VerticalScroll) -> None:
+        """List all registered connections."""
+        try:
+            import json
+            storage_path = getattr(self.app.conn_mgr, 'storage_path', None) or getattr(self.app.conn_mgr, 'registry_path', None)
+
+            if not storage_path:
+                msg = MessageBubble(role="system", content="[red]Could not find connection storage[/red]")
+                chat_log.mount(msg)
+                return
+
+            with open(storage_path, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+
+            if not registry:
+                msg = MessageBubble(role="system", content="[yellow]No connections registered yet[/yellow]")
+                chat_log.mount(msg)
+                return
+
+            content = "[bold cyan]Registered Connections:[/bold cyan]\n\n"
+            for conn_id, info in registry.items():
+                conn_type = info.get('type', 'unknown').upper()
+                config = info.get('config', {})
+                host = config.get('host', config.get('path', 'N/A'))
+                content += f"• [bold]{conn_type}[/bold]: {conn_id} ({host})\n"
+
+            msg = MessageBubble(role="system", content=content)
+            chat_log.mount(msg)
+
+        except Exception as e:
+            logger.error(f"Failed to list connections: {e}")
+            msg = MessageBubble(role="system", content=f"[red]Error: {e}[/red]")
+            chat_log.mount(msg)
+
+        chat_log.scroll_end(animate=False)
