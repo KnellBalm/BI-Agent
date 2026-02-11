@@ -46,12 +46,22 @@ Screen.-maximized-view {
     border-right: tall $surface;
 }
 
-/* Command Palette */
-#command-palette {
-    dock: bottom;
-    height: 3;
-    background: $surface;
-    border-top: tall $panel;
+/* Command Menu (below input) */
+#command-menu {
+    display: none;
+    height: auto;
+    max-height: 12;
+    background: $panel;
+    border: round $primary;
+    margin: 0 1;
+}
+
+#command-menu.visible {
+    display: block;
+}
+
+#command-menu.hidden {
+    display: none;
 }
 
 /* Chat Bubbles */

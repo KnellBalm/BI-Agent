@@ -27,26 +27,29 @@ class CommandPalette:
         """현재 입력값에 따라 명령 메뉴 항목을 필터링하여 업데이트"""
         menu = self.app.query_one("#command-menu", OptionList)
         menu.clear_options()
-        
+
         # 슬래시 제거 후 소문자로 비교
         search_term = filter_text.lstrip("/").lower()
-        
+
         matches_found = 0
         for cmd, desc, cmd_id in self.commands:
             if not search_term or cmd.lstrip("/").startswith(search_term):
                 menu.add_option(Option(f"{cmd:<10} [dim]{desc}[/dim]", id=cmd_id))
                 matches_found += 1
-        
+
         if matches_found > 0:
+            menu.remove_class("hidden")  # hidden 클래스 제거
             menu.add_class("visible")
             self.visible = True
             menu.highlighted = 0
         else:
             menu.remove_class("visible")
+            menu.add_class("hidden")  # hidden 클래스 추가
             self.visible = False
 
     def hide(self):
         """팔레트 숨기기"""
         menu = self.app.query_one("#command-menu", OptionList)
         menu.remove_class("visible")
+        menu.add_class("hidden")  # hidden 클래스 추가
         self.visible = False

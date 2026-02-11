@@ -31,6 +31,13 @@ class VimTextArea(TextArea, VimEngine):
         Binding("escape", "escape", "Normal Mode", show=False),
     ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # VimEngine.__init__ may not be called due to MRO,
+        # so explicitly initialize vim attributes here
+        self.vim_mode = VimMode.NORMAL
+        self.leader_key = None
+
     def _on_key(self, event) -> None:
         # Route keys through VimEngine
         # Note: We need to handle this carefully to not block all input
@@ -155,34 +162,49 @@ class DatabaseExplorerScreen(Screen):
 
     def on_mount(self) -> None:
         self.query_one("#schema-tree").focus()
-        self._load_schema()
-        
+
         # Set border titles as hints
         self.query_one("#tree-panel").border_title = "Explorer"
         self.query_one("#editor-panel").border_title = "Query"
         self.query_one("#results-panel").border_title = "Data Grid"
 
-    def _load_schema(self):
-        """Loads tables/views from the connection manager."""
+        # Load schema asynchronously with loading indicator
+        asyncio.create_task(self._load_schema())
+
+    async def _load_schema(self):
+        """Loads tables/views from the connection manager asynchronously."""
         tree = self.query_one("#schema-tree")
 
-        try:
-            # Create MetadataScanner with agent's connection manager
-            scanner = MetadataScanner(self.agent_conn_mgr)
+        # Show loading indicator
+        loading_node = tree.root.add("📡 Loading schema...", expand=True)
+        loading_node.add_leaf("Please wait...")
 
-            # Fetch real tables from database (shallow scan)
-            metadata = scanner.scan_source(self.connection_id, deep_scan=False)
+        try:
+            # Run the blocking operation in a thread pool to avoid blocking UI
+            def _scan_metadata():
+                scanner = MetadataScanner(self.agent_conn_mgr)
+                return scanner.scan_source(self.connection_id, deep_scan=False)
+
+            # Execute in thread pool
+            loop = asyncio.get_event_loop()
+            metadata = await loop.run_in_executor(None, _scan_metadata)
+
+            # Remove loading indicator
+            tree.root.remove_children()
 
             # Add tables to tree
-            tables_node = tree.root.add("Tables", expand=True)
+            tables_node = tree.root.add("📊 Tables", expand=True)
             table_list = metadata.get("tables", [])
 
             if table_list:
                 for table_info in table_list:
                     table_name = table_info.get("table_name", "unknown")
-                    tables_node.add_leaf(table_name)
+                    tables_node.add_leaf(f"  {table_name}")
+
+                self.notify(f"✓ Loaded {len(table_list)} tables", severity="information")
             else:
-                tables_node.add_leaf("(no tables found)")
+                tables_node.add_leaf("  (no tables found)")
+                self.notify("No tables found in database", severity="warning")
 
             # TODO: Add views separately if available in metadata
             # For now, views are not separately identified by MetadataScanner
@@ -191,10 +213,13 @@ class DatabaseExplorerScreen(Screen):
 
         except Exception as e:
             logger.error(f"Failed to load schema for connection {self.connection_id}: {e}", exc_info=True)
-            # Show placeholder with error message
-            error_node = tree.root.add("Error loading schema", expand=True)
-            error_node.add_leaf(f"Error: {str(e)}")
-            self.notify(f"Failed to load schema: {str(e)}", severity="error")
+
+            # Remove loading indicator and show error
+            tree.root.remove_children()
+            error_node = tree.root.add("❌ Error loading schema", expand=True)
+            error_node.add_leaf(f"  {str(e)}")
+
+            self.notify(f"Failed to load schema: {str(e)}", severity="error", timeout=10)
 
     def action_run_query(self) -> None:
         """Executes the query in the editor."""

@@ -29,6 +29,36 @@ class ThemeEngine:
             "text": "#1E293B",
             "subtext": "#64748B",
             "chart_colors": ["#2563EB", "#475569", "#EA580C", "#16A34A", "#D97706"]
+        },
+        "executive_blue": {
+            "background": "#F0F4F8",
+            "card_bg": "#FFFFFF",
+            "primary": "#1E40AF",
+            "secondary": "#3B82F6",
+            "accent": "#0EA5E9",
+            "text": "#1F2937",
+            "subtext": "#6B7280",
+            "chart_colors": ["#1E40AF", "#3B82F6", "#0EA5E9", "#06B6D4", "#8B5CF6"]
+        },
+        "nature_green": {
+            "background": "#F0FDF4",
+            "card_bg": "#FFFFFF",
+            "primary": "#15803D",
+            "secondary": "#22C55E",
+            "accent": "#84CC16",
+            "text": "#14532D",
+            "subtext": "#4D7C0F",
+            "chart_colors": ["#15803D", "#22C55E", "#84CC16", "#10B981", "#059669"]
+        },
+        "sunset_warm": {
+            "background": "#FFF7ED",
+            "card_bg": "#FFFFFF",
+            "primary": "#DC2626",
+            "secondary": "#F97316",
+            "accent": "#FBBF24",
+            "text": "#7C2D12",
+            "subtext": "#92400E",
+            "chart_colors": ["#DC2626", "#F97316", "#FBBF24", "#FB923C", "#F59E0B"]
         }
     }
 

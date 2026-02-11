@@ -62,7 +62,8 @@ class BI_AgentConsole(App):
 
     def __init__(self):
         super().__init__()
-        self.registry_path = path_manager.base_dir / "connections.json"
+        # Use the same registry path as AgentConnectionManager for consistency
+        self.registry_path = path_manager.get_project_path("default") / "connections.json"
 
         # Orchestrator's ConnectionManager (for UI and config management)
         self.conn_mgr = ConnectionManager(str(self.registry_path))
@@ -106,14 +107,14 @@ class BI_AgentConsole(App):
                                 "[dim]도움말이 필요하면 F1 키를 누르세요.[/dim]"
                     )
                 
-                # Command Palette (Floating-like OptionList)
-                cp = OptionList(id="command-menu")
-                cp.add_class("hidden")
-                yield cp
-                
                 with Horizontal(id="input-container"):
                     yield Input(placeholder="질문을 입력하거나 '/'로 명령어를 시작하세요...", id="user-input")
                     yield Button("Send", id="send-btn", variant="primary")
+                
+                # Command Palette (below input)
+                cp = OptionList(id="command-menu")
+                cp.add_class("hidden")
+                yield cp
 
             # Right Sidebar
             with Vertical(id="sidebar"):
@@ -314,7 +315,23 @@ class BI_AgentConsole(App):
 
     async def _run_explore(self, query: Optional[str], mode: Optional[str] = None, provider: Optional[str] = None):
         # DatabaseExplorerScreen 연동 (sqlit 벤치마크 기반 3-pane 레이아웃)
-        conn_id = context_manager.active_conn_id or "default"
+        conn_id = context_manager.active_conn_id
+
+        # If no active connection, get the first available connection from registry
+        if not conn_id:
+            try:
+                available_conns = self.conn_mgr.list_connections()
+                if available_conns:
+                    conn_id = available_conns[0]["id"]
+                    logger.info(f"No active connection, using first available: {conn_id}")
+                else:
+                    self.notify("No connections available. Please use /connect first.", severity="error")
+                    return
+            except Exception as e:
+                logger.error(f"Failed to get connections list: {e}")
+                self.notify("Failed to retrieve connections. Please check your setup.", severity="error")
+                return
+
         self.push_screen(DatabaseExplorerScreen(
             connection_id=conn_id,
             conn_mgr=self.conn_mgr,
