@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# BI-Agent 실행 스크립트
+# editable install의 최신 소스 코드를 사용합니다
+
+cd "$(dirname "$0")"
+exec python3.14 -c "from backend.orchestrator.bi_agent_console import run_app; run_app()"

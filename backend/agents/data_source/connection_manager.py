@@ -220,24 +220,44 @@ class ConnectionManager:
             raise
 
     def _initialize_session(self, conn_type: str, config: Dict[str, Any]):
-        """Initializes a connection session with error handling."""
+        """Initializes a connection session with error handling using SQLAlchemy internally."""
         try:
+            from sqlalchemy import create_engine
+            from urllib.parse import quote_plus
+            
             if conn_type == "sqlite":
-                path = config["path"]
-                if not os.path.exists(path) and path != ":memory:":
-                    logger.warning(f"SQLite file not found at {path}. A new one will be created upon use.")
-                return sqlite3.connect(path)
+                path = config.get("path", ":memory:")
+                # Use 3 slashes for absolute path, 4 for absolute path on some systems. 
+                # sqlite:///path (relative) or sqlite:////path (absolute)
+                # For simplicity, we'll prefix with sqlite:///
+                prefix = "sqlite:///"
+                if path != ":memory:" and not os.path.isabs(path):
+                    logger.debug(f"Relative path for SQLite: {path}")
+                return create_engine(f"{prefix}{path}")
+
+            elif conn_type == "postgres" or conn_type == "mysql":
+                user = quote_plus(str(config.get('user', '')))
+                password = quote_plus(str(config.get('password', '')))
+                host = config.get('host', 'localhost')
+                port = config.get('port', 5432 if conn_type == "postgres" else 3306)
+                db = config.get('dbname') or config.get('database', '')
+                
+                if conn_type == "postgres":
+                    uri = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+                else:
+                    uri = f"mysql+pymysql://{user}:{password}@{host}:{port}/{db}"
+                
+                return create_engine(uri)
+
+            elif conn_type == "duckdb":
+                path = config.get("path", ":memory:")
+                return create_engine(f"duckdb:///{path}")
+
             elif conn_type == "excel":
                 if not os.path.exists(config["path"]):
                     raise FileNotFoundError(f"Excel file not found: {config['path']}")
                 return config["path"]
-            elif conn_type == "postgres":
-                import psycopg2
-                return psycopg2.connect(**config)
-            elif conn_type == "duckdb":
-                import duckdb
-                path = config["path"]
-                return duckdb.connect(database=path)
+
             else:
                 raise NotImplementedError(f"Connection type '{conn_type}' is not supported yet.")
         except Exception as e:
@@ -256,10 +276,15 @@ class ConnectionManager:
             conn_type = registry[conn_id]["type"]
             
             start_time = datetime.datetime.now()
-            if conn_type in ["sqlite", "postgres"]:
-                df = pd.read_sql_query(query, session)
-            elif conn_type == "duckdb":
-                df = session.execute(query).df()
+            if conn_type in ["sqlite", "postgres", "mysql", "duckdb"]:
+                # SQLAlchemy engines and duckdb work well with pd.read_sql
+                # For SQLAlchemy 2.0+, we might need to use a connection or text()
+                from sqlalchemy import text
+                if hasattr(session, 'connect'): # It's likely an engine
+                    with session.connect() as conn:
+                        df = pd.read_sql_query(text(query), conn)
+                else:
+                    df = pd.read_sql_query(query, session)
             elif conn_type == "excel":
                 df = pd.read_excel(session)
             else:

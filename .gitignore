@@ -92,3 +92,6 @@ backend/data/*.json
 config/connections.json
 
 test_*
+
+.omc
+.claude

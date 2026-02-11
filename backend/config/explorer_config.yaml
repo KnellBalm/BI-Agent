@@ -1,0 +1,77 @@
+# BI-Agent Database Explorer Configuration
+# Configuration for text2sql and explorer features
+
+text2sql:
+  # Default mode: "local" (Ollama) or "api" (Cloud API)
+  default_mode: "local"
+
+  # Default API provider when using API mode: "gemini", "claude", or "openai"
+  default_api_provider: "gemini"
+
+  # Local mode configuration (Ollama)
+  local:
+    ollama_host: "http://localhost:11434"
+    model: "qwen2.5-coder:7b"
+    timeout: 30  # seconds
+    temperature: 0.1
+    num_ctx: 4096  # context window size
+
+  # API mode configuration
+  api:
+    # Gemini configuration
+    gemini:
+      model: "gemini-2.0-flash-exp"
+      temperature: 0.3
+      max_tokens: 2048
+
+    # Claude configuration
+    claude:
+      model: "claude-3-5-sonnet-20241022"
+      temperature: 0.3
+      max_tokens: 2048
+
+    # OpenAI configuration
+    openai:
+      model: "gpt-4o"
+      temperature: 0.3
+      max_tokens: 2048
+
+# Query execution settings
+query:
+  # Maximum rows to fetch (prevent accidental huge result sets)
+  max_rows: 10000
+
+  # Query timeout in seconds
+  timeout: 60
+
+  # Enable query validation before execution
+  validate_before_run: true
+
+# History and bookmark settings
+history:
+  # Maximum number of queries to keep in history
+  max_entries: 1000
+
+  # Auto-cleanup queries older than N days
+  auto_cleanup_days: 90
+
+bookmark:
+  # Enable versioning for bookmarks
+  enable_versioning: true
+
+  # Maximum versions to keep per bookmark
+  max_versions: 10
+
+# UI settings
+ui:
+  # Enable Vim-style editing in SQL editor
+  vim_mode: true
+
+  # Show line numbers in SQL editor
+  show_line_numbers: true
+
+  # Syntax highlighting theme
+  syntax_theme: "monokai"
+
+  # Auto-save query draft interval (seconds, 0 to disable)
+  auto_save_interval: 30

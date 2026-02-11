@@ -38,4 +38,4 @@ where = ["."]
 include = ["backend*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.js", "*.json", "*.css", "*.md"]
+"*" = ["*.js", "*.json", "*.css", "*.tcss", "*.md"]

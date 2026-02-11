@@ -46,6 +46,7 @@
 *   **자동 타입 교정**: 날짜/시간/숫자형 데이터의 문자열 저장 감지 및 변환 제안 시스템
 *   **연결 검증 시스템**: MySQL/PostgreSQL/SQLite 연결 전 상태 체크 및 SSH 터널 안정성 검증
 *   **컴포넌트 기반 오케스트레이터**: Agent Coordinator, Context Manager, Error Handler 모듈화
+*   **듀얼 모드 Explore 기능**: 자연어로 데이터 탐색 - Local AI (Ollama) 또는 Cloud API (Gemini/Claude/OpenAI) 선택 가능. `Alt+M`으로 모드 전환. [상세 가이드](./docs/guides/explore_feature_guide.md)
 
 ---
 
@@ -178,6 +179,8 @@ npm install
 * [**Roadmap (PLAN)**](./docs/core/PLAN.md): 프로젝트 비전 및 15단계 마일스톤
 * [**Technical Spec (DETAILED_SPEC)**](./docs/core/DETAILED_SPEC.md): 세부 구현 및 기술 명세
 * [**User Guide**](./docs/guides/USER_GUIDE.md): 실무 기능 활용 가이드
+* [**Explore Feature Guide**](./docs/guides/explore_feature_guide.md): 자연어 데이터 탐색 기능 상세 가이드 (Local/API 모드, 키보드 단축키, 예제, 트러블슈팅)
+* [**Explore Commands Reference**](./docs/EXPLORE_COMMANDS.md): 모든 `/explore` 명령어 및 옵션 빠른 참조
 
 ---
 

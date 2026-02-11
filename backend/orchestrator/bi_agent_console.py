@@ -14,6 +14,7 @@ from backend.orchestrator import (
     auth_manager,
     quota_manager,
     context_manager,
+    ConnectionManager,
     HUDStatusLine,
     CommandHistory,
     ErrorViewerScreen,
@@ -22,16 +23,16 @@ from backend.orchestrator import (
     StreamingMessageView,
     ToolActivityTracker
 )
+from backend.agents.data_source.connection_manager import ConnectionManager as AgentConnectionManager
 from backend.utils.logger_setup import setup_logger
 from backend.utils.path_config import path_manager
 
 # 리팩토링된 모듈들 임포트
 from backend.orchestrator.screens import (
-    AuthScreen, 
-    ConnectionScreen, 
-    ProjectScreen, 
+    ProjectScreen,
     TableSelectionScreen,
-    VisualAnalysisScreen
+    VisualAnalysisScreen,
+    DatabaseExplorerScreen
 )
 from backend.orchestrator.components import SidebarManager, CommandPalette
 from backend.orchestrator.handlers import HandlerContext, CommandHandler, InputHandler
@@ -48,7 +49,7 @@ class BI_AgentConsole(App):
     TITLE = "BI-Agent Console"
     SUB_TITLE = "데이터 분석의 새로운 기준"
     
-    # CSS_PATH = "bi_agent_console.tcss" # CSS 파일 분리 권장 (추후 작업)
+    CSS_PATH = ["ui/app_styles.tcss"]
     
     BINDINGS = [
         Binding("q", "quit", "Quit", show=True),
@@ -62,17 +63,29 @@ class BI_AgentConsole(App):
     def __init__(self):
         super().__init__()
         self.registry_path = path_manager.base_dir / "connections.json"
+
+        # Orchestrator's ConnectionManager (for UI and config management)
+        self.conn_mgr = ConnectionManager(str(self.registry_path))
+
+        # Agent's ConnectionManager (for schema scanning and query execution)
+        # Uses project_id="default" to match the same registry path
+        self.agent_conn_mgr = AgentConnectionManager(project_id="default")
+
         self.command_history = CommandHistory()
-        
+
         # 컴포넌트 및 핸들러 초기화 (지연 초기화 권장되나 여기선 명확성을 위해 __init__서 수행)
         self.sidebar_manager = SidebarManager(self)
         self.command_palette = CommandPalette(self)
         self.command_handler = CommandHandler(self)
         self.input_handler = InputHandler(self, self.command_palette, self.command_history)
-        
+
+        # QuestionFlowEngine 초기화 (chat_log는 on_mount에서 설정)
+        from backend.orchestrator.services.question_flow import QuestionFlowEngine
+        self.flow_engine = QuestionFlowEngine(app=self)
+
         # 상태값
-        self.palette_visible = False 
-        
+        self.palette_visible = False
+
         # Legacy 지원용 COMMAND_LIST (CommandPalette와 동기화 필요)
         self.COMMAND_LIST = self.command_palette.commands
 
@@ -81,27 +94,6 @@ class BI_AgentConsole(App):
         yield Header(show_clock=True)
         
         with Horizontal(id="main-layout"):
-            # Left Sidebar
-            with Vertical(id="sidebar"):
-                yield Label("[bold]PROJECT[/bold]", classes="sidebar-title")
-                yield Label("• [dim]default[/dim]", id="lbl-project")
-                
-                yield Label("\n[bold]STATUS[/bold]", classes="sidebar-title")
-                yield Label("• Auth: [red]✘[/red]", id="lbl-auth")
-                yield Label("• Context: [red]✘[/red]", id="lbl-context")
-                
-                yield Label("\n[bold]QUOTA USAGE[/bold]", classes="sidebar-title")
-                yield Static("Loading...", id="lbl-quota")
-                
-                yield Label("\n[bold]CONNECTIONS[/bold]", classes="sidebar-title")
-                yield Static("[dim]No sources.[/dim]", id="lbl-connections")
-                
-                yield Label("\n[bold]JOURNEY PROGRESS[/bold]", classes="sidebar-title")
-                yield Static("Launch -> Auth -> Conn", id="lbl-journey")
-                
-                yield Label("\n[bold]ACTION RECOMMENDATION[/bold]", classes="sidebar-title")
-                yield Static("초기 설정을 진행하세요.", id="lbl-recommend")
-
             # Main Chat Area
             with Vertical(id="chat-area"):
                 yield HUDStatusLine(id="hud-status")
@@ -123,17 +115,42 @@ class BI_AgentConsole(App):
                     yield Input(placeholder="질문을 입력하거나 '/'로 명령어를 시작하세요...", id="user-input")
                     yield Button("Send", id="send-btn", variant="primary")
 
+            # Right Sidebar
+            with Vertical(id="sidebar"):
+                yield Label("[bold]PROJECT[/bold]", classes="sidebar-title")
+                yield Label("• [dim]default[/dim]", id="lbl-project")
+                
+                yield Label("\n[bold]STATUS[/bold]", classes="sidebar-title")
+                yield Label("• Auth: [red]✘[/red]", id="lbl-auth")
+                yield Label("• Context: [red]✘[/red]", id="lbl-context")
+                
+                yield Label("\n[bold]QUOTA USAGE[/bold]", classes="sidebar-title")
+                yield Static("Loading...", id="lbl-quota")
+                
+                yield Label("\n[bold]CONNECTIONS[/bold]", classes="sidebar-title")
+                yield Static("[dim]No sources.[/dim]", id="lbl-connections")
+                
+                yield Label("\n[bold]JOURNEY PROGRESS[/bold]", classes="sidebar-title")
+                yield Static("Launch -> Auth -> Conn", id="lbl-journey")
+                
+                yield Label("\n[bold]ACTION RECOMMENDATION[/bold]", classes="sidebar-title")
+                yield Static("초기 설정을 진행하세요.", id="lbl-recommend")
+
         yield Footer()
 
     async def on_mount(self) -> None:
         """초기화 및 배경 작업 시작"""
         # Auth 정보 로드
         auth_manager.load_credentials()
-        
+
+        # QuestionFlowEngine에 chat_log 참조 설정
+        chat_log = self.query_one("#chat-log")
+        self.flow_engine.chat_log = chat_log
+
         # 0.1초마다 사이드바/HUD 업데이트 (간격을 0으로 하면 최신 Textual에서 ZeroDivisionError 발생 가능)
         self.set_timer(0.1, self._update_sidebar_loop)
         self.set_timer(1, self._update_hud_loop)
-        
+
         # 초기 포커스
         self.query_one("#user-input").focus()
         logger.info("BI-Agent Console started")
@@ -203,17 +220,26 @@ class BI_AgentConsole(App):
         """입력 제출 처리"""
         user_text = event.value.strip()
         if not user_text: return
-        
-        # UI 업데이트
+
+        # Clear input field first
+        self.query_one("#user-input", Input).value = ""
+
+        # CRITICAL: Check flow BEFORE mounting user bubble (for password masking)
+        if self.flow_engine.is_active():
+            consumed = await self.flow_engine.handle_input(user_text)
+            if consumed:
+                return  # Flow handled it (rendered its own answer bubble)
+            # If not consumed (e.g., /help), fall through to normal routing
+
+        # Normal flow: mount user bubble and route
         chat_log = self.query_one("#chat-log", VerticalScroll)
         chat_log.mount(MessageBubble(role="user", content=user_text))
         chat_log.scroll_end(animate=False)
-        self.query_one("#user-input", Input).value = ""
-        
+
         # 히스토리 저장
         context = "slash_command" if user_text.startswith("/") else "query"
         self.command_history.add_command(user_text, context=context)
-        
+
         # 라우팅
         if user_text.startswith("/"):
             await self.handle_command(user_text)
@@ -286,15 +312,17 @@ class BI_AgentConsole(App):
         self.notify(f"Scan complete for {conn_id}", severity="information")
         await self.sidebar_manager.update()
 
-    async def _run_explore(self, query: Optional[str]):
-        # TableSelectionScreen 연동
-        def on_table_selected(table_name: str):
-            if table_name:
-                self.notify(f"Selected table: {table_name}")
-                context_manager.active_table = table_name
-                asyncio.create_task(self.sidebar_manager.update())
-
-        self.push_screen(TableSelectionScreen(search_query=query), callback=on_table_selected)
+    async def _run_explore(self, query: Optional[str], mode: Optional[str] = None, provider: Optional[str] = None):
+        # DatabaseExplorerScreen 연동 (sqlit 벤치마크 기반 3-pane 레이아웃)
+        conn_id = context_manager.active_conn_id or "default"
+        self.push_screen(DatabaseExplorerScreen(
+            connection_id=conn_id,
+            conn_mgr=self.conn_mgr,
+            agent_conn_mgr=self.agent_conn_mgr,
+            initial_query=query,
+            mode=mode,
+            provider=provider
+        ))
 
     def action_switch_project(self):
         self.push_screen(ProjectScreen())

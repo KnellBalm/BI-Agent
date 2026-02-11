@@ -82,21 +82,12 @@ class ConnectionValidator:
     @staticmethod
     def test_connection(conn_type: str, config: Dict[str, Any], ssh_config: Optional[Dict[str, Any]] = None) -> TestResult:
         """
-        Test a connection with given configuration
-
-        Args:
-            conn_type: Type of connection (sqlite, postgres, mysql, etc.)
-            config: Connection configuration
-            ssh_config: Optional SSH tunnel configuration
-
-        Returns:
-            TestResult with success status and details
+        Test a connection using provided configuration.
+        Supports SSH tunneling and various database types.
         """
-        logger.info(f"Testing {conn_type} connection...")
         start_time = time.time()
-
         try:
-            # Test SSH tunnel first if configured
+            # Setup SSH tunnel if configured
             if ssh_config:
                 ssh_result = ConnectionValidator._test_ssh_tunnel(ssh_config)
                 if not ssh_result.success:
@@ -109,10 +100,18 @@ class ConnectionValidator:
             # Test actual database connection
             if conn_type == "sqlite":
                 result = ConnectionValidator._test_sqlite(config)
-            elif conn_type == "postgres":
-                result = ConnectionValidator._test_postgres(config)
-            elif conn_type == "mysql":
-                result = ConnectionValidator._test_mysql(config)
+            elif conn_type == "postgres" or conn_type == "mysql":
+                # Internalize SQLAlchemy URI construction
+                from urllib.parse import quote_plus
+                user = quote_plus(str(config.get('user', '')))
+                password = quote_plus(str(config.get('password', '')))
+                host = config.get('host', 'localhost')
+                port = config.get('port', 5432 if conn_type == "postgres" else 3306)
+                db = config.get('dbname') or config.get('database', '')
+                dialect = "postgresql+psycopg2" if conn_type == "postgres" else "mysql+pymysql"
+                
+                uri = f"{dialect}://{user}:{password}@{host}:{port}/{db}"
+                result = ConnectionValidator._test_sqlalchemy({"uri": uri})
             elif conn_type == "excel":
                 result = ConnectionValidator._test_excel(config)
             elif conn_type == "duckdb":
@@ -151,23 +150,61 @@ class ConnectionValidator:
             return result
 
         except Exception as e:
-            latency = (time.time() - start_time) * 1000
-            error_code = ConnectionValidator._classify_error(str(e))
-            suggestions = suggest_connection_fix(error_code, str(e), config)
-
             logger.error(f"Connection test exception: {e}")
-            diagnostic_logger.log_error("CONNECTION_TEST_EXCEPTION", str(e), {
-                "conn_type": conn_type,
-                "error_code": error_code
-            })
-
+            try:
+                diagnostic_logger.log_error("CONNECTION_TEST_EXCEPTION", str(e), {
+                    "conn_type": conn_type,
+                    "error": str(e)
+                })
+            except Exception:
+                pass
             return TestResult(
                 success=False,
-                latency_ms=latency,
+                latency_ms=0,
+                error_code="EXCEPTION",
+                error_message=str(e),
+                suggestions=["Check if all required fields are provided", "Verify network connectivity"]
+            )
+    @staticmethod
+    def _test_sqlalchemy(config: Dict[str, Any]) -> TestResult:
+        """Test database connection using SQLAlchemy URI"""
+        try:
+            from sqlalchemy import create_engine
+        except ImportError:
+            return TestResult(
+                success=False,
+                latency_ms=0,
+                error_code="LIBRARY_NOT_INSTALLED",
+                error_message="sqlalchemy is not installed",
+                suggestions=["Install: pip install sqlalchemy"]
+            )
+
+        uri = config.get("uri")
+        try:
+            # We use a short timeout for the connection test
+            connect_args = {"connect_timeout": 5}
+            # Handle dialect-specific connect_args if needed
+            if uri.startswith("postgresql"):
+                pass
+            elif uri.startswith("mysql"):
+                pass
+            
+            engine = create_engine(uri, connect_args=connect_args if "sqlite" not in uri else {})
+            with engine.connect() as conn:
+                from sqlalchemy import text
+                conn.execute(text("SELECT 1"))
+            return TestResult(success=True, latency_ms=0)
+        except Exception as e:
+            error_code = ConnectionValidator._classify_error(str(e))
+            return TestResult(
+                success=False,
+                latency_ms=0,
                 error_code=error_code,
                 error_message=str(e),
-                suggestions=suggestions
+                suggestions=suggest_connection_fix(error_code, str(e), config)
             )
+
+    @staticmethod
 
     @staticmethod
     def _test_sqlite(config: Dict[str, Any]) -> TestResult:
@@ -484,13 +521,22 @@ class ConnectionValidator:
                 metadata={'local_port': local_port}
             )
         except Exception as e:
-            error_code = ConnectionValidator._classify_error(str(e))
+            error_msg = str(e)
+            error_code = ConnectionValidator._classify_error(error_msg)
+            
+            suggestions = suggest_connection_fix(error_code, error_msg, ssh_config)
+            
+            # Specific check for Paramiko/DSSKey error
+            if "DSSKey" in error_msg:
+                error_code = "PARAMIKO_INCOMPATIBLE"
+                suggestions.append("Paramiko 버전 호환성 문제일 수 있습니다. 'pip install paramiko==2.12.0'을 시도해 보세요.")
+
             return TestResult(
                 success=False,
                 latency_ms=0,
                 error_code=error_code,
-                error_message=str(e),
-                suggestions=suggest_connection_fix(error_code, str(e), ssh_config)
+                error_message=error_msg,
+                suggestions=suggestions
             )
 
     @staticmethod

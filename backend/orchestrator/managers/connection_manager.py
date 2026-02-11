@@ -74,16 +74,22 @@ class ConnectionManager:
             return True
         return False
 
-    def register_connection(self, conn_id: str, conn_info: Dict[str, Any]):
+    def register_connection(self, conn_id: str, conn_type: str, config: Dict[str, Any]):
         """새로운 연결 정보를 등록하거나 업데이트합니다."""
-        required = ["type"]
-        if conn_info.get("type") in ["postgres", "mysql"]:
-            # DB의 경우 서버 경로나 설정이 필수적일 수 있음 (최소한의 검증)
-            pass
+        # Ensure config is a dict and handle potential list-style input (though unlikely here)
+        if not isinstance(config, dict):
+            config = {"path": str(config)}
             
-        for field in required:
-            if field not in conn_info:
-                raise ValueError(f"Missing required field: {field}")
+        conn_info = {
+            "type": conn_type,
+            "config": config,
+            "ssh": config.pop("ssh", None) if isinstance(config, dict) else None,
+            "name": config.get("name", conn_id)
+        }
+
+        # 필드 검증 (최소한의 수준)
+        if not conn_type:
+            raise ValueError("Connection type is required")
         
         self.connections[conn_id] = conn_info
         self._save_connections()

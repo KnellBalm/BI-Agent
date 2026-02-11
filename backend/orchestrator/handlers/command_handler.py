@@ -8,7 +8,7 @@ from textual.widgets import Label
 
 from backend.orchestrator.handlers.protocols import HandlerContext, CommandHandlerProtocol
 from backend.orchestrator import MessageBubble
-from backend.orchestrator.screens import AuthScreen, ConnectionScreen, DatabaseExplorerScreen
+from backend.orchestrator.screens import DatabaseExplorerScreen
 
 logger = logging.getLogger("tui")
 
@@ -42,13 +42,11 @@ class CommandHandler(CommandHandlerProtocol):
         elif cmd == "/connect":
             # Handle subcommands: /connect, /connect load <file>, /connect list
             if len(parts) == 1:
-                # Open connection screen
-                def on_connected(conn_id: str):
-                    if conn_id and hasattr(self.app, "_run_scan"):
-                        # 비동기 워커로 스캔 실행 (UI 프리징 방지)
-                        self.app.run_worker(self.app._run_scan(conn_id))
+                # Open connection flow (inline question flow)
+                from backend.orchestrator.services.flows import build_connection_flow
 
-                self.context.push_screen(ConnectionScreen(callback=on_connected))
+                conn_flow = build_connection_flow(self.app.conn_mgr, self.app)
+                self.app.flow_engine.start_flow(conn_flow)
             elif parts[1] == "load" and len(parts) >= 3:
                 # Load connections from file
                 filepath = " ".join(parts[2:])
@@ -62,16 +60,49 @@ class CommandHandler(CommandHandlerProtocol):
                 self.app.action_switch_project()
                 
         elif cmd == "/login":
-            self.context.push_screen(AuthScreen())
+            from backend.orchestrator.services.flows import build_auth_flow
+            from backend.orchestrator import auth_manager, context_manager
+
+            auth_flow = build_auth_flow(auth_manager, context_manager)
+            self.app.flow_engine.start_flow(auth_flow)
             
-        elif cmd == "/explore":
+        elif cmd.startswith("/explore"):
+            # Parse /explore[:mode[:provider]]
+            # Examples:
+            #   /explore              -> default mode from config
+            #   /explore:local        -> force local mode
+            #   /explore:api          -> force API mode with default provider
+            #   /explore:api:gemini   -> force API mode with Gemini
+            #   /explore:api:claude   -> force API mode with Claude
+            #   /explore:api:openai   -> force API mode with OpenAI
+
+            mode = None
+            provider = None
+            query = None
+
+            # Split command and parse mode/provider
+            cmd_parts = cmd.split(":")
+            if len(cmd_parts) == 1:
+                # /explore -> use defaults
+                mode = None
+                provider = None
+            elif len(cmd_parts) == 2:
+                # /explore:local or /explore:api
+                mode = cmd_parts[1]
+            elif len(cmd_parts) == 3:
+                # /explore:api:gemini
+                mode = cmd_parts[1]
+                provider = cmd_parts[2]
+
+            # Extract query from remaining parts (after command)
             args = parts[1:]
-            query = args[0] if args else None
+            query = " ".join(args) if args else None
+
             msg = MessageBubble(role="system", content="[dim]데이터 구조를 탐색 중입니다...[/dim]")
             chat_log.mount(msg)
             chat_log.scroll_end(animate=False)
             if hasattr(self.app, "_run_explore"):
-                self.app.run_worker(self.app._run_explore(query))
+                self.app.run_worker(self.app._run_explore(query, mode=mode, provider=provider))
                 
         elif cmd == "/errors":
             if hasattr(self.app, "show_error_viewer"):
@@ -86,6 +117,11 @@ class CommandHandler(CommandHandlerProtocol):
                 "• [b]/connect load <file>[/b] - YAML/JSON 파일에서 연결 로드\n"
                 "• [b]/connect list[/b] - 등록된 연결 목록 보기\n"
                 "• [b]/explore[/b] - 테이블 목록 및 상세 스키마 탐색\n"
+                "  • [b]/explore:local[/b] - 로컬 AI 모드 (빠름, 무료)\n"
+                "  • [b]/explore:api[/b] - Cloud API 모드 (정확, 유료)\n"
+                "  • [b]/explore:api:gemini[/b] - Gemini 사용\n"
+                "  • [b]/explore:api:claude[/b] - Claude 사용\n"
+                "  • [b]/explore:api:openai[/b] - OpenAI 사용\n"
                 "• [b]/analyze[/b] - 자연어 질문 기반 데이터 분석 및 시각화\n"
                 "• [b]/errors[/b]  - 시스템 장애 및 로직 에러 로그 확인\n"
                 "• [b]/quit[/b] 또는 [b]/exit[/b] - 앱 종료\n\n"

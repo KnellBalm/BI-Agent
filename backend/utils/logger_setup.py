@@ -24,14 +24,22 @@ def get_unified_debug_handler():
         )
         
         # 50MB 파일 크기, 5개 백업 유지
-        _unified_handler = RotatingFileHandler(
-            debug_log_path, 
-            maxBytes=50*1024*1024, 
-            backupCount=5, 
-            encoding='utf-8'
-        )
-        _unified_handler.setLevel(logging.DEBUG)
-        _unified_handler.setFormatter(formatter)
+        try:
+            _unified_handler = RotatingFileHandler(
+                debug_log_path, 
+                maxBytes=50*1024*1024, 
+                backupCount=5, 
+                encoding='utf-8'
+            )
+            _unified_handler.setLevel(logging.DEBUG)
+            _unified_handler.setFormatter(formatter)
+        except PermissionError:
+            # SIP-protected files, fall back to StreamHandler
+            import sys
+            _unified_handler = logging.StreamHandler(sys.stderr)
+            _unified_handler.setLevel(logging.DEBUG)
+            _unified_handler.setFormatter(formatter)
+            print(f"Warning: Could not create debug log file (SIP), using stderr", file=sys.stderr)
         
         # 루트 로거에 통합 핸들러 추가 (한 번만)
         root_logger = logging.getLogger()
@@ -46,7 +54,7 @@ def setup_logger(name: str = "bi_agent", log_file: str = "bi_agent.log", level=l
     Sets up a standardized logger with both console and rotating file handlers.
     모든 로거는 자동으로 통합 디버그 로그에도 기록됩니다.
     """
-    # 통합 디버그 핸들러 초기화 (최초 1회만 실행됨)
+    # 통합 디버그 핸들러 사용
     get_unified_debug_handler()
     
     # Create logs directory if it doesn't exist
@@ -65,10 +73,17 @@ def setup_logger(name: str = "bi_agent", log_file: str = "bi_agent.log", level=l
     console_handler.setFormatter(formatter)
 
     # Module-specific File Handler (10MB per file, keep 3 backups)
-    file_handler = RotatingFileHandler(
-        log_path, maxBytes=10*1024*1024, backupCount=3, encoding='utf-8'
-    )
-    file_handler.setFormatter(formatter)
+    file_handler = None
+    try:
+        file_handler = RotatingFileHandler(
+            log_path, maxBytes=10*1024*1024, backupCount=3, encoding='utf-8'
+        )
+        file_handler.setFormatter(formatter)
+    except PermissionError:
+        # SIP-protected files, skip module-specific file logging
+        import sys
+        print(f"Warning: Could not create module-specific log file '{log_path}' (SIP), skipping file logging for '{name}'", file=sys.stderr)
+
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)  # Logger 자체는 DEBUG로 설정하여 모든 로그 캡처
@@ -76,11 +91,11 @@ def setup_logger(name: str = "bi_agent", log_file: str = "bi_agent.log", level=l
     # Avoid duplicate handlers if setup is called multiple times
     if not logger.handlers:
         logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
+        if file_handler is not None:
+            logger.addHandler(file_handler)
         logger.info(f"Logger '{name}' initialized with unified debug logging")
         
     return logger
 
 # Default logger for general use
 logger = setup_logger()
-

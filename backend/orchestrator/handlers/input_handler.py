@@ -24,6 +24,25 @@ class InputHandler(InputHandlerProtocol):
         user_input = self.context.query_one("#user-input", Input)
         menu = self.context.query_one("#command-menu", OptionList)
 
+        # PRIORITY ORDER for Escape key:
+        if event.key == "escape":
+            # 1. Hide palette if visible
+            if self.palette.visible:
+                self.palette.hide()
+                return True
+            # 2. Cancel flow if active
+            elif hasattr(self.app, 'flow_engine') and self.app.flow_engine.is_active():
+                self.app.flow_engine.cancel()
+                return True
+            # 3. Fall through to other escape behaviors
+
+        # Suppress tab completion and palette during active flow
+        if hasattr(self.app, 'flow_engine') and self.app.flow_engine.is_active():
+            if event.key == "tab":
+                return True  # Block tab completion
+            if event.key in ("/", "slash", "forward_slash"):
+                return True  # Block palette activation
+
         # 1. '/' 키 처리 (포커스 이동)
         if event.key in ("/", "slash", "forward_slash"):
             if not user_input.has_focus:
@@ -118,17 +137,14 @@ class InputHandler(InputHandlerProtocol):
         return False
 
     def _execute_palette_command(self, command_id: str, user_input: Input):
-        command_map = {
-            "intent": "/intent",
-            "analyze": "/analyze",
-            "explore": "/explore",
-            "connect": "/connect",
-            "project": "/project",
-            "login": "/login",
-            "help": "/help"
-        }
-        cmd = command_map.get(command_id, "/" + command_id)
+        # command_list에서 ID가 일치하는 명령어를 찾아 실행
+        matching_cmd = next((c[0] for c in self.command_list if c[2] == command_id), None)
+        
+        if not matching_cmd:
+            # Fallback: ID에서 cmd_를 제거한 값을 명령어로 사용
+            matching_cmd = "/" + command_id.replace("cmd_", "")
+            
         user_input.value = ""
         self.palette.hide()
         import asyncio
-        asyncio.create_task(self.context.handle_command(cmd))
+        asyncio.create_task(self.context.handle_command(matching_cmd))

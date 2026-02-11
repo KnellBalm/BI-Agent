@@ -1,0 +1,76 @@
+/* 
+ * BI-Agent Console Global Styles
+ * Optimized for Textual TUI
+ */
+
+/* Variables */
+$primary: #007AFF;
+$secondary: #5856D6;
+$surface: #1e1e1e;
+$panel: #2d2f34;
+$text: #ffffff;
+$text-secondary: #a0a0a0;
+
+/* Global Styles */
+Screen {
+    background: $surface;
+    color: $text;
+}
+
+Header {
+    background: $primary;
+    color: $text;
+    dock: top;
+    height: 3;
+}
+
+Footer {
+    background: $panel;
+    color: $text-secondary;
+    dock: bottom;
+}
+
+/* Maximized View for Screens */
+Screen.-maximized-view {
+    layout: vertical !important;
+    border-right: tall $panel;
+    overflow-y: auto !important;
+    align: center middle;
+}
+
+/* Sidebar Styling */
+#sidebar {
+    width: 30;
+    dock: left;
+    background: $panel;
+    border-right: tall $surface;
+}
+
+/* Command Palette */
+#command-palette {
+    dock: bottom;
+    height: 3;
+    background: $surface;
+    border-top: tall $panel;
+}
+
+/* Chat Bubbles */
+.message-bubble {
+    margin: 1 2;
+    padding: 1 2;
+    background: $panel;
+    border: round $primary;
+}
+
+.user-message {
+    align: right middle;
+    border: round $secondary;
+}
+
+/* Status Indicators */
+#hud-status {
+    height: 1;
+    background: $secondary;
+    color: white;
+    dock: bottom;
+}
