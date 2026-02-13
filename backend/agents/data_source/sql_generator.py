@@ -395,7 +395,8 @@ class SQLGenerator:
    - SQLite: STRFTIME, DATE('now'), || 연산자 사용
    - PostgreSQL: TO_CHAR, CURRENT_DATE, CONCAT 또는 || 사용
    - MySQL: DATE_FORMAT, NOW(), CONCAT 사용
-4. 가능한 한 효율적인 쿼리를 작성하세요.
+4. SQL 예약어(SELECT, FROM, WHERE, JOIN 등)를 컬럼 별칭으로 사용하지 마세요.
+5. 가능한 한 효율적인 쿼리를 작성하세요.
 
 SQL:"""
         
@@ -489,10 +490,20 @@ SQL:
         except Exception:
             return "쿼리 설명을 생성할 수 없습니다."
     
+    # SQL 예약어 목록 (공통적으로 사용되는 주요 예약어)
+    SQL_RESERVED_KEYWORDS = {
+        'SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER',
+        'ON', 'AND', 'OR', 'NOT', 'IN', 'EXISTS', 'BETWEEN', 'LIKE', 'IS',
+        'NULL', 'AS', 'ORDER', 'BY', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET',
+        'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TABLE',
+        'INDEX', 'VIEW', 'INTO', 'VALUES', 'SET', 'CASE', 'WHEN', 'THEN',
+        'ELSE', 'END', 'DISTINCT', 'ALL', 'UNION', 'INTERSECT', 'EXCEPT'
+    }
+
     def _clean_sql_response(self, sql: str) -> str:
-        """LLM 응답에서 SQL만 추출"""
+        """LLM 응답에서 SQL만 추출하고 예약어 이스케이프 처리"""
         sql = sql.strip()
-        
+
         # 마크다운 코드 블록 제거
         if sql.startswith("```"):
             lines = sql.split("\n")
@@ -501,8 +512,27 @@ SQL:
             if lines and lines[-1].startswith("```"):
                 lines = lines[:-1]
             sql = "\n".join(lines)
-        
-        return sql.strip()
+
+        sql = sql.strip()
+
+        # 예약어가 컬럼 별칭으로 사용된 경우 자동 이스케이프
+        sql = self._escape_reserved_keywords_in_aliases(sql)
+
+        return sql
+
+    def _escape_reserved_keywords_in_aliases(self, sql: str) -> str:
+        """AS 절에서 예약어를 별칭으로 사용한 경우 따옴표로 감싸기"""
+        # AS <reserved_keyword> 패턴 찾기 (대소문자 무시)
+        pattern = r'\bAS\s+(\w+)\b'
+
+        def replace_reserved(match):
+            alias = match.group(1)
+            # 예약어인 경우 쌍따옴표로 감싸기
+            if alias.upper() in self.SQL_RESERVED_KEYWORDS:
+                return f'AS "{alias}"'
+            return match.group(0)
+
+        return re.sub(pattern, replace_reserved, sql, flags=re.IGNORECASE)
     
     def _schema_to_string(self, schema: SchemaInfo) -> str:
         """SchemaInfo를 문자열로 변환"""
