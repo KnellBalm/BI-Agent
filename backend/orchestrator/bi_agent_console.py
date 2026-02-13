@@ -102,7 +102,7 @@ class BI_AgentConsole(App):
                 with VerticalScroll(id="chat-log"):
                     yield MessageBubble(
                         role="system", 
-                        content="[bold cyan]Welcome to BI-Agent Console v2.0![/bold cyan]\n"
+                        content="[bold cyan]Welcome to BI-Agent Console v1.0![/bold cyan]\n"
                                 "데이터 분석을 시작하려면 [b]/login[/b] 후 [b]/connect[/b] 명령어를 실행하세요.\n"
                                 "[dim]도움말이 필요하면 F1 키를 누르세요.[/dim]"
                     )
