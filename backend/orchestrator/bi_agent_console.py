@@ -294,9 +294,12 @@ class BI_AgentConsole(App):
         self.notify("Chat cleared")
 
     def action_show_visual_report(self) -> None:
-        # VisualAnalysisScreen은 이미 import됨
         from backend.orchestrator.screens.visual_analysis_screen import VisualAnalysisScreen
-        self.push_screen(VisualAnalysisScreen())
+        # VisualAnalysisScreen requires analysis data; show placeholder if none available
+        if hasattr(self, '_last_analysis_data') and self._last_analysis_data:
+            self.push_screen(VisualAnalysisScreen(data=self._last_analysis_data))
+        else:
+            self.notify("분석 데이터가 없습니다. 먼저 /analyze 명령어를 실행하세요.", severity="warning")
 
     def action_focus_input_with_slash(self) -> None:
         user_input = self.query_one("#user-input", Input)
@@ -331,6 +334,28 @@ class BI_AgentConsole(App):
                 logger.error(f"Failed to get connections list: {e}")
                 self.notify("Failed to retrieve connections. Please check your setup.", severity="error")
                 return
+
+        # Sync connection from Orchestrator CM → Agent CM
+        # This ensures MetadataScanner/run_query use the correct DB (not auto-onboarded SQLite)
+        try:
+            orch_conn = self.conn_mgr.get_connection(conn_id)
+            if orch_conn:
+                conn_type = orch_conn.get("type", "sqlite")
+                conn_config = orch_conn.get("config", {})
+                # Register/update in Agent's CM so MetadataScanner can find it
+                self.agent_conn_mgr.register_connection(
+                    conn_id=conn_id,
+                    conn_type=conn_type,
+                    config=conn_config.copy(),
+                    name=orch_conn.get("name", conn_id),
+                    category=orch_conn.get("category", "DB")
+                )
+                logger.info(f"Synced connection '{conn_id}' ({conn_type}) to Agent CM")
+            else:
+                logger.warning(f"Connection '{conn_id}' not found in Orchestrator CM")
+        except Exception as e:
+            logger.error(f"Failed to sync connection to Agent CM: {e}", exc_info=True)
+            self.notify(f"Warning: Connection sync failed - {str(e)}", severity="warning")
 
         self.push_screen(DatabaseExplorerScreen(
             connection_id=conn_id,

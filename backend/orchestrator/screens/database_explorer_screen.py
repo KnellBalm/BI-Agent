@@ -62,7 +62,7 @@ class DatabaseExplorerScreen(Screen):
 
     BINDINGS = [
         Binding("q", "dismiss", "Quit"),
-        Binding("r", "run_query", "Run [R]"),
+        Binding("ctrl+r", "run_query", "Run Query", show=True),
         Binding("ctrl+s", "save_query", "Save"),
         Binding("tab", "next_pane", "Next Pane"),
         Binding("shift+tab", "prev_pane", "Prev Pane"),
@@ -98,10 +98,33 @@ class DatabaseExplorerScreen(Screen):
         border: tall $panel;
         background: $surface;
     }
+    #editor-toolbar {
+        height: 1;
+        dock: bottom;
+        background: $panel;
+        padding: 0 1;
+    }
+    #run-btn {
+        min-width: 12;
+        height: 1;
+        margin: 0 1 0 0;
+    }
+    #run-hint {
+        height: 1;
+        margin: 0;
+        padding: 0;
+    }
     #results-panel {
         height: 1fr;
         border: tall $panel;
         background: $surface;
+    }
+    #results-status {
+        height: 1;
+        dock: bottom;
+        background: $panel;
+        color: $text-muted;
+        padding: 0 1;
     }
     .panel-title {
         background: $panel;
@@ -127,7 +150,8 @@ class DatabaseExplorerScreen(Screen):
         self.connection_id = connection_id
         self.conn_mgr = conn_mgr  # Orchestrator's ConnectionManager (for UI config)
         self.agent_conn_mgr = agent_conn_mgr  # Agent's ConnectionManager (for schema scanning)
-        self.initial_query = initial_query or "SELECT * FROM tables LIMIT 10;"
+        self.initial_query = initial_query or "SELECT 1 AS test;"
+        self._query_running = False
 
         # Load configuration
         self.config = get_config()
@@ -155,10 +179,14 @@ class DatabaseExplorerScreen(Screen):
                 with Vertical(id="editor-panel", classes="border-hint"):
                     yield Label(" SQL EDITOR [F2] ", classes="panel-title")
                     yield VimTextArea(id="sql-editor", text=self.initial_query)
+                    with Horizontal(id="editor-toolbar"):
+                        yield Button("▶ Run", id="run-btn", variant="success")
+                        yield Label("[dim]Ctrl+R 실행 | Tab 패널 이동[/dim]", id="run-hint")
 
                 with Vertical(id="results-panel", classes="border-hint"):
                     yield Label(" RESULTS [F3] ", classes="panel-title")
                     yield DataTable(id="results-grid")
+                    yield Label("", id="results-status")
 
     def on_mount(self) -> None:
         self.query_one("#schema-tree").focus()
@@ -223,20 +251,77 @@ class DatabaseExplorerScreen(Screen):
 
     def action_run_query(self) -> None:
         """Executes the query in the editor."""
-        query = self.query_one("#sql-editor").text
-        self.notify(f"Running query: {query[:30]}...")
-        # Placeholder for actual execution
-        self._update_results([{"id": 1, "name": "Dummy"}])
+        if self._query_running:
+            self.notify("Query already running...", severity="warning")
+            return
+        asyncio.create_task(self._execute_query())
 
-    def _update_results(self, data: List[Dict[str, Any]]):
+    async def _execute_query(self) -> None:
+        """Run the SQL query against the actual database connection."""
+        query = self.query_one("#sql-editor", VimTextArea).text.strip()
+        if not query:
+            self.notify("SQL 쿼리를 입력해주세요.", severity="warning")
+            return
+
+        self._query_running = True
+        status_label = self.query_one("#results-status", Label)
+        grid = self.query_one("#results-grid", DataTable)
+
+        try:
+            status_label.update("[bold yellow]⏳ 쿼리 실행 중...[/bold yellow]")
+            self.notify(f"Running: {query[:50]}...", timeout=2)
+
+            # Run blocking DB query in thread pool
+            loop = asyncio.get_event_loop()
+            df = await loop.run_in_executor(
+                None,
+                lambda: self.agent_conn_mgr.run_query(self.connection_id, query)
+            )
+
+            # Render DataFrame to DataTable
+            self._render_dataframe(df)
+
+            row_count = len(df)
+            col_count = len(df.columns)
+            status_label.update(f"[bold green]✓ {row_count} rows × {col_count} columns[/bold green]")
+            logger.info(f"Query executed: {row_count} rows returned")
+
+        except Exception as e:
+            logger.error(f"Query execution failed: {e}", exc_info=True)
+            grid.clear(columns=True)
+            status_label.update(f"[bold red]✗ Error: {str(e)}[/bold red]")
+            self.notify(f"❌ {str(e)}", severity="error", timeout=10)
+
+        finally:
+            self._query_running = False
+
+    def _render_dataframe(self, df) -> None:
+        """Render a pandas DataFrame into the DataTable widget."""
         grid = self.query_one("#results-grid", DataTable)
         grid.clear(columns=True)
-        if not data: return
-        
-        cols = list(data[0].keys())
-        grid.add_columns(*cols)
-        for row in data:
-            grid.add_row(*[row[c] for c in cols])
+
+        if df is None or df.empty:
+            self.notify("쿼리 결과가 비어있습니다.", severity="information")
+            return
+
+        # Add columns
+        for col in df.columns:
+            grid.add_column(str(col), key=str(col))
+
+        # Add rows (convert to string for display, handle None/NaN)
+        for _, row in df.iterrows():
+            display_row = []
+            for val in row:
+                if val is None or (isinstance(val, float) and str(val) == 'nan'):
+                    display_row.append("NULL")
+                else:
+                    display_row.append(str(val))
+            grid.add_row(*display_row)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
+        if event.button.id == "run-btn":
+            self.action_run_query()
 
     def action_next_pane(self) -> None:
         """Cycle focus between panels."""

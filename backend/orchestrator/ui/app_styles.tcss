@@ -46,6 +46,13 @@ Screen.-maximized-view {
     border-right: tall $surface;
 }
 
+/* Input Area */
+#input-container {
+    height: auto;
+    margin: 0;
+    padding: 0;
+}
+
 /* Command Menu (below input) */
 #command-menu {
     display: none;
@@ -53,7 +60,8 @@ Screen.-maximized-view {
     max-height: 12;
     background: $panel;
     border: round $primary;
-    margin: 0 1;
+    margin: 0 1 0 1;
+    padding: 0;
 }
 
 #command-menu.visible {
