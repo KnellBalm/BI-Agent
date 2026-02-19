@@ -2,10 +2,14 @@
 Metadata Scanner Module
 Discovers tables, schemas, and profiles data sources for analytical context.
 """
+import json
+import logging
 from typing import Dict, Any, List
 import pandas as pd
 from backend.agents.data_source.connection_manager import ConnectionManager
 from backend.agents.data_source.profiler import DataProfiler
+
+logger = logging.getLogger("tui")
 
 class MetadataScanner:
     """
@@ -65,27 +69,33 @@ class MetadataScanner:
 
     def _list_tables(self, conn_id: str, conn_type: str) -> List[str]:
         """Lists table names based on connection type."""
-        if conn_type == "sqlite":
-            query = "SELECT name FROM sqlite_master WHERE type='table'"
-            df = self.conn_mgr.run_query(conn_id, query)
-            return df["name"].tolist()
-        elif conn_type == "postgres":
-            query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-            df = self.conn_mgr.run_query(conn_id, query)
-            return df["table_name"].tolist()
-        elif conn_type == "duckdb":
-            query = "SHOW TABLES"
-            df = self.conn_mgr.run_query(conn_id, query)
-            # SHOW TABLES returns a column 'name' or just one column
-            return df.iloc[:, 0].tolist()
-        elif conn_type == "excel":
-            # For Excel, we assume the session (path) refers to a file with sheets
-            # In a real impl, we'd list sheet names.
-            return ["Sheet1"] 
-        else:
-            return []
+        logger.info(f"Listing tables for connection '{conn_id}' (type: {conn_type})")
+        try:
+            if conn_type == "sqlite":
+                query = "SELECT name FROM sqlite_master WHERE type='table'"
+                df = self.conn_mgr.run_query(conn_id, query)
+                tables = df["name"].tolist()
+            elif conn_type == "postgres":
+                query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                df = self.conn_mgr.run_query(conn_id, query)
+                tables = df["table_name"].tolist()
+            elif conn_type == "duckdb":
+                query = "SHOW TABLES"
+                df = self.conn_mgr.run_query(conn_id, query)
+                tables = df.iloc[:, 0].tolist()
+            elif conn_type == "excel":
+                return ["Sheet1"]
+            else:
+                logger.warning(f"Unsupported connection type for table listing: {conn_type}")
+                return []
 
-import json # Required for Registry read in helper
+            logger.info(f"Found {len(tables)} tables for '{conn_id}': {tables[:10]}")
+            return tables
+        except Exception as e:
+            logger.error(f"Failed to list tables for '{conn_id}' ({conn_type}): {e}", exc_info=True)
+            raise
+
+
 if __name__ == "__main__":
     import tempfile
     import os

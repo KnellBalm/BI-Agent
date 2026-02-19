@@ -204,7 +204,6 @@ class ConnectionValidator:
                 suggestions=suggest_connection_fix(error_code, str(e), config)
             )
 
-    @staticmethod
 
     @staticmethod
     def _test_sqlite(config: Dict[str, Any]) -> TestResult:

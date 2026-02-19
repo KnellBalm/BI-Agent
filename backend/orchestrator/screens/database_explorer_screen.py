@@ -311,6 +311,28 @@ class DatabaseExplorerScreen(Screen):
         loading_node.add_leaf("Please wait...")
 
         try:
+            # Verify connection exists in registry before scanning
+            import json
+            import os
+            if not os.path.exists(self.agent_conn_mgr.registry_path):
+                raise FileNotFoundError(f"Registry not found: {self.agent_conn_mgr.registry_path}")
+
+            with open(self.agent_conn_mgr.registry_path, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+
+            if self.connection_id not in registry:
+                available = list(registry.keys())
+                raise ValueError(
+                    f"Connection '{self.connection_id}' not found in Agent registry. "
+                    f"Available: {available}"
+                )
+
+            conn_info = registry[self.connection_id]
+            logger.info(
+                f"Loading schema for '{self.connection_id}' "
+                f"(type: {conn_info.get('type')}, config keys: {list(conn_info.get('config', {}).keys())})"
+            )
+
             # Run the blocking operation in a thread pool to avoid blocking UI
             def _scan_metadata():
                 scanner = MetadataScanner(self.agent_conn_mgr)
@@ -336,9 +358,6 @@ class DatabaseExplorerScreen(Screen):
             else:
                 tables_node.add_leaf("  (no tables found)")
                 self.notify("No tables found in database", severity="warning")
-
-            # TODO: Add views separately if available in metadata
-            # For now, views are not separately identified by MetadataScanner
 
             logger.info(f"Loaded {len(table_list)} tables for connection {self.connection_id}")
 

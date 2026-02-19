@@ -2,12 +2,15 @@
 메시지 버블 및 대화 관련 컴포넌트
 tenere 및 claude streaming 스타일 참조
 """
+import logging
 from datetime import datetime
 from textual.reactive import reactive
 from textual.widgets import Static
 from textual.containers import VerticalScroll
 from rich.syntax import Syntax
 from rich.markdown import Markdown
+
+logger = logging.getLogger("tui")
 
 
 class MessageBubble(Static):
