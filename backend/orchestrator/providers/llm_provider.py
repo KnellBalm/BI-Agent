@@ -94,15 +94,24 @@ class GeminiProvider(LLMProvider):
 
         current_key = await self._ensure_active_key()
         try:
-            history = []
-            for msg in messages[:-1]:
-                history.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
+            # 전체 메시지를 contents 리스트로 변환
+            # Gemini contents는 'user'와 'model' role만 지원
+            contents = []
+            for msg in messages:
+                role = msg["role"]
+                if role == "system":
+                    role = "user"  # system → user로 매핑
+                elif role == "assistant":
+                    role = "model"  # assistant → model로 매핑
+                contents.append({
+                    "role": role,
+                    "parts": [{"text": msg["content"]}]
+                })
             
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
                 model=self.model_name,
-                contents=messages[-1]["content"],
-                config=genai.types.GenerateContentConfig(history=history)
+                contents=contents,
             )
             quota_manager.increment_usage("gemini")
             return response.text

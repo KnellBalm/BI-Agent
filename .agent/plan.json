@@ -1,34 +1,142 @@
 {
-    "project": "BI-Agent",
-    "goal": "Deep UI/UX benchmarking of sqlit for /connect and /explore commands",
+    "project": "BI-Agent Next-Gen",
+    "version": "2.0.0",
+    "updated": "2026-02-19",
+    "tracks": {
+        "A_existing_roadmap": "Phase 4~5 기존 로드맵 완성",
+        "B_next_gen": "차세대 아키텍처 (ReAct/Ralph/HITL)"
+    },
     "tasks": [
         {
-            "id": "UI-001",
-            "title": "Visual Design Analysis",
+            "id": "TASK-001",
+            "title": "LLMProvider LangChain ChatModel Adapter",
+            "track": "B",
+            "agent": "backend",
             "priority": "P0",
-            "description": "sqlit의 CSS 테마, 컬러 팔레트, 위젯 레이아웃 분석 (Textual 기반)",
-            "agent": "frontend-agent"
+            "status": "done",
+            "acceptance": "기존 FailoverLLMProvider가 LangChain chain 내에서 정상 동작"
         },
         {
-            "id": "UX-001",
-            "title": "User Flow Mapping",
+            "id": "TASK-002",
+            "title": "SQLite Checkpointer Integration",
+            "track": "B",
+            "agent": "backend",
             "priority": "P0",
-            "description": "연결 및 탐색 과정의 UX 흐름도 작성 (Step-by-step)",
-            "agent": "pm-agent"
+            "status": "done",
+            "acceptance": "그래프 상태가 SQLite에 저장/복원되어 프로세스 재시작 후 이어하기 가능"
         },
         {
-            "id": "TECH-001",
-            "title": "Backend Optimization Analysis",
+            "id": "TASK-003",
+            "title": "ReAct Loop (StateGraph cyclic)",
+            "track": "B",
+            "agent": "backend",
             "priority": "P1",
-            "description": "스키마 스캐닝 어댑터 및 메타데이터 캐싱 로직 심층 분석",
-            "agent": "backend-agent"
+            "status": "done",
+            "acceptance": "질문 → 도구 호출 → 관찰 → 응답의 자율 루프 동작 (무한루프 방지 포함)"
         },
         {
-            "id": "QA-001",
-            "title": "Benchmarking Report Synthesis",
+            "id": "TASK-004",
+            "title": "Ralph Mode Parallel Swarm",
+            "track": "B",
+            "agent": "backend",
+            "priority": "P1",
+            "status": "done",
+            "acceptance": "3개 이상의 가설을 병렬 검증하고 결과를 하나로 합성"
+        },
+        {
+            "id": "TASK-005",
+            "title": "HITL Interrupt & TUI ApprovalScreen",
+            "track": "B",
+            "agent": "backend",
             "priority": "P2",
-            "description": "발견된 인사이트를 BI-Agent에 적용하기 위한 최종 제안서 작성",
-            "agent": "qa-agent"
+            "status": "done",
+            "acceptance": "주요 단계 전 자동 일시정지, TUI에서 승인/수정/반려 가능"
+        },
+        {
+            "id": "STEP-11-1",
+            "title": "ChartRecommender LLM 증강",
+            "track": "A",
+            "agent": "backend",
+            "priority": "P1",
+            "status": "done",
+            "file": "backend/agents/bi_tool/chart_recommender.py",
+            "acceptance": "LLM 기반 추천이 휴리스틱 결과를 보완하여 정확도 향상"
+        },
+        {
+            "id": "STEP-11-2",
+            "title": "프리미엄 테마 엔진 (3종)",
+            "track": "A",
+            "agent": "backend",
+            "priority": "P1",
+            "status": "done",
+            "acceptance": "dark/light/corporate 3종 테마 적용 및 폰트 메타데이터 주입"
+        },
+        {
+            "id": "STEP-12-1",
+            "title": "varList/eventList 자동 생성",
+            "track": "A",
+            "agent": "backend",
+            "priority": "P1",
+            "status": "done",
+            "acceptance": "JSON 바인딩을 통한 동적 필터 및 드릴다운 작동"
+        },
+        {
+            "id": "STEP-13-1",
+            "title": "SummaryGenerator (한국어 브리핑)",
+            "track": "A",
+            "agent": "backend",
+            "priority": "P2",
+            "status": "done",
+            "acceptance": "분석 결과에 대한 3~5줄 한국어 인사이트 자동 생성"
+        },
+        {
+            "id": "STEP-14-1",
+            "title": "/refine 루프 구현",
+            "track": "A",
+            "agent": "backend",
+            "priority": "P2",
+            "status": "done",
+            "acceptance": "생성된 리포트에 대해 실시간 수정 명령 처리"
+        },
+        {
+            "id": "STEP-15-1",
+            "title": "최종 출력 (JSON/Excel/PDF)",
+            "track": "A",
+            "agent": "backend",
+            "priority": "P3",
+            "status": "done",
+            "acceptance": "InHouse JSON 검증 + Excel/PDF 패키징 완료"
         }
+    ],
+    "dependencies": {
+        "TASK-003": [
+            "TASK-001",
+            "TASK-002"
+        ],
+        "TASK-004": [
+            "TASK-003"
+        ],
+        "TASK-005": [
+            "TASK-003"
+        ],
+        "STEP-12-1": [
+            "STEP-11-1"
+        ],
+        "STEP-13-1": [
+            "STEP-11-1"
+        ],
+        "STEP-14-1": [
+            "STEP-13-1"
+        ],
+        "STEP-15-1": [
+            "STEP-14-1"
+        ]
+    },
+    "execution_order": [
+        "1: TASK-001 + TASK-002 (병렬, 기초 공사)",
+        "2: TASK-003 (ReAct 루프 Steel Thread)",
+        "3: STEP-11-1 (차트 추천 = 첫 번째 Tool)",
+        "4: TASK-004 + TASK-005 (Ralph + HITL)",
+        "5: STEP-11-2 ~ STEP-15-1 (나머지 점진 확장)"
     ]
 }

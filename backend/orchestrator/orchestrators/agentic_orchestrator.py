@@ -113,10 +113,126 @@ def _build_default_registry() -> ToolRegistry:
             return f"연결 목록 조회 실패: {str(e)}"
     
     def query_database(query_description: str = "") -> str:
-        return f"[데이터 조회 수행] '{query_description}' — 실제 DB 연동은 다음 단계에서 구현됩니다."
+        """자연어 설명 또는 SQL 쿼리를 실행합니다. SELECT만 허용됩니다."""
+        import sqlite3
+        import os
+        
+        # 샘플 DB 경로 탐색
+        db_path = os.path.join(os.path.dirname(__file__), 
+                               '..', '..', '..', 'backend', 'data', 'sample_sales.sqlite')
+        db_path = os.path.abspath(db_path)
+        
+        # ConnectionManager에서 SQLite 연결 탐색
+        try:
+            conn_mgr = ConnectionManager()
+            for c in conn_mgr.list_connections():
+                if c.get('type') == 'sqlite':
+                    cfg = c.get('config', {})
+                    if cfg.get('path') and os.path.exists(cfg['path']):
+                        db_path = cfg['path']
+                        break
+        except Exception:
+            pass
+        
+        if not os.path.exists(db_path):
+            return f"SQLite DB 파일을 찾을 수 없습니다: {db_path}"
+        
+        # SQL 직접 입력 감지 vs 자연어 설명
+        query = query_description.strip()
+        if not query.upper().startswith("SELECT"):
+            # 자연어 → 기본 쿼리로 변환 (Steel Thread)
+            query = "SELECT * FROM sales_performance LIMIT 20"
+        
+        # 안전 검증: SELECT만 허용
+        if any(kw in query.upper() for kw in ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE"]):
+            return "⚠️ 읽기 전용 모드입니다. SELECT 쿼리만 허용됩니다."
+        
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(query)
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description] if cur.description else []
+            conn.close()
+            
+            if not rows:
+                return f"[데이터 조회] 결과 없음 (SQL: {query})"
+            
+            result = f"[데이터 조회] {len(rows)}건 반환\n"
+            result += f"SQL: {query}\n"
+            result += f"컬럼: {', '.join(columns)}\n"
+            result += "-" * 50 + "\n"
+            for row in rows[:10]:  # 최대 10행 표시
+                vals = [f"{columns[i]}={row[i]}" for i in range(len(columns))]
+                result += "  " + " | ".join(vals) + "\n"
+            if len(rows) > 10:
+                result += f"  ... (총 {len(rows)}건)\n"
+            return result
+        except Exception as e:
+            return f"쿼리 실행 오류: {str(e)} (SQL: {query})"
     
     def analyze_schema(table_name: str = "") -> str:
-        return f"[스키마 분석 완료] 테이블 '{table_name or '전체'}'의 구조를 분석했습니다."
+        """데이터베이스 테이블 구조를 분석합니다."""
+        import sqlite3
+        import os
+        
+        db_path = os.path.join(os.path.dirname(__file__),
+                               '..', '..', '..', 'backend', 'data', 'sample_sales.sqlite')
+        db_path = os.path.abspath(db_path)
+        
+        if not os.path.exists(db_path):
+            return f"SQLite DB 파일을 찾을 수 없습니다: {db_path}"
+        
+        try:
+            conn = sqlite3.connect(db_path)
+            cur = conn.cursor()
+            
+            # 테이블 목록 조회
+            tables = cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+            table_list = [t[0] for t in tables]
+            
+            if table_name and table_name not in table_list:
+                conn.close()
+                return f"테이블 '{table_name}'를 찾을 수 없습니다. 존재: {', '.join(table_list)}"
+            
+            targets = [table_name] if table_name else table_list
+            result = f"[스키마 분석] DB: {os.path.basename(db_path)}\n"
+            
+            for tbl in targets:
+                cols = cur.execute(f'PRAGMA table_info("{tbl}")').fetchall()
+                count = cur.execute(f'SELECT COUNT(*) FROM "{tbl}"').fetchone()[0]
+                result += f"\n📊 {tbl} ({count}행)\n"
+                
+                profile_data = []
+                for c in cols:
+                    col_name, col_type, notnull, default, pk = c[1], c[2], c[3], c[4], c[5]
+                    # 유니크 값 카운트
+                    unique = cur.execute(f'SELECT COUNT(DISTINCT "{col_name}") FROM "{tbl}"').fetchone()[0]
+                    flags = []
+                    if pk: flags.append("PK")
+                    if notnull: flags.append("NOT NULL")
+                    flag_str = f" [{', '.join(flags)}]" if flags else ""
+                    result += f"  - {col_name}: {col_type}{flag_str} (유니크: {unique})\n"
+                    profile_data.append({
+                        "name": col_name, "type": col_type, "unique": unique
+                    })
+                
+                # 샘플 데이터 2행
+                samples = cur.execute(f'SELECT * FROM "{tbl}" LIMIT 2').fetchall()
+                if samples:
+                    col_names = [c[1] for c in cols]
+                    result += "  샘플 데이터:\n"
+                    for row in samples:
+                        vals = [f"{col_names[i]}={row[i]}" for i in range(len(col_names))]
+                        result += f"    {' | '.join(vals)}\n"
+            
+            conn.close()
+            return result
+        except Exception as e:
+            return f"스키마 분석 오류: {str(e)}"
     
     # ──── 시각화 도구 (Step 11) ────
     
