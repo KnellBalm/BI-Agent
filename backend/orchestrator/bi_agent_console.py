@@ -24,6 +24,7 @@ from backend.orchestrator import (
     ToolActivityTracker
 )
 from backend.agents.data_source.connection_manager import ConnectionManager as AgentConnectionManager
+from backend.orchestrator.orchestrators.agentic_orchestrator import AgenticOrchestrator
 from backend.utils.logger_setup import setup_logger
 from backend.utils.path_config import path_manager
 
@@ -83,6 +84,9 @@ class BI_AgentConsole(App):
         # QuestionFlowEngine 초기화 (chat_log는 on_mount에서 설정)
         from backend.orchestrator.services.question_flow import QuestionFlowEngine
         self.flow_engine = QuestionFlowEngine(app=self)
+
+        # AgenticOrchestrator (lazy init — LLM 키 설정 후 초기화)
+        self._orchestrator: Optional[AgenticOrchestrator] = None
 
         # 상태값
         self.palette_visible = False
@@ -253,27 +257,63 @@ class BI_AgentConsole(App):
         """CommandHandler에 위임"""
         await self.command_handler.handle(cmd_text)
 
+    def _get_orchestrator(self) -> AgenticOrchestrator:
+        """AgenticOrchestrator 인스턴스를 지연 생성합니다."""
+        if self._orchestrator is None:
+            try:
+                self._orchestrator = AgenticOrchestrator(
+                    connection_manager=self.conn_mgr,
+                    use_checkpointer=False,
+                )
+                logger.info("AgenticOrchestrator initialized successfully")
+            except Exception as e:
+                logger.error(f"AgenticOrchestrator init failed: {e}")
+                raise
+        return self._orchestrator
+
     async def process_query(self, query: str) -> None:
-        """에이전트 쿼리 처리 (추후 Orchestrator 위임 대상)"""
+        """에이전트 쿼리 처리 — AgenticOrchestrator ReAct 루프 실행"""
         chat_log = self.query_one("#chat-log", VerticalScroll)
-        
+
         # Thinking Panel 표시
         thinking = ThinkingPanel()
         chat_log.mount(thinking)
         chat_log.scroll_end()
-        
+
         try:
-            # 시뮬레이션: 실제로는 Orchestrator 호출
-            await asyncio.sleep(1)
+            orchestrator = self._get_orchestrator()
+
+            # ReAct 루프 실행
+            result = await orchestrator.run(query, context={
+                "active_connection": getattr(self, '_active_conn_id', None),
+            })
+
             thinking.remove()
-            
-            response = f"[green]'{query}'[/green]에 대한 분석 결과입니다. (데모 버전)"
-            chat_log.mount(MessageBubble(role="assistant", content=response))
-            
+
+            if result["status"] == "success":
+                response = result["final_response"]
+                # 도구 실행 단계가 있었으면 iteration 정보 추가
+                iter_count = result.get("iteration_count", 0)
+                if iter_count > 1:
+                    footer = f"\n[dim]({iter_count}회 분석 단계 수행)[/dim]"
+                    response += footer
+                chat_log.mount(MessageBubble(role="assistant", content=response))
+            else:
+                chat_log.mount(MessageBubble(
+                    role="system",
+                    content=f"[red]분석 오류: {result.get('final_response', '알 수 없는 오류')}[/red]"
+                ))
+
         except Exception as e:
             thinking.remove()
-            chat_log.mount(MessageBubble(role="system", content=f"[red]Error: {e}[/red]"))
-        
+            logger.error(f"process_query error: {e}", exc_info=True)
+            # LLM 미설정 등의 경우 friendly 메시지
+            if "API key" in str(e) or "authentication" in str(e).lower():
+                msg = "[yellow]LLM API 키가 설정되지 않았습니다. [b]/login[/b] 명령어로 먼저 설정해주세요.[/yellow]"
+            else:
+                msg = f"[red]쿼리 처리 중 오류가 발생했습니다: {e}[/red]"
+            chat_log.mount(MessageBubble(role="system", content=msg))
+
         chat_log.scroll_end()
 
     # --- 액션 핸들러 (Bindings) ---
