@@ -8,7 +8,7 @@ langchain-google-genai>=0.0.5
 
 # Data Processing
 pandas>=2.0.0
-openpyxl>=3.1.0
+openpyxl>=3.1.0  # Step 15: Excel export
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0  # PostgreSQL
 pymysql>=1.1.0          # MySQL
@@ -35,10 +35,13 @@ pydantic>=2.0.0
 rich>=13.0.0
 textual>=0.40.0
 defusedxml>=0.7.1
+weasyprint>=62.0  # Step 15: PDF export
+pyperclip>=1.8.0  # Step 6.2: Clipboard support
 
 # Web Framework (선택)
 fastapi>=0.109.0
 uvicorn>=0.27.0
+flask>=3.0.0  # Step 13.2: Preview server
 
 # Testing
 pytest>=7.4.0

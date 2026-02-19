@@ -116,8 +116,8 @@ bi-agent
 - Large schemas: Reduce schema info to relevant tables only
 
 #### Related
-- Setup: See [Setup Guide - Local Mode](./guides/explore_feature_guide.md#local-mode-ollama)
-- Troubleshooting: [Local mode issues](./guides/explore_feature_guide.md#issue-1-ollama-server-not-responding)
+- Setup: See [Setup Guide - Local Mode](./EXPLORE_FEATURE_GUIDE.md#local-mode-ollama)
+- Troubleshooting: [Local mode issues](./EXPLORE_FEATURE_GUIDE.md#issue-1-ollama-server-not-responding)
 
 ---
 
@@ -168,8 +168,8 @@ Configure at least one API key via `/login`:
 ```
 
 #### Related
-- Setup: See [Setup Guide - API Mode](./guides/explore_feature_guide.md#api-mode-cloud-models)
-- Troubleshooting: [API key issues](./guides/explore_feature_guide.md#issue-2-api-key-invalid)
+- Setup: See [Setup Guide - API Mode](./EXPLORE_FEATURE_GUIDE.md#api-mode-cloud-models)
+- Troubleshooting: [API key issues](./EXPLORE_FEATURE_GUIDE.md#issue-2-api-key-invalid)
 
 ---
 
@@ -217,7 +217,7 @@ Explicitly use Google Gemini API.
 #### Related
 - Get API key: https://ai.google.dev
 - Pricing: https://ai.google.dev/pricing
-- Troubleshooting: [API key invalid](./guides/explore_feature_guide.md#issue-2-api-key-invalid)
+- Troubleshooting: [API key invalid](./EXPLORE_FEATURE_GUIDE.md#issue-2-api-key-invalid)
 
 ---
 
@@ -518,10 +518,10 @@ A: In Local mode: No. In API mode: Only the schema, not your actual data.
 
 ## Related Documentation
 
-- [Full User Guide](./guides/explore_feature_guide.md)
-- [Setup Instructions](./guides/explore_feature_guide.md#setup-instructions)
-- [Troubleshooting](./guides/explore_feature_guide.md#troubleshooting)
-- [FAQ](./guides/explore_feature_guide.md#faq)
+- [Full User Guide](./EXPLORE_FEATURE_GUIDE.md)
+- [Setup Instructions](./EXPLORE_FEATURE_GUIDE.md#setup-instructions)
+- [Troubleshooting](./EXPLORE_FEATURE_GUIDE.md#troubleshooting)
+- [FAQ](./EXPLORE_FEATURE_GUIDE.md#faq)
 
 ---
 

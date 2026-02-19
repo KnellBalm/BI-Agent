@@ -52,6 +52,9 @@ pip install flask openpyxl weasyprint pyperclip jsonschema
 python -m backend.orchestrator.bi_agent_console
 ```
 
+> [!TIP]
+> **OS별 접속 가이드**: WSL2, macOS, Linux 환경에서 로컬 서버에 접속하는 상세 방법은 [로컬 서버 접속 가이드](./LOCAL_ACCESS_GUIDE.md)를 참조하세요.
+
 ### 데이터 소스 스캐너 (단독 실행)
 ```bash
 python -m backend.agents.data_source.metadata_scanner
@@ -72,5 +75,36 @@ npm run mcp:excel
 ```
 
 ---
-**마지막 업데이트**: 2026-01-30
+
+## 5. WSL2 사용자 가이드 (Supplemental)
+
+WSL2 환경에서 개발을 진행할 경우 아래 항목을 추가로 확인하십시오.
+
+### 🐍 가상환경 (venv) 호환성
+Mac이나 다른 OS에서 사용하던 `venv`는 WSL에서 작동하지 않습니다. 환경 이동 시 반드시 새로 생성하십시오.
+```bash
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r backend/requirements.txt
+```
+
+### 🔑 앱 인증 정보 초기화 (~/.bi-agent)
+앱 내에서 API 키 등을 로컬 보관할 때 사용하는 `credentials.json`을 수동으로 초기화해야 합니다.
+```bash
+mkdir -p ~/.bi-agent
+echo '{"providers": {"gemini": {"key": null, "token": null}, "claude": {"key": null, "token": null}, "openai": {"key": null, "token": null}}}' > ~/.bi-agent/credentials.json
+```
+
+### 🧪 설정 완료 확인 (E2E 테스트)
+모든 설치가 올바르게 완료되었는지 테스트합니다.
+- **임포트 테스트**: `pytest tests/test_e2e_import.py`
+- **파이프라인 테스트**: `python tests/test_e2e_pipeline.py` (LLM/DB 연동 확인)
+
+> [!TIP]
+> - **포트 충돌**: `SERVER_PORT=3000`이 이미 사용 중인지 확인하십시오 (`netstat -ano | grep 3000`).
+> - **DB 경로**: `config/connections.json`의 SQLite 경로가 상대 경로인지 확인하십시오.
+
+---
+**마지막 업데이트**: 2026-02-19
 Copyright © 2026 BI-Agent Team. All rights reserved.

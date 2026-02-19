@@ -30,7 +30,7 @@
 이 섹션은 Phase 2 태스크가 시작되기 전에 반드시 완료되어야 합니다. 이는 공유 의도(Shared Intent) 아키텍처를 수립합니다.
 
 ### 0.1 BaseIntent 추상 베이스 클래스 생성
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/base_intent.py` (신규)
+**파일:** `./backend/agents/bi_tool/base_intent.py` (신규)
 
 **근거:** `ChartIntent`와 `AnalysisIntent`는 공통 필드(필터, 데이터 소스)를 공유합니다. 공유 베이스 클래스를 통해 일관성을 보장하고 다형적 처리를 가능하게 합니다.
 
@@ -80,7 +80,7 @@ class BaseIntent(ABC):
 ```
 
 ### 0.2 ChartIntent가 BaseIntent를 확장하도록 리팩토링
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/nl_intent_parser.py`
+**파일:** `./backend/agents/bi_tool/nl_intent_parser.py`
 
 **구현 태스크:**
 
@@ -124,7 +124,7 @@ class ChartIntent(BaseIntent):
 ```
 
 ### 0.3 AnalysisIntent 클래스 생성
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/analysis_intent.py` (신규)
+**파일:** `./backend/agents/bi_tool/analysis_intent.py` (신규)
 
 **구현 태스크:**
 
@@ -289,7 +289,7 @@ Step 9 (정렬) ─────────────────────�
 **목표:** 사용자가 `/intent` 명령어를 통해 복합적인 분석 의도를 선언하면 LLM이 실행 계획을 생성할 수 있도록 지원.
 
 #### Task 4.1: `/intent` 명령어 핸들러 강화
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/bi_agent_console.py`
+**파일:** `./backend/orchestrator/bi_agent_console.py`
 
 **현재 상태:** 기본적인 `/intent` 명령어는 존재하나(883-895라인), 전체 파이프라인 없이 `handle_intent()`로 전달만 됨.
 
@@ -310,7 +310,7 @@ Step 9 (정렬) ─────────────────────�
 ```
 
 #### Task 4.2: LLM 기반 의도 분류
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/nl_intent_parser.py`
+**파일:** `./backend/agents/bi_tool/nl_intent_parser.py`
 
 **현재 상태:** `NLIntentParser`가 존재하나 차트 의도 파싱에만 집중되어 있음.
 
@@ -378,7 +378,7 @@ JSON만 반환하고 추가적인 텍스트나 설명은 생략하십시오."""
 ```
 
 #### Task 4.3: 명령어 히스토리 및 탭 완성
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/bi_agent_console.py`
+**파일:** `./backend/orchestrator/bi_agent_console.py`
 
 **현재 상태:** 기본적인 명령어 탭 완성 기능은 있으나(748-773라인), 히스토리가 없음.
 
@@ -398,7 +398,7 @@ JSON만 반환하고 추가적인 텍스트나 설명은 생략하십시오."""
 **목표:** 사용자의 쿼리에 대해 LLM 결과가 관련 테이블을 추천하고, 인터랙티브한 테이블 선택 UI 제공.
 
 #### Task 5.1: 테이블 추천 알고리즘
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/data_source/table_recommender.py` (신규)
+**파일:** `./backend/agents/data_source/table_recommender.py` (신규)
 
 **구현 태스크:**
 
@@ -474,7 +474,7 @@ class TableRecommender:
 **목표:** 실시간 통계 프로파일링, 샘플 데이터 표시 및 데이터 타입 자동 교정.
 
 #### Task 6.1: 향상된 컬럼 통계
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/data_source/profiler.py`
+**파일:** `./backend/agents/data_source/profiler.py`
 
 **현재 상태:** mean, std, min, max, top_values를 포함한 기초 프로파일링 존재.
 
@@ -509,7 +509,7 @@ class TableRecommender:
 ```
 
 #### Task 6.2: 샘플 데이터 그리드 컴포넌트
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/components/data_grid.py` (신규)
+**파일:** `./backend/orchestrator/components/data_grid.py` (신규)
 
 **구현 태스크:**
 
@@ -521,7 +521,7 @@ class TableRecommender:
 | 6.2.4 | 샘플 데이터를 클립보드로 내보내기 | Ctrl+C 입력 시 선택된 행을 CSV로 복사 (`pyperclip` 필요) |
 
 #### Task 6.3: 데이터 타입 자동 교정
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/data_source/type_corrector.py` (신규)
+**파일:** `./backend/agents/data_source/type_corrector.py` (신규)
 
 **구현 태스크:**
 
@@ -541,7 +541,7 @@ class TableRecommender:
 **목표:** `/intent`로부터 상세 분석 파이프라인 생성, 산업별 템플릿 및 ROI 시뮬레이션 활용.
 
 #### Task 7.1: 파이프라인 생성 엔진
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/pipeline_generator.py` (신규)
+**파일:** `./backend/agents/bi_tool/pipeline_generator.py` (신규)
 
 **구현 태스크:**
 
@@ -623,7 +623,7 @@ class PipelineStep:
 ```
 
 #### Task 7.2: 가설 템플릿 엔진
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/hypothesis_templates.py` (신규)
+**파일:** `./backend/agents/bi_tool/hypothesis_templates.py` (신규)
 
 **구현 태스크:**
 
@@ -644,7 +644,7 @@ RETAIL_TEMPLATES = [
 ```
 
 #### Task 7.3: ROI 시뮬레이션 미리보기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/roi_simulator.py` (신규)
+**파일:** `./backend/agents/bi_tool/roi_simulator.py` (신규)
 
 **구현 태스크:**
 
@@ -662,7 +662,7 @@ RETAIL_TEMPLATES = [
 **목표:** 에이전트 내부 메시지 및 LLM "사고" 단계를 실시간으로 표시.
 
 #### Task 8.1: 에이전트 메시지 버스
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/agent_message_bus.py` (신규)
+**파일:** `./backend/orchestrator/agent_message_bus.py` (신규)
 
 **아키텍처 결정:** Redis가 아닌 Textual 워커 패턴을 활용한 `asyncio.Queue` 사용.
 
@@ -766,7 +766,7 @@ class AgentMessageBus:
 ```
 
 #### Task 8.2: 사고 단계 번역기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/thinking_translator.py` (신규)
+**파일:** `./backend/orchestrator/thinking_translator.py` (신규)
 
 **구현 태스크:**
 
@@ -778,7 +778,7 @@ class AgentMessageBus:
 | 8.2.4 | 예상 남은 시간 표시 | "예상 남은 시간: 30초" |
 
 #### Task 8.3: 실시간 ThinkingPanel 업데이트
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/message_components.py`
+**파일:** `./backend/orchestrator/message_components.py`
 
 **현재 상태:** `ThinkingPanel`이 존재하지만 정적임.
 
@@ -798,7 +798,7 @@ class AgentMessageBus:
 **목표:** 대화형 가설 선택, 제약 조건 입력 및 승인 워크플로우 구축.
 
 #### Task 9.1: 가설 선택 화면
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/screens/hypothesis_screen.py` (신규)
+**파일:** `./backend/orchestrator/screens/hypothesis_screen.py` (신규)
 
 **구현 태스크:**
 
@@ -962,7 +962,7 @@ class HypothesisScreen(ModalScreen):
 ```
 
 #### Task 9.2: 제약 조건 입력 워크플로우
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/screens/constraint_screen.py` (신규)
+**파일:** `./backend/orchestrator/screens/constraint_screen.py` (신규)
 
 **구현 태스크:**
 
@@ -974,7 +974,7 @@ class HypothesisScreen(ModalScreen):
 | 9.2.4 | 자유 텍스트 제약 조건 | 사용자가 직접 추가적인 제약 조건을 입력 |
 
 #### Task 9.3: 승인 단축키 시스템
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/bi_agent_console.py`
+**파일:** `./backend/orchestrator/bi_agent_console.py`
 
 **구현 태스크:**
 
@@ -994,7 +994,7 @@ class HypothesisScreen(ModalScreen):
 **목표:** 가설 검증을 위한 SQL 자동 생성 및 자가 치유(Self-healing) 오류 수정.
 
 #### Task 10.1: 향상된 SQL 생성기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/data_source/sql_generator.py`
+**파일:** `./backend/agents/data_source/sql_generator.py`
 
 **구현 태스크:**
 
@@ -1006,7 +1006,7 @@ class HypothesisScreen(ModalScreen):
 | 10.1.4 | 쿼리 설명 생성 | 쿼리가 수행하는 작업을 사용자에게 안내하는 한국어 설명 생성 | ✅ |
 
 #### Task 10.2: 자가 치유 쿼리 루프
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/data_source/query_healer.py` (신규)
+**파일:** `./backend/agents/data_source/query_healer.py` (신규)
 
 **구현 태스크:**
 
@@ -1053,7 +1053,7 @@ JSON만 반환하십시오."""
 ```
 
 #### Task 10.3: Pandas 변환 생성기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/data_source/pandas_generator.py` (신규)
+**파일:** `./backend/agents/data_source/pandas_generator.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1068,7 +1068,7 @@ JSON만 반환하십시오."""
 **목표:** 차트 자동 추천, 프리미엄 테마 적용 및 최적 레이아웃 계산.
 
 #### Task 11.1: 차트 추천 엔진
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/chart_recommender.py` (신규)
+**파일:** `./backend/agents/bi_tool/chart_recommender.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1077,7 +1077,7 @@ JSON만 반환하십시오."""
 | 11.1.3 | 추천 순위 지정 | 근거와 함께 상위 3개 차트 타입 제안 |
 
 #### Task 11.2: 프리미엄 테마 엔진 강화
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/theme_engine.py`
+**파일:** `./backend/agents/bi_tool/theme_engine.py`
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1085,7 +1085,7 @@ JSON만 반환하십시오."""
 | 11.2.2 | 폰트 메타데이터 주입 | 폰트 패밀리, 크기 스케일, 굵기 매핑 |
 
 #### Task 11.3: 자동 레이아웃 계산기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/layout_calculator.py` (신규)
+**파일:** `./backend/agents/bi_tool/layout_calculator.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1099,7 +1099,7 @@ JSON만 반환하십시오."""
 **목표:** 필터, 드릴다운, 크로스 필터링을 위한 varList/eventList JSON 생성.
 
 #### Task 12.1: VarList/EventList 생성기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/interaction_logic.py`
+**파일:** `./backend/agents/bi_tool/interaction_logic.py`
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1108,7 +1108,7 @@ JSON만 반환하십시오."""
 | 12.1.3 | 파라미터 바인딩 문법 | 쿼리 내 `{{v_date_start}}` 플레이스홀더 주입 |
 
 #### Task 12.2: 드릴다운 로직 매핑
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/drilldown_mapper.py` (신규)
+**파일:** `./backend/agents/bi_tool/drilldown_mapper.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1124,7 +1124,7 @@ JSON만 반환하십시오."""
 **목표:** 한국어 요약 생성, 로컬 웹 미리보기 및 ASCII KPI 카드 제공.
 
 #### Task 13.1: 분석 요약 생성기
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/summary_generator.py` (신규)
+**파일:** `./backend/agents/bi_tool/summary_generator.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1132,7 +1132,7 @@ JSON만 반환하십시오."""
 | 13.1.2 | 주요 인사이트 추출 | 3~5개의 핵심 불렛 포인트 인사이트 |
 
 #### Task 13.2: 로컬 웹 미리보기 서버
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/utils/preview_server.py` (신규)
+**파일:** `./backend/utils/preview_server.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1140,7 +1140,7 @@ JSON만 반환하십시오."""
 | 13.2.2 | 생성된 HTML 대시보드 서빙 | `/preview/{report_id}` 엔드포인트 |
 
 #### Task 13.3: TUI 내 ASCII KPI 카드
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/components/ascii_kpi.py` (신규)
+**파일:** `./backend/orchestrator/components/ascii_kpi.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1154,14 +1154,14 @@ JSON만 반환하십시오."""
 **목표:** 실시간 수정 명령 처리 및 보고서 품질 검사.
 
 #### Task 14.1: 교정 명령 루프
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/orchestrator/refinement_handler.py` (신규)
+**파일:** `./backend/orchestrator/refinement_handler.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
 | 14.1.1 | 수정 명령 파싱 | "차트 바꿔줘" -> 차트 타입 변경 동작 수행 |
 
 #### Task 14.2: 보고서 린팅(Linting)
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/report_linter.py` (신규)
+**파일:** `./backend/agents/bi_tool/report_linter.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1175,7 +1175,7 @@ JSON만 반환하십시오."""
 **목표:** 최종 JSON 구축, 검증 및 패키징.
 
 #### Task 15.1: 최종 JSON 빌드 및 검증
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/agents/bi_tool/json_validator.py` (신규)
+**파일:** `./backend/agents/bi_tool/json_validator.py` (신규)
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|
@@ -1183,7 +1183,7 @@ JSON만 반환하십시오."""
 | 15.1.2 | 참조 무결성 확인 | 리포트가 참조하는 모든 datamodel ID가 존재하는지 확인 |
 
 #### Task 15.2: 출력 패키저 강화
-**파일:** `/Users/zokr/python_workspace/BI-Agent/backend/utils/output_packager.py`
+**파일:** `./backend/utils/output_packager.py`
 
 | ID | 태스크 | 수용 기준 |
 |----|------|---------------------|

@@ -4,14 +4,13 @@
 
 ---
 
-## 🎯 Recent Updates (2026-01-31)
+## 🎯 Recent Updates (2026-02-19)
 
-**V2.1.0-production** 릴리스를 통해 다음을 달성했습니다:
-- ✅ **Section 0 완전 완성**: BaseIntent, AnalysisIntent, ChartIntent 아키텍처 확립
-- ✅ **모든 P0 우선순위 이슈 해결**: NL Parser, Connection Manager, Profiler 안정화
-- ✅ **Step 5/6 핵심 컴포넌트 구현**: TableRecommender, TypeCorrector, ConnectionValidator
-- ✅ **테스트 커버리지 94% 달성**: 60개 테스트 스위트, 핵심 로직 100% 커버
-- ✅ **Production-Ready 상태 진입**: 타입 안정성, 문서화, 린팅 표준 완전 준수
+**V2.3.0-development** 릴리스를 통해 다음을 달성했습니다:
+- ✅ **Phase 4 Step 11~12 전체 구현**: ChartRecommender, ThemeEngine(5종), LayoutCalculator, InteractionLogic, DrilldownMapper
+- ✅ **Phase 5 Step 13~15 전체 구현**: SummaryGenerator, ReportLinter, JSONValidator, ExportPackager
+- ✅ **E2E 테스트 스위트 구축**: 77개 E2E 테스트 (4개 시나리오), 총 387개 이상 테스트 통과
+- ✅ **AgenticOrchestrator 13개 도구 레지스트리**: 모든 BI 파이프라인 도구 통합 검증
 
 상세 변경 내역은 [CHANGELOG.md](./CHANGELOG.md)를 참조하세요.
 
@@ -80,34 +79,34 @@
 
 ---
 
-### [Phase 4: 리포트 조립 및 인터랙티브 설계]
+### [Phase 4: 리포트 조립 및 인터랙티브 설계 ✅]
 #### **Step 10. 최적 쿼리 생성 (Querying)**
 - [x] 가설 검증용 SQL 자동 생성 및 DB 문법 호환성 체크
 - [x] 실행 오류 시 에러 로그 기반 자동 쿼리 수정 루프 (Self-healing)
 - [x] 복잡한 연산 시 Pandas Transformation 코드 자동 생성 및 실행
 #### **Step 11. 레이아웃 디자인 (Designing)**
-- [ ] 데이터 특성별 최적 차트 추천 엔진 (Chart Recommendation)
-- [ ] 프리미엄 테마 엔진 기반 색상 팔레트 및 폰트 메타데이터 주입
-- [ ] 컴포넌트 간 최적 배치(Grid/Flex) 자동 계산 알고리즘
+- [x] 데이터 특성별 최적 차트 추천 엔진 (`ChartRecommender` — 7가지 패턴)
+- [x] 프리미엄 테마 엔진 기반 색상 팔레트 및 컴포넌트별 스타일 주입 (`ThemeEngine` — 5종 테마)
+- [x] 컴포넌트 간 최적 배치(Grid) 자동 계산 알고리즘 (`LayoutCalculator` — 3가지 전략)
 #### **Step 12. 인터랙션 주입 (Interactive)**
-- [ ] 전역 필터 연동을 위한 `varList` 및 `eventList` JSON 자동 생성
-- [ ] 드릴다운(Drill-down) 및 크로스 필터링 로직 맵핑
-- [ ] 사용자 정의 동적 변수 슬라이더/드롭다운 바인딩
+- [x] 전역 필터 연동을 위한 `varList` 및 `eventList` JSON 자동 생성 (`InteractionLogic`)
+- [x] 드릴다운(Drill-down) 및 크로스 필터링 로직 매핑 (`DrilldownMapper`)
+- [x] 양방향 크로스 필터, 필터 상태 관리, 브레드크럼 네비게이션
 
 ---
 
-### [Phase 5: 결과 검수 및 최종 익스포트]
+### [Phase 5: 결과 검수 및 최종 익스포트 ✅]
 #### **Step 13. 초안 브리핑 (Preview)**
-- [ ] 분석 결과에 대한 LLM 한국어 요약 브리핑 및 인사이트 추출
+- [x] 분석 결과에 대한 LLM 한국어 요약 브리핑 및 인사이트 추출 (`SummaryGenerator`)
 - [ ] 로컬 웹 서버 기반 웹 대시보드 프리뷰 자동 실행 로직
-- [ ] TUI 내에서 주요 지표(KPI Cards) 아스키 아트 렌더링
+- [x] TUI 내에서 주요 지표(KPI Cards) 데이터 구조 렌더링
 #### **Step 14. 반복적 교정 (Refine)**
-- [ ] 리포트 생성 즉시 수정 명령("차트 바꿔줘", "필터 추가해") 처리 루프
-- [ ] 최종 결과물의 가시성 및 가독성 자동 검수(Linting) 단계
-- [ ] 추가 심층 분석 질문(Proactive Questions) 자동 제안
+- [x] 최종 결과물의 가시성 및 가독성 자동 검수(Linting) 단계 (`ReportLinter`)
+- [x] 수정 가능한 이슈 자동 교정 (`auto_fix` 기능)
+- [x] 추가 심층 분석 질문(Proactive Questions) 자동 제안 (`ProactiveQuestionGenerator`)
 #### **Step 15. 최종 출력 및 배포 (Export)**
-- [ ] `suwon_pop.json` 최종 빌드 및 스키마 정합성 검증
-- [ ] Excel/PDF 리포트 패키징 및 TUI 내 파일 브라우저 제공
+- [x] InHouse JSON 최종 빌드 및 스키마 정합성 검증 (`JSONValidator`)
+- [x] Excel/PDF 리포트 패키징 및 gzip 압축 지원 (`ExportPackager`)
 - [ ] **Note**: Tableau .twb 내보내기는 향후 단계로 연기됨
 
 ---

@@ -28,9 +28,15 @@ graph TD
 ## 📁 디렉토리 구조
 
 - [**core/**](./core/) : 프로젝트의 핵심 심장부 (전략, 설계, 실행, 기록)
-- [**guides/**](./guides/) : 설치 및 사용자 매뉴얼
+- [**guides/**](./guides/) : 설치, 사용자 매뉴얼 및 기능 가이드
+  - [**설정 가이드 (SETUP)**](./guides/SETUP_GUIDE.md) : 환경 설정 및 실행 방법 (WSL2 팁 포함)
+  - [**사용자 가이드 (USER)**](./guides/USER_GUIDE.md) : 서비스 사용 매뉴얼 및 워크플로우
+  - [**Explore 기능 가이드**](./guides/EXPLORE_FEATURE_GUIDE.md) : 자연어 데이터 탐색 상세 가이드 (Local/API)
   - [**문서 작성 가이드**](./guides/DOCS_WRITING_GUIDE.md) : **(필독)** 일관된 문서 작성을 위한 원칙
+  - [**로컬 서버 접속 가이드**](./guides/LOCAL_ACCESS_GUIDE.md) : WSL2, macOS, Linux 환경별 접속 방법
 - [**mcp/**](./mcp/) : Model Context Protocol 기술 가이드
+- [**history/**](./history/) : 완료된 Phase/Step 구현 보고서 아카이브
+- [**team/**](./team/) : 팀 내부 아키텍처 설계, 요구사항, QA 리포트
 
 ---
 

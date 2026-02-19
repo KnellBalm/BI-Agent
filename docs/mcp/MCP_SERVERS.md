@@ -430,4 +430,4 @@ MCP 서버가 설정되었으면 다음을 진행하세요:
 2. **Data Source Agent 구현**: MCP 클라이언트를 사용하여 데이터 조회
 3. **테스트 작성**: `tests/test_mcp_servers.py`
 
-자세한 내용은 [PLAN.md](PLAN.md)를 참고하세요.
+자세한 내용은 [PLAN.md](../core/PLAN.md)를 참고하세요.

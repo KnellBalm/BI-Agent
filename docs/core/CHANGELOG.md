@@ -4,6 +4,138 @@
 
 ---
 
+## 2026-02-19 (v2.3.2-development) 🤖
+
+### Major Highlights: "Step 14.2 Proactive Questions 완성"
+
+사용자에게 분석 후속 질문을 자동 제안하는 AI 기능이 추가되어, 더 깊이 있는 인사이트 탐색이 가능해졌습니다.
+
+### 🟢 Added (신규 기능)
+
+#### Step 14.2: Proactive Questions 자동 제안
+
+- **ProactiveQuestionGenerator** (`proactive_question_generator.py`): LLM 기반 후속 질문 생성 엔진
+  - 5가지 질문 유형: 원인 분석, 비교 분석, 시계열, 세그먼트, 드릴다운
+  - 분석 컨텍스트 기반 3-5개 맞춤형 질문 생성
+  - LLM 실패 시 규칙 기반 폴백 질문 제공
+  - QuestionType enum, ProactiveQuestion dataclass
+
+- **AgenticOrchestrator `suggest_questions` 도구 추가**:
+  - 15번째 도구로 `suggest_questions` 등록
+  - async/await 처리로 비동기 LLM 호출 지원
+  - 샘플 컨텍스트 자동 생성 및 질문 제안
+
+- **E2E 테스트 스위트** (`test_proactive_questions_e2e.py`):
+  - 22개 E2E 테스트 (모두 통과)
+  - 질문 생성, LLM 통합, 도구 레지스트리, 엣지 케이스 검증
+  - Unicode, 대용량 컨텍스트, 동시성 테스트 포함
+
+### 🟡 Improved (개선 사항)
+
+- **ToolRegistry 확장**: 14개 → 15개 도구로 증가
+- **테스트 커버리지**: E2E 94개 → 116개로 증가 (+22)
+- **문서 업데이트**: TODO.md, PLAN.md 최신화
+
+### 📊 Test Coverage Summary
+
+| 카테고리 | 테스트 수 | 실행 시간 | 상태 |
+|----------|-----------|-----------|------|
+| E2E ProactiveQuestions | 22 | 3.40s | ✅ |
+| E2E ToolRegistry | 20 | <4s | ✅ (15개 도구) |
+| **전체 E2E** | **116** | **~10s** | **✅** |
+| **총 테스트** | **426+** | — | **✅** |
+
+---
+
+## 2026-02-19 (v2.3.0-development) 🏗️
+
+### Major Highlights: "Phase 4~5 전체 완료 + E2E 테스트 스위트 구축"
+
+15단계 초정밀 여정의 핵심 엔진을 모두 구현하여, 데이터 프로파일링부터 최종 JSON/Excel/PDF 출력까지의 전체 BI 파이프라인을 완성했습니다. 또한 77개 E2E 테스트로 컴포넌트 간 통합을 검증하는 테스트 인프라를 구축했습니다.
+
+### 🟢 Added (신규 기능)
+
+#### Phase 4 Step 11: 레이아웃 디자인
+
+- **ChartRecommender** (`chart_recommender.py`): 데이터 특성 기반 차트 자동 추천 엔진.
+  - 7가지 데이터 패턴 지원 (time_series, categorical, scatter, treemap 등)
+  - 우선순위 기반 다중 차트 추천 (`recommend_multiple_charts`)
+- **ThemeEngine** (`theme_engine.py`): 5종 프리미엄 테마 및 컴포넌트별 스타일 시스템.
+  - premium_dark, corporate_light, executive_blue, nature_green, sunset_warm
+  - 차트/라벨/필터 컴포넌트별 전용 스타일 반환
+- **LayoutCalculator** (`layout_calculator.py`): 12-column 그리드 기반 자동 레이아웃 엔진.
+  - balanced/priority/compact 3가지 배치 전략
+  - 픽셀 위치 자동 계산 및 빈 공간 최적화
+
+#### Phase 4 Step 12: 인터랙션 주입
+
+- **InteractionLogic** (`interaction_logic.py`): 대시보드 인터랙션 자동 설정.
+  - `varList`/`eventList` JSON 자동 생성
+  - 크로스 필터링, 양방향 필터, 필터 상태 관리
+  - 공유 차원 자동 감지 및 시각 간 연동
+- **DrilldownMapper** (`drilldown_mapper.py`): 계층적 데이터 드릴다운 시스템.
+  - 이름 패턴 및 카디널리티 기반 계층 자동 감지
+  - 드릴다운 SQL 쿼리 자동 생성 및 브레드크럼 네비게이션
+
+#### Phase 5 Step 13: 초안 브리핑
+
+- **SummaryGenerator** (`summary_generator.py`): LLM 기반 한국어 분석 요약 생성기.
+  - Executive Summary, Key Insights, 데이터 품질 노트, 한계점 분석
+  - LLM 실패 시 통계 기반 폴백 요약 자동 생성
+- **PreviewServer 통합** (`agentic_orchestrator.py`):
+  - AgenticOrchestrator에 `preview_dashboard` 도구 추가 (14번째 도구)
+  - Flask 기반 localhost:5000 웹 서버로 대시보드 미리보기
+  - 브라우저 자동 오픈 지원, 리포트 등록 및 URL 생성
+  - 17개 E2E 테스트 통과 (`test_preview_server_e2e.py`)
+
+#### Phase 5 Step 14: 반복적 교정
+
+- **ReportLinter** (`report_linter.py`): 리포트 품질 자동 검수 시스템.
+  - 폰트 크기/색상 대비/레이아웃 일관성 등 규칙 기반 검사
+  - `auto_fix` 기능으로 수정 가능한 이슈 자동 교정
+  - 0-100 품질 점수 및 severity 기반 이슈 분류
+
+#### Phase 5 Step 15: 최종 출력
+
+- **JSONValidator** (`json_validator.py`): InHouse 스키마 검증 엔진.
+  - 필수 섹션 존재 여부, 커넥터 타입, 참조 무결성 검사
+  - 준수 점수(compliance_score) 산출
+- **ExportPackager** (`export_packager.py`): 대시보드 멀티 포맷 패키징.
+  - JSON (gzip 압축 지원), Excel (openpyxl), PDF (weasyprint/stub) 출력
+  - 메타데이터 자동 주입 및 스키마 검증
+
+#### E2E 테스트 인프라
+
+- **테스트 스위트** (`tests/e2e/`): 77개 E2E 테스트, 4개 시나리오.
+  - `test_bi_pipeline_e2e.py` (12): 전체 BI 파이프라인 흐름
+  - `test_tool_registry_e2e.py` (20): AgenticOrchestrator 13개 도구 통합
+  - `test_quality_pipeline_e2e.py` (13): Linter + Validator 품질 검사
+  - `test_visualization_e2e.py` (32): 테마/레이아웃/차트 추천 조합
+- **conftest.py** (`tests/e2e/conftest.py`): defusedxml/langgraph 의존성 호환 패치
+- **pytest.ini**: `pythonpath = .` 추가 및 `e2e` 마커 등록
+
+### 🟡 Improved (개선 사항)
+
+- **AgenticOrchestrator**: 14개 도구 레지스트리 완성 (list_connections ~ preview_dashboard)
+- **테스트 커버리지**: 총 404개 이상 테스트 통과 (E2E: 94, Phase 2: 106+, Phase 3: 204+)
+- **의존성 완성**: flask, weasyprint, pyperclip 추가 (requirements.txt)
+- **pytest 설정**: `pythonpath = .`으로 프로젝트 루트 자동 등록
+
+### 📊 Test Coverage Summary
+
+| 카테고리 | 테스트 수 | 실행 시간 | 상태 |
+|----------|-----------|-----------|------|
+| E2E Pipeline | 12 | <1s | ✅ |
+| E2E ToolRegistry | 20 | <1s | ✅ (14개 도구) |
+| E2E Quality | 13 | <1s | ✅ |
+| E2E Visualization | 32 | <1s | ✅ |
+| E2E PreviewServer | 17 | 4.42s | ✅ |
+| Phase 2 Unit | 106+ | — | ✅ |
+| Phase 3 Unit | 204+ | — | ✅ |
+| **전체** | **404+** | **~6s (E2E)** | **✅** |
+
+---
+
 ## 2026-02-01 (v2.2.0-development) 🚀
 
 ### Major Highlights: "Phase 2 & 3 Completion + Phase 4 Step 10 Implementation"

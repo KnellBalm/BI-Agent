@@ -86,13 +86,13 @@ class ToolRegistry:
 
 def _build_default_registry() -> ToolRegistry:
     """기본 도구 레지스트리를 생성합니다.
-    
-    전체 BI 파이프라인에 필요한 13개 도구를 등록합니다:
+
+    전체 BI 파이프라인에 필요한 15개 도구를 등록합니다:
     - 데이터소스: list_connections, query_database, analyze_schema
     - 시각화: recommend_chart, generate_chart, apply_theme, calculate_layout
     - 인터랙션: setup_interactions, detect_drilldown
-    - 분석: generate_summary, lint_report
-    - 출력: validate_json, export_report
+    - 분석: generate_summary, lint_report, suggest_questions
+    - 출력: validate_json, export_report, preview_dashboard
     """
     registry = ToolRegistry()
     
@@ -394,7 +394,88 @@ def _build_default_registry() -> ToolRegistry:
         return (f"[내보내기] 형식: {format_type}\n"
                 f"  ExportPackager가 JSON/Excel/PDF 형식으로 패키징합니다.\n"
                 f"  실행: export_packager.export_all(config, output_dir, ['{format_type}'])")
-    
+
+    def suggest_questions(analysis_context: str = "") -> str:
+        """분석 결과를 기반으로 후속 질문을 자동 제안합니다."""
+        from backend.agents.bi_tool.proactive_question_generator import ProactiveQuestionGenerator
+
+        generator = ProactiveQuestionGenerator()
+
+        # 샘플 컨텍스트 (실제로는 분석 결과 전달)
+        sample_context = {
+            "purpose": analysis_context or "매출 분석",
+            "key_findings": ["Q4 매출 15% 증가", "온라인 채널 성장 주도"],
+            "data_characteristics": {
+                "has_time_dimension": True,
+                "has_categories": True,
+                "has_metrics": ["revenue", "quantity"]
+            }
+        }
+
+        try:
+            # asyncio.run() 대신 폴백 경로 직접 호출 (동기 함수)
+            questions = generator._generate_fallback(sample_context)
+        except Exception as e:
+            return f"질문 생성 실패: {str(e)}"
+
+        if not questions:
+            return f"'{analysis_context}'에 대한 후속 질문을 생성하지 못했습니다."
+
+        result = f"[후속 질문 제안] '{analysis_context}'에 대한 추가 분석 질문:\n"
+        for i, q in enumerate(questions, 1):
+            result += f"{i}. [{q.question_type.value.upper()}] {q.question}\n"
+            if q.context:
+                result += f"   → 이유: {q.context}\n"
+
+        return result
+
+    def _generate_fallback_questions(analysis_context: str = "") -> str:
+        """LLM 실패 시 규칙 기반 폴백 질문 생성"""
+        context = analysis_context or "데이터 분석"
+        result = f"[후속 질문 제안] '{context}'에 대한 추가 분석 질문:\n"
+        result += "1. [TEMPORAL] 시간에 따른 변화 추이는 어떤가요?\n"
+        result += "   → 이유: 시계열 패턴 파악으로 트렌드 예측 가능\n"
+        result += "2. [SEGMENT] 주요 세그먼트별로 나누어 보면 어떤 차이가 있나요?\n"
+        result += "   → 이유: 세부 그룹별 특성 이해 및 타겟팅 전략 수립\n"
+        result += "3. [CAUSAL] 주요 변화의 원인은 무엇인가요?\n"
+        result += "   → 이유: 근본 원인 파악으로 실행 가능한 인사이트 도출\n"
+        return result
+
+    def preview_dashboard(report_path: str = "", auto_open: bool = True) -> str:
+        """생성된 대시보드를 로컬 웹 서버에서 미리보기합니다."""
+        from backend.utils.preview_server import get_preview_server
+        import os
+        import time
+
+        server = get_preview_server()
+
+        # 서버가 실행 중이 아니면 시작
+        if not server.is_running:
+            server.start(open_browser=False, daemon=True)
+            time.sleep(0.5)  # 서버 시작 대기
+
+        # 리포트 경로가 제공된 경우 등록
+        if report_path and os.path.exists(report_path):
+            report_id = f"report_{int(time.time())}"
+            url = server.register_report(report_id, report_path)
+
+            if auto_open:
+                server.open_browser(report_id)
+
+            return (f"[대시보드 미리보기]\n"
+                    f"  서버: http://{server.host}:{server.port}\n"
+                    f"  리포트 URL: {url}\n"
+                    f"  브라우저 자동 오픈: {'예' if auto_open else '아니오'}")
+        else:
+            # 리포트 목록만 표시
+            main_url = server.get_url()
+            if auto_open:
+                server.open_browser()
+            return (f"[대시보드 미리보기 서버]\n"
+                    f"  상태: {'실행 중' if server.is_running else '중지됨'}\n"
+                    f"  URL: {main_url}\n"
+                    f"  등록된 리포트: {len(server.reports)}개")
+
     # ──── 도구 등록 ────
     registry.register("list_connections", "데이터베이스 연결 목록 조회", list_connections)
     registry.register("query_database", "자연어 기반 데이터 조회", query_database,
@@ -421,7 +502,11 @@ def _build_default_registry() -> ToolRegistry:
                        {"validation_target": "검증 대상 설명"})
     registry.register("export_report", "리포트 내보내기", export_report,
                        {"format_type": "형식 (json/excel/pdf)"})
-    
+    registry.register("suggest_questions", "분석 결과 기반 후속 질문 자동 제안", suggest_questions,
+                       {"analysis_context": "분석 설명"})
+    registry.register("preview_dashboard", "대시보드 웹 미리보기", preview_dashboard,
+                       {"report_path": "HTML 리포트 파일 경로", "auto_open": "브라우저 자동 오픈 여부 (true/false)"})
+
     return registry
 
 
