@@ -28,6 +28,23 @@ dependencies = [
     "mcp",
     "sshtunnel>=0.4.0",
     "paramiko>=2.7.2,<4.0.0",
+    # Orchestration & Agent framework
+    "langgraph>=0.0.40",
+    "langchain>=0.1.0",
+    "langchain-google-genai>=0.0.5",
+    # Database drivers
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "pymysql>=1.1.0",
+    # Step 13: Preview server
+    "flask>=3.0.0",
+    # Step 15: Export (weasyprint for PDF, openpyxl for Excel)
+    "openpyxl>=3.1.0",
+    "weasyprint>=62.0",
+    # Clipboard support (pyperclip with graceful degradation)
+    "pyperclip>=1.8.0",
+    # Validation
+    "pydantic>=2.0.0",
 ]
 
 [project.scripts]

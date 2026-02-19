@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import pandas as pd
 import json
-from backend.orchestrator.llm_provider import LLMProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider
 
 
 @dataclass

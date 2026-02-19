@@ -8,7 +8,7 @@ Step 14: Iterative Refinement의 핵심 컴포넌트
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import re
-from backend.orchestrator.llm_provider import LLMProvider
+from backend.orchestrator.providers.llm_provider import LLMProvider
 
 
 @dataclass
