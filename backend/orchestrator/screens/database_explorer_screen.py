@@ -29,6 +29,60 @@ from backend.orchestrator.managers.query_bookmarks import get_query_bookmarks, Q
 logger = logging.getLogger("tui")
 
 
+class AnalysisInputModal(ModalScreen[str]):
+    """Modal screen for capturing the user's analysis intent."""
+
+    CSS = """
+    AnalysisInputModal {
+        align: center middle;
+    }
+    #analyze-dialog {
+        width: 60;
+        height: auto;
+        border: thick $primary;
+        background: $surface;
+        padding: 1 2;
+    }
+    #analyze-title {
+        text-align: center;
+        text-style: bold;
+        color: $primary;
+        margin-bottom: 1;
+    }
+    #analyze-input {
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+    #analyze-buttons {
+        layout: horizontal;
+        height: auto;
+        align: center middle;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="analyze-dialog"):
+            yield Label("🧠 What would you like to analyze?", id="analyze-title")
+            yield Label("[dim]Examples: '이 테이블에서 가장 높은 비용 발생 원인은?' or '최근 3개월 트렌드 분석'[/dim]")
+            yield Input(placeholder="Enter your analysis request...", id="analyze-input")
+            with Horizontal(id="analyze-buttons"):
+                yield Button("Analyze", id="save-btn", variant="primary")
+                yield Button("Cancel", id="cancel-btn", variant="default")
+
+    def on_mount(self) -> None:
+        self.query_one("#analyze-input", Input).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "save-btn":
+            intent = self.query_one("#analyze-input", Input).value.strip()
+            if not intent:
+                self.app.notify("Please enter an analysis request", severity="warning")
+                return
+            self.dismiss(intent)
+        else:
+            self.dismiss(None)
+
+
 class BookmarkModal(ModalScreen[tuple[str, List[str]]]):
     """Modal screen for creating/editing bookmarks."""
 
@@ -135,6 +189,7 @@ class DatabaseExplorerScreen(Screen):
     BINDINGS = [
         Binding("q", "dismiss", "Quit"),
         Binding("ctrl+r", "run_query", "Run Query", show=True),
+        Binding("ctrl+a", "analyze", "AI Analyze", show=True),
         Binding("ctrl+s", "save_query", "Save"),
         Binding("ctrl+b", "bookmark_current_query", "Bookmark"),
         Binding("f4", "toggle_history_panel", "History"),
@@ -535,6 +590,31 @@ class DatabaseExplorerScreen(Screen):
                     self._refresh_history_list()
 
         self.app.push_screen(BookmarkModal(), handle_bookmark_result)
+
+    def action_analyze(self) -> None:
+        """Show input modal for deep analysis via AgenticOrchestrator."""
+        def handle_analyze_result(intent: Optional[str]):
+            if intent:
+                # We have an intent, now trigger the main app's analyzer
+                self.notify(f"Sending to AgenticOrchestrator: '{intent}'", severity="information")
+                
+                # We can either dismiss this screen and return to the main console,
+                # or we can pass the command back up. The easiest way is to dismiss 
+                # the current screen and simulate the `/analyze <intent>` command on the main app.
+                self.dismiss()
+                
+                # Ensure the active connection is set in the context
+                from backend.orchestrator import context_manager
+                context_manager.active_conn_id = self.connection_id
+                self.app._active_conn_id = self.connection_id
+                
+                # Trigger the main console's command handler
+                if hasattr(self.app, "_handle_analyze_command"):
+                    asyncio.create_task(self.app._handle_analyze_command(intent))
+                else:
+                    self.notify("Agentic Orchestrator is not available.", severity="error")
+                    
+        self.app.push_screen(AnalysisInputModal(), handle_analyze_result)
 
     def action_show_bookmarks(self) -> None:
         """Toggle bookmark panel view."""

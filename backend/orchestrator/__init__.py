@@ -21,7 +21,8 @@ from .ui.components.message_components import (
     MessageBubble,
     ThinkingPanel,
     StreamingMessageView,
-    ToolActivityTracker
+    ToolActivityTracker,
+    ResultBlock
 )
 from .ui.views.dashboard_view import DashboardView
 
@@ -50,5 +51,6 @@ __all__ = [
     "ThinkingPanel",
     "StreamingMessageView",
     "ToolActivityTracker",
+    "ResultBlock",
     "DashboardView"
 ]

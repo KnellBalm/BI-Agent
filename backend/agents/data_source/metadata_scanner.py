@@ -2,6 +2,7 @@
 Metadata Scanner Module
 Discovers tables, schemas, and profiles data sources for analytical context.
 """
+import asyncio
 import json
 import logging
 from typing import Dict, Any, List
@@ -61,6 +62,50 @@ class MetadataScanner:
             "columns": profile_data["columns"],
             "sample": profile_data["sample"]
         }
+
+    async def async_scan_source(
+        self,
+        conn_id: str,
+        deep_scan: bool = False,
+        max_concurrent: int = 5,
+    ) -> Dict[str, Any]:
+        """scan_source의 비동기 버전. deep_scan=True 시 최대 max_concurrent개 테이블을 병렬 스캔.
+
+        참고: 읽기 전용 SELECT 쿼리만 실행한다고 가정함. Semaphore로 동시 실행 수를 제한하여
+        스레드 안전성을 확보하며, SQLite(WAL모드), PostgreSQL, MySQL, DuckDB 읽기에 적합함.
+        """
+        conn_info = self._get_conn_info(conn_id)
+        conn_type = conn_info["type"]
+        metadata: Dict[str, Any] = {"conn_id": conn_id, "type": conn_type, "tables": []}
+        table_names = self._list_tables(conn_id, conn_type)
+
+        if not deep_scan:
+            metadata["tables"] = [{"table_name": t, "is_lazy": True} for t in table_names]
+            return metadata
+
+        loop = asyncio.get_running_loop()
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def _scan_one(table: str) -> Dict[str, Any]:
+            async with semaphore:
+                return await loop.run_in_executor(None, self.scan_table, conn_id, table)
+
+        tasks = [asyncio.create_task(_scan_one(t)) for t in table_names]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for table_name, result in zip(table_names, results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to scan table '{table_name}': {result}")
+                metadata["tables"].append({"table_name": table_name, "error": str(result)})
+            else:
+                metadata["tables"].append(result)
+
+        return metadata
+
+    async def async_scan_table(self, conn_id: str, table_name: str) -> Dict[str, Any]:
+        """scan_table의 비동기 래퍼. run_in_executor로 blocking I/O를 비동기로 처리."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.scan_table, conn_id, table_name)
 
     def _get_conn_info(self, conn_id: str) -> Dict[str, Any]:
         with open(self.conn_mgr.registry_path, 'r', encoding='utf-8') as f:

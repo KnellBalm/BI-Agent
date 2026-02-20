@@ -44,11 +44,15 @@ dependencies = [
     # Clipboard support (pyperclip with graceful degradation)
     "pyperclip>=1.8.0",
     # Validation
+    "python-frontmatter>=1.0.0",
     "pydantic>=2.0.0",
+    "defusedxml>=0.7.1",  # XML parsing security (Tableau .twb support)
+    "prompt_toolkit>=3.0.0",  # CLI REPL input with history and completion
 ]
 
 [project.scripts]
-bi-agent = "backend.orchestrator.bi_agent_console:run_app"
+bi-agent = "backend.cli:main"
+bi-agent-cli = "backend.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

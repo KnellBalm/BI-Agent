@@ -106,6 +106,33 @@
             "priority": "P3",
             "status": "done",
             "acceptance": "InHouse JSON 검증 + Excel/PDF 패키징 완료"
+        },
+        {
+            "id": "TASK-006",
+            "title": "AgenticOrchestrator 도구 리팩토링 (활성 연결 연동)",
+            "track": "B",
+            "agent": "backend",
+            "priority": "P0",
+            "status": "todo",
+            "acceptance": "query_database, analyze_schema 도구가 하드코딩된 샘플 대신 active_connection을 사용함"
+        },
+        {
+            "id": "TASK-007",
+            "title": "InteractiveConnectionSelector 관리 기능 강화 (Edit/Delete)",
+            "track": "B",
+            "agent": "frontend",
+            "priority": "P0",
+            "status": "todo",
+            "acceptance": "E(수정), Delete(삭제) 단축키를 통해 인라인 연결 관리 가능"
+        },
+        {
+            "id": "TASK-008",
+            "title": "통합 검증 (실제 DB 기반 분석 및 탐색)",
+            "track": "B",
+            "agent": "qa",
+            "priority": "P1",
+            "status": "todo",
+            "acceptance": "실제 DB 연결 후 스키마 탐색 및 자연어 분석 결과가 정확하게 일치함"
         }
     ],
     "dependencies": {
@@ -130,6 +157,13 @@
         ],
         "STEP-15-1": [
             "STEP-14-1"
+        ],
+        "TASK-006": [
+            "TASK-003"
+        ],
+        "TASK-008": [
+            "TASK-006",
+            "TASK-007"
         ]
     },
     "execution_order": [
@@ -137,6 +171,8 @@
         "2: TASK-003 (ReAct 루프 Steel Thread)",
         "3: STEP-11-1 (차트 추천 = 첫 번째 Tool)",
         "4: TASK-004 + TASK-005 (Ralph + HITL)",
-        "5: STEP-11-2 ~ STEP-15-1 (나머지 점진 확장)"
+        "5: STEP-11-2 ~ STEP-15-1 (나머지 점진 확장)",
+        "6: TASK-006 + TASK-007 (하드코딩 제거 및 관리 강화)",
+        "7: TASK-008 (통합 QA 검증)"
     ]
 }

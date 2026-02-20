@@ -1,10 +1,12 @@
 import os
+import sys
 import json
 import logging
 import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
+import click
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, Container, VerticalScroll
 from textual.widgets import Label, Input, ListView, ListItem, Static, Header, Footer, DataTable, RichLog, OptionList, Button, Checkbox
@@ -21,7 +23,8 @@ from backend.orchestrator import (
     MessageBubble,
     ThinkingPanel,
     StreamingMessageView,
-    ToolActivityTracker
+    ToolActivityTracker,
+    ResultBlock
 )
 from backend.agents.data_source.connection_manager import ConnectionManager as AgentConnectionManager
 from backend.orchestrator.orchestrators.agentic_orchestrator import AgenticOrchestrator
@@ -37,6 +40,7 @@ from backend.orchestrator.screens import (
 )
 from backend.orchestrator.components import SidebarManager, CommandPalette
 from backend.orchestrator.handlers import HandlerContext, CommandHandler, InputHandler
+from backend.orchestrator.ui.components.schema_explorer_sidebar import SchemaExplorerSidebar
 
 # Initialize localized logger
 logger = setup_logger("tui", "tui.log")
@@ -58,7 +62,7 @@ class BI_AgentConsole(App):
         Binding("ctrl+l", "clear_chat", "Clear Chat", show=True),
         Binding("slash", "focus_input_with_slash", "Command", show=False),
         Binding("f1", "show_help", "Help", show=True),
-        Binding("ctrl+e", "show_errors", "Errors", show=False),
+        Binding("ctrl+e", "toggle_explore", "Explore", show=True),
     ]
 
     def __init__(self):
@@ -95,52 +99,62 @@ class BI_AgentConsole(App):
         self.COMMAND_LIST = self.command_palette.commands
 
     def compose(self) -> ComposeResult:
-        """UI 레이아웃 구성"""
-        yield Header(show_clock=True)
+        """UI 레이아웃 구성: 하단 고정 프롬프트 + 좌측 스키마 사이드바 + 상단 스크롤 히스토리"""
         
-        with Horizontal(id="main-layout"):
-            # Main Chat Area
-            with Vertical(id="chat-area"):
-                yield HUDStatusLine(id="hud-status")
-                
-                with VerticalScroll(id="chat-log"):
-                    yield MessageBubble(
-                        role="system", 
-                        content="[bold cyan]Welcome to BI-Agent Console v1.0![/bold cyan]\n"
-                                "데이터 분석을 시작하려면 [b]/login[/b] 후 [b]/connect[/b] 명령어를 실행하세요.\n"
-                                "[dim]도움말이 필요하면 F1 키를 누르세요.[/dim]"
-                    )
-                
-                with Horizontal(id="input-container"):
-                    yield Input(placeholder="질문을 입력하거나 '/'로 명령어를 시작하세요...", id="user-input")
-                    yield Button("Send", id="send-btn", variant="primary")
-                
-                # Command Palette (below input)
-                cp = OptionList(id="command-menu")
-                cp.add_class("hidden")
-                yield cp
+        # 보이지 않는 상태 사이드바 (기존 로직이 깨지지 않게 DOM에만 유지)
+        with Vertical(id="sidebar"):
+            yield Label("[bold]PROJECT[/bold]", classes="sidebar-title")
+            yield Label("• [dim]default[/dim]", id="lbl-project")
+            
+            yield Label("\n[bold]STATUS[/bold]", classes="sidebar-title")
+            yield Label("• Auth: [red]✘[/red]", id="lbl-auth")
+            yield Label("• Context: [red]✘[/red]", id="lbl-context")
+            
+            yield Label("\n[bold]QUOTA USAGE[/bold]", classes="sidebar-title")
+            yield Static("Loading...", id="lbl-quota")
+            
+            yield Label("\n[bold]CONNECTIONS[/bold]", classes="sidebar-title")
+            yield Static("[dim]No sources.[/dim]", id="lbl-connections")
+            
+            yield Label("\n[bold]JOURNEY PROGRESS[/bold]", classes="sidebar-title")
+            yield Static("Launch -> Auth -> Conn", id="lbl-journey")
+            
+            yield Label("\n[bold]ACTION RECOMMENDATION[/bold]", classes="sidebar-title")
+            yield Static("초기 설정을 진행하세요.", id="lbl-recommend")
 
-            # Right Sidebar
-            with Vertical(id="sidebar"):
-                yield Label("[bold]PROJECT[/bold]", classes="sidebar-title")
-                yield Label("• [dim]default[/dim]", id="lbl-project")
-                
-                yield Label("\n[bold]STATUS[/bold]", classes="sidebar-title")
-                yield Label("• Auth: [red]✘[/red]", id="lbl-auth")
-                yield Label("• Context: [red]✘[/red]", id="lbl-context")
-                
-                yield Label("\n[bold]QUOTA USAGE[/bold]", classes="sidebar-title")
-                yield Static("Loading...", id="lbl-quota")
-                
-                yield Label("\n[bold]CONNECTIONS[/bold]", classes="sidebar-title")
-                yield Static("[dim]No sources.[/dim]", id="lbl-connections")
-                
-                yield Label("\n[bold]JOURNEY PROGRESS[/bold]", classes="sidebar-title")
-                yield Static("Launch -> Auth -> Conn", id="lbl-journey")
-                
-                yield Label("\n[bold]ACTION RECOMMENDATION[/bold]", classes="sidebar-title")
-                yield Static("초기 설정을 진행하세요.", id="lbl-recommend")
+        # 메인 영역
+        yield Header(show_clock=True)
+        yield HUDStatusLine(id="hud-status", classes="hud-docked")
 
+        # 인라인 스키마 탐색기 사이드바 (좌측 도킹, 기본 숨김)
+        yield SchemaExplorerSidebar(
+            agent_conn_mgr=self.agent_conn_mgr,
+            id="schema-sidebar"
+        )
+        
+        with VerticalScroll(id="chat-log"):
+            yield MessageBubble(
+                role="system",
+                content="""[bold cyan]    ____  ____     ___                    __
+   / __ )/  _/    /   | ____ ____  ____  / /_
+  / __  |/ /_____/ /| |/ __ `/ _ \\/ __ \\/ __/
+ / /_/ // /_____/ ___ / /_/ /  __/ / / / /_  
+/_____/___/    /_/  |_\\__, /\\___/_/ /_/\\__/  
+                     /____/                  [/bold cyan]
+
+[dim]v0.1.0 · /help 로 도움말 | Ctrl+E 스키마 탐색[/dim]"""
+            )
+
+        # 명령어 팔레트 (드롭업 컨셉으로 입력창 위에 띄움)
+        cp = OptionList(id="command-menu")
+        cp.display = False
+        yield cp
+
+        # 고정 프롬프트 입력창 (화면 하단)
+        with Horizontal(id="input-container"):
+            yield Input(placeholder="> 질문을 입력하세요... ('/' 로 명령어 특수 기능 제공)", id="user-input")
+            yield Button("Send", id="send-btn", variant="primary")
+            
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -224,7 +238,10 @@ class BI_AgentConsole(App):
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """입력 제출 처리"""
         user_text = event.value.strip()
-        if not user_text: return
+
+        # If flow is not active, ignore empty submissions
+        if not user_text and not self.flow_engine.is_active():
+            return
 
         # Clear input field first
         self.query_one("#user-input", Input).value = ""
@@ -235,21 +252,26 @@ class BI_AgentConsole(App):
             if consumed:
                 return  # Flow handled it (rendered its own answer bubble)
             # If not consumed (e.g., /help), fall through to normal routing
+            if not user_text:
+                return  # Still ignore empty after passthrough commands
 
-        # Normal flow: mount user bubble and route
+        # Normal flow: route command or query
         chat_log = self.query_one("#chat-log", VerticalScroll)
-        chat_log.mount(MessageBubble(role="user", content=user_text))
-        chat_log.scroll_end(animate=False)
-
+        
         # 히스토리 저장
         context = "slash_command" if user_text.startswith("/") else "query"
         self.command_history.add_command(user_text, context=context)
 
         # 라우팅
         if user_text.startswith("/"):
+            chat_log.mount(MessageBubble(role="user", content=user_text))
+            chat_log.scroll_end(animate=False)
             await self.handle_command(user_text)
         else:
-            await self.process_query(user_text)
+            block = ResultBlock(query=user_text)
+            chat_log.mount(block)
+            chat_log.scroll_end(animate=False)
+            await self.process_query(user_text, block)
 
     # --- 핵심 비즈니스 로직 위임 및 구현 ---
 
@@ -271,7 +293,7 @@ class BI_AgentConsole(App):
                 raise
         return self._orchestrator
 
-    async def process_query(self, query: str) -> None:
+    async def process_query(self, query: str, block: ResultBlock) -> None:
         """에이전트 쿼리 처리 — AgenticOrchestrator ReAct 루프 실행"""
         chat_log = self.query_one("#chat-log", VerticalScroll)
 
@@ -292,27 +314,23 @@ class BI_AgentConsole(App):
 
             if result["status"] == "success":
                 response = result["final_response"]
-                # 도구 실행 단계가 있었으면 iteration 정보 추가
                 iter_count = result.get("iteration_count", 0)
                 if iter_count > 1:
-                    footer = f"\n[dim]({iter_count}회 분석 단계 수행)[/dim]"
+                    footer = f"\n[dim]*({iter_count} reasoning iterations)*[/dim]"
                     response += footer
-                chat_log.mount(MessageBubble(role="assistant", content=response))
+                
+                block.update_response(response)
             else:
-                chat_log.mount(MessageBubble(
-                    role="system",
-                    content=f"[red]분석 오류: {result.get('final_response', '알 수 없는 오류')}[/red]"
-                ))
+                block.update_response(f"**[Error]** {result.get('final_response', 'Unknown error')}")
 
         except Exception as e:
             thinking.remove()
             logger.error(f"process_query error: {e}", exc_info=True)
-            # LLM 미설정 등의 경우 friendly 메시지
             if "API key" in str(e) or "authentication" in str(e).lower():
-                msg = "[yellow]LLM API 키가 설정되지 않았습니다. [b]/login[/b] 명령어로 먼저 설정해주세요.[/yellow]"
+                msg = "LLM API 키가 설정되지 않았습니다. `/login` 명령어로 먼저 설정해주세요."
             else:
-                msg = f"[red]쿼리 처리 중 오류가 발생했습니다: {e}[/red]"
-            chat_log.mount(MessageBubble(role="system", content=msg))
+                msg = f"쿼리 처리 중 오류가 발생했습니다: {e}"
+            block.update_response(msg)
 
         chat_log.scroll_end()
 
@@ -325,8 +343,18 @@ class BI_AgentConsole(App):
     def action_show_help(self) -> None:
         asyncio.create_task(self.handle_command("/help"))
 
-    def action_show_errors(self) -> None:
-        self.push_screen(ErrorViewerScreen())
+    def action_toggle_explore(self) -> None:
+        """Ctrl+E: 스키마 탐색기 사이드바 토글"""
+        sidebar = self.query_one("#schema-sidebar", SchemaExplorerSidebar)
+        if sidebar.display:
+            sidebar.hide_sidebar()
+        else:
+            conn_id = getattr(self, '_active_conn_id', None) or context_manager.active_conn_id
+            if conn_id:
+                self._sync_connection(conn_id)
+                sidebar.show_for_connection(conn_id)
+            else:
+                self.notify("활성화된 연결이 없습니다. /connect 를 먼저 실행하세요.", severity="warning")
 
     def action_clear_chat(self) -> None:
         chat_log = self.query_one("#chat-log", VerticalScroll)
@@ -356,33 +384,26 @@ class BI_AgentConsole(App):
         self.notify(f"Scan complete for {conn_id}", severity="information")
         await self.sidebar_manager.update()
 
-    async def _run_explore(self, query: Optional[str], mode: Optional[str] = None, provider: Optional[str] = None):
-        # DatabaseExplorerScreen 연동 (sqlit 벤치마크 기반 3-pane 레이아웃)
-        conn_id = context_manager.active_conn_id
+    async def _handle_analyze_command(self, intent: str):
+        """Handle the /analyze command or analysis requests from Explorer."""
+        chat_log = self.query_one("#chat-log", VerticalScroll)
+        
+        # Create a new ResultBlock in the chat log for the analysis
+        block = ResultBlock()
+        block.query = f"[Analysis Intent] {intent}"
+        chat_log.mount(block)
+        chat_log.scroll_end(animate=False)
+        
+        # Process the query using the standard ReAct flow
+        await self.process_query(intent, block)
 
-        # If no active connection, get the first available connection from registry
-        if not conn_id:
-            try:
-                available_conns = self.conn_mgr.list_connections()
-                if available_conns:
-                    conn_id = available_conns[0]["id"]
-                    logger.info(f"No active connection, using first available: {conn_id}")
-                else:
-                    self.notify("No connections available. Please use /connect first.", severity="error")
-                    return
-            except Exception as e:
-                logger.error(f"Failed to get connections list: {e}")
-                self.notify("Failed to retrieve connections. Please check your setup.", severity="error")
-                return
-
-        # Sync connection from Orchestrator CM → Agent CM
-        # This ensures MetadataScanner/run_query use the correct DB (not auto-onboarded SQLite)
+    def _sync_connection(self, conn_id: str) -> None:
+        """Orchestrator CM → Agent CM 연결 동기화"""
         try:
             orch_conn = self.conn_mgr.get_connection(conn_id)
             if orch_conn:
                 conn_type = orch_conn.get("type", "sqlite")
                 conn_config = orch_conn.get("config", {})
-                # Register/update in Agent's CM so MetadataScanner can find it
                 self.agent_conn_mgr.register_connection(
                     conn_id=conn_id,
                     conn_type=conn_type,
@@ -390,21 +411,40 @@ class BI_AgentConsole(App):
                     name=orch_conn.get("name", conn_id),
                     category=orch_conn.get("category", "DB")
                 )
-                logger.info(f"Synced connection '{conn_id}' ({conn_type}) to Agent CM")
+                logger.info(f"연결 동기화 완료: '{conn_id}' ({conn_type})")
             else:
-                logger.warning(f"Connection '{conn_id}' not found in Orchestrator CM")
+                logger.warning(f"Orchestrator CM에 '{conn_id}' 연결을 찾을 수 없습니다.")
         except Exception as e:
-            logger.error(f"Failed to sync connection to Agent CM: {e}", exc_info=True)
-            self.notify(f"Warning: Connection sync failed - {str(e)}", severity="warning")
+            logger.error(f"연결 동기화 실패: {e}", exc_info=True)
+            self.notify(f"연결 동기화 실패: {str(e)}", severity="warning")
 
-        self.push_screen(DatabaseExplorerScreen(
-            connection_id=conn_id,
-            conn_mgr=self.conn_mgr,
-            agent_conn_mgr=self.agent_conn_mgr,
-            initial_query=query,
-            mode=mode,
-            provider=provider
-        ))
+    async def _run_explore(self, query: Optional[str] = None, mode: Optional[str] = None, provider: Optional[str] = None):
+        """인라인 스키마 사이드바를 토글합니다 (화면 전환 없음)."""
+        conn_id = context_manager.active_conn_id
+
+        # 활성화된 연결이 없으면 첫 번째 사용 가능한 연결 사용
+        if not conn_id:
+            try:
+                available_conns = self.conn_mgr.list_connections()
+                if available_conns:
+                    conn_id = available_conns[0]["id"]
+                    logger.info(f"활성화된 연결 없음, 첫 번째 사용 가능: {conn_id}")
+                else:
+                    self.notify("사용 가능한 연결이 없습니다. /connect 를 먼저 실행하세요.", severity="error")
+                    return
+            except Exception as e:
+                logger.error(f"연결 목록 가져오기 실패: {e}")
+                self.notify("연결 목록을 확인할 수 없습니다.", severity="error")
+                return
+
+        # Orchestrator CM → Agent CM 동기화
+        self._sync_connection(conn_id)
+
+        # 인라인 사이드바 표시
+        sidebar = self.query_one("#schema-sidebar", SchemaExplorerSidebar)
+        sidebar.show_for_connection(conn_id)
+        self._active_conn_id = conn_id
+        context_manager.active_conn_id = conn_id
 
     def action_switch_project(self):
         self.push_screen(ProjectScreen())

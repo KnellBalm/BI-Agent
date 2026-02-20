@@ -8,7 +8,8 @@ from textual.reactive import reactive
 from textual.widgets import Static
 from textual.containers import VerticalScroll
 from rich.syntax import Syntax
-from rich.markdown import Markdown
+from rich.markdown import Markdown as RichMarkdown
+from textual.widgets import Static, Markdown, Collapsible
 
 logger = logging.getLogger("tui")
 
@@ -27,30 +28,27 @@ class MessageBubble(Static):
     DEFAULT_CSS = """
     MessageBubble {
         width: 100%;
-        padding: 1 2;
+        padding: 0;
         margin: 0 0 1 0;
     }
     
     .msg-user {
-        background: #111214;
-        border-right: thick #3b82f6;
-        text-align: right;
+        background: transparent;
+        text-align: left;
+        color: #60a5fa;
     }
     
     .msg-agent {
-        background: #1a1b1e;
-        border-left: thick #10b981;
+        background: transparent;
     }
     
     .msg-system {
-        background: #1a1b1e;
-        border-left: thick #f59e0b;
+        background: transparent;
         color: #f59e0b;
     }
     
     .msg-thinking {
-        background: #161b22;
-        border-left: thick #7c3aed;
+        background: transparent;
         color: #a78bfa;
         text-style: italic;
     }
@@ -130,10 +128,10 @@ class ThinkingPanel(Static):
     ThinkingPanel {
         width: 100%;
         height: auto;
-        min-height: 10;
-        background: #161b22;
-        border: solid #7c3aed;
-        padding: 1 2;
+        min-height: 1;
+        background: transparent;
+        border-left: thick #7c3aed;
+        padding: 0 1;
         margin: 1 0;
     }
 
@@ -361,9 +359,8 @@ class StreamingMessageView(Static):
     StreamingMessageView {
         width: 100%;
         height: auto;
-        padding: 1 2;
-        background: #1a1b1e;
-        border-left: thick #10b981;
+        padding: 0;
+        background: transparent;
     }
     
     .streaming-header {
@@ -412,9 +409,9 @@ class ToolActivityTracker(Static):
     ToolActivityTracker {
         width: 100%;
         height: auto;
-        background: #161b22;
-        border: solid #30363d;
-        padding: 1 2;
+        background: transparent;
+        border-left: thick #30363d;
+        padding: 0 1;
         margin: 1 0;
     }
     
@@ -490,3 +487,50 @@ class ToolActivityTracker(Static):
     def clear_completed(self):
         """완료된 도구 제거"""
         self.active_tools = [t for t in self.active_tools if t['status'] == 'running']
+
+
+class ResultBlock(Static):
+    """
+    사용자의 질문과 AI의 최종 응답을 결합하여 하나의 결과 블록으로 렌더링합니다.
+    (터미널에서 한 번의 상호작용이 하나의 단위로 출력되는 듯한 느낌 부여)
+    """
+
+    DEFAULT_CSS = """
+    ResultBlock {
+        width: 100%;
+        height: auto;
+        margin: 1 0 2 0;
+        padding: 0 1;
+        border-bottom: dashed #333333;
+    }
+
+    .result-query {
+        color: cyan;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    """
+
+    def __init__(self, query: str, response: str = "", **kwargs):
+        super().__init__(**kwargs)
+        self.query = query
+        self.response = response
+        self._markdown_widget = None
+
+    def compose(self):
+        # 1. 사용자 질문
+        yield Static(f"❯ {self.query}", classes="result-query")
+        
+        # 2. 결과 내용 (초기값 또는 응답)
+        if self.response:
+            self._markdown_widget = Markdown(self.response)
+            yield self._markdown_widget
+
+    def update_response(self, new_response: str):
+        self.response = new_response
+        if self._markdown_widget:
+            self._markdown_widget.remove()
+            
+        self._markdown_widget = Markdown(self.response)
+        self.mount(self._markdown_widget)
+

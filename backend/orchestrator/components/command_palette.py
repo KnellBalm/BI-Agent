@@ -10,6 +10,10 @@ class CommandPalette:
         self.app = app
         self.visible = False
         self.commands = [
+            ("/init", "현재 디렉토리에 plan.md 템플릿 생성", "cmd_init"),
+            ("/edit", "plan.md 마크다운 에디터 열기 (TUI 모달)", "cmd_edit"),
+            ("/build", "plan.md 분석 파이프라인 실행", "cmd_build"),
+            ("/export", "최종 분석 결과물을 HTML 등으로 내보내기", "cmd_export"),
             ("/login", "LLM Provider 인증 설정", "cmd_login"),
             ("/connect", "데이터 소스 연결 관리", "cmd_connect"),
             ("/project", "프로젝트 전환/생성", "cmd_project"),
@@ -38,18 +42,15 @@ class CommandPalette:
                 matches_found += 1
 
         if matches_found > 0:
-            menu.remove_class("hidden")  # hidden 클래스 제거
-            menu.add_class("visible")
+            menu.display = True
             self.visible = True
             menu.highlighted = 0
         else:
-            menu.remove_class("visible")
-            menu.add_class("hidden")  # hidden 클래스 추가
+            menu.display = False
             self.visible = False
 
     def hide(self):
         """팔레트 숨기기"""
         menu = self.app.query_one("#command-menu", OptionList)
-        menu.remove_class("visible")
-        menu.add_class("hidden")  # hidden 클래스 추가
+        menu.display = False
         self.visible = False

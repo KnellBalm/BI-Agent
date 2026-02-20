@@ -11,6 +11,7 @@ Steel Thread: "사용자 질문 → LLM 판단 → 도구 호출 → 결과 관�
 모든 LLM Provider(Gemini, Claude, OpenAI, Ollama)에서 범용적으로 동작합니다.
 """
 import json
+import inspect
 from typing import TypedDict, List, Dict, Any, Optional, Annotated, Sequence
 from operator import add
 
@@ -70,12 +71,22 @@ class ToolRegistry:
             lines.append(f"- **{name}**({params_desc}): {info['description']}")
         return "\n".join(lines)
     
-    def execute(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+    def execute(self, tool_name: str, arguments: Dict[str, Any], context: Dict[str, Any] = None) -> str:
         """도구를 실행하고 결과를 반환합니다."""
         if tool_name not in self._tools:
             return f"알 수 없는 도구: {tool_name}"
         try:
-            return self._tools[tool_name]["func"](**arguments)
+            func = self._tools[tool_name]["func"]
+            
+            # 함수 시그니처 검사
+            sig = inspect.signature(func)
+            call_args = arguments.copy()
+            
+            # context 파라미터가 있으면 주입
+            if 'context' in sig.parameters:
+                call_args['context'] = context
+            
+            return func(**call_args)
         except Exception as e:
             return f"도구 실행 오류 ({tool_name}): {str(e)}"
     
@@ -112,36 +123,41 @@ def _build_default_registry() -> ToolRegistry:
         except Exception as e:
             return f"연결 목록 조회 실패: {str(e)}"
     
-    def query_database(query_description: str = "") -> str:
-        """자연어 설명 또는 SQL 쿼리를 실행합니다. SELECT만 허용됩니다."""
+    def query_database(query_description: str = "", context: Dict[str, Any] = None) -> str:
+        """데이터베이스에 SQL 쿼리를 실행합니다. SELECT만 허용됩니다."""
         import sqlite3
         import os
         
-        # 샘플 DB 경로 탐색
-        db_path = os.path.join(os.path.dirname(__file__), 
-                               '..', '..', '..', 'backend', 'data', 'sample_sales.sqlite')
-        db_path = os.path.abspath(db_path)
-        
-        # ConnectionManager에서 SQLite 연결 탐색
+        # ConnectionManager를 통한 동적 연결 정보 조회
         try:
             conn_mgr = ConnectionManager()
-            for c in conn_mgr.list_connections():
-                if c.get('type') == 'sqlite':
-                    cfg = c.get('config', {})
-                    if cfg.get('path') and os.path.exists(cfg['path']):
-                        db_path = cfg['path']
-                        break
-        except Exception:
-            pass
+            active_connection = context.get('active_connection') if context else None
+            
+            if not active_connection:
+                return "❌ 활성화된 데이터베이스 연결이 없습니다. 먼저 /connect 명령으로 DB에 연결하세요."
+            
+            conn_info = conn_mgr.get_connection(active_connection)
+            if not conn_info:
+                return f"❌ 연결 정보를 찾을 수 없습니다: {active_connection}"
+            
+            if conn_info.get('type') != 'sqlite':
+                return f"❌ 현재 query_database 도구는 SQLite만 지원합니다. (현재 타입: {conn_info.get('type')})"
+            
+            db_path = conn_info.get('config', {}).get('path')
+            if not db_path or not os.path.exists(db_path):
+                return f"❌ DB 파일을 찾을 수 없습니다: {db_path}"
+                
+        except Exception as e:
+            return f"❌ 연결 정보 로드 중 오류 발생: {str(e)}"
         
-        if not os.path.exists(db_path):
-            return f"SQLite DB 파일을 찾을 수 없습니다: {db_path}"
-        
-        # SQL 직접 입력 감지 vs 자연어 설명
         query = query_description.strip()
+        # SQL 블록 제거 (```sql ... ```)
+        if "```" in query:
+            lines = query.split("\n")
+            query = "\n".join([l for l in lines if not l.startswith("```")])
+        
         if not query.upper().startswith("SELECT"):
-            # 자연어 → 기본 쿼리로 변환 (Steel Thread)
-            query = "SELECT * FROM sales_performance LIMIT 20"
+            return "❌ 올바른 SQL SELECT 쿼리를 입력하세요. (자연어는 자동으로 번역되지 않습니다.)"
         
         # 안전 검증: SELECT만 허용
         if any(kw in query.upper() for kw in ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE"]):
@@ -172,17 +188,30 @@ def _build_default_registry() -> ToolRegistry:
         except Exception as e:
             return f"쿼리 실행 오류: {str(e)} (SQL: {query})"
     
-    def analyze_schema(table_name: str = "") -> str:
+    def analyze_schema(table_name: str = "", context: Dict[str, Any] = None) -> str:
         """데이터베이스 테이블 구조를 분석합니다."""
         import sqlite3
         import os
         
-        db_path = os.path.join(os.path.dirname(__file__),
-                               '..', '..', '..', 'backend', 'data', 'sample_sales.sqlite')
-        db_path = os.path.abspath(db_path)
-        
-        if not os.path.exists(db_path):
-            return f"SQLite DB 파일을 찾을 수 없습니다: {db_path}"
+        try:
+            conn_mgr = ConnectionManager()
+            active_connection = context.get('active_connection') if context else None
+            
+            if not active_connection:
+                return "❌ 활성화된 데이터베이스 연결이 없습니다."
+                
+            conn_info = conn_mgr.get_connection(active_connection)
+            if not conn_info:
+                return f"❌ 연결 정보를 찾을 수 없습니다: {active_connection}"
+                
+            if conn_info.get('type') != 'sqlite':
+                return f"❌ 현재 analyze_schema 도구는 SQLite만 지원합니다."
+                
+            db_path = conn_info.get('config', {}).get('path')
+            if not db_path or not os.path.exists(db_path):
+                return f"❌ DB 파일을 찾을 수 없습니다: {db_path}"
+        except Exception as e:
+            return f"❌ 연결 정보 로드 오류: {str(e)}"
         
         try:
             conn = sqlite3.connect(db_path)
@@ -630,7 +659,9 @@ class AgenticOrchestrator(AbstractOrchestrator):
             arguments = parsed.get("arguments", {})
             
             logger.info(f"도구 실행: {action}({arguments})")
-            result = self._registry.execute(action, arguments)
+            
+            # Context 전달
+            result = self._registry.execute(action, arguments, context=state.get("context"))
             
             observation = HumanMessage(content=f"[도구 실행 결과 — {action}]\n{result}")
             return {"messages": [observation]}
@@ -692,7 +723,10 @@ class AgenticOrchestrator(AbstractOrchestrator):
         
         config = {}
         if self._use_checkpointer:
-            thread_id = (context or {}).get("thread_id", "default-session")
+            # Use active connection as part of the thread_id for state permanence per database
+            active_conn = (context or {}).get("active_connection", "default")
+            base_thread_id = (context or {}).get("thread_id", "session")
+            thread_id = f"{base_thread_id}-{active_conn}"
             config = {"configurable": {"thread_id": thread_id}}
         
         try:
