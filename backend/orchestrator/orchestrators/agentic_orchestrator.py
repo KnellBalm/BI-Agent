@@ -18,7 +18,7 @@ from operator import add
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
-from backend.orchestrator.orchestrators.base_orchestrator import AbstractOrchestrator
+
 from backend.orchestrator.providers.langchain_adapter import BIAgentChatModel
 from backend.orchestrator.providers.checkpointer import get_checkpointer
 from backend.orchestrator.managers.connection_manager import ConnectionManager
@@ -132,24 +132,45 @@ def _build_default_registry() -> ToolRegistry:
         try:
             conn_mgr = ConnectionManager()
             active_connection = context.get('active_connection') if context else None
-            
+
             if not active_connection:
-                return "❌ 활성화된 데이터베이스 연결이 없습니다. 먼저 /connect 명령으로 DB에 연결하세요."
-            
+                # 연결 미설정 시 첫 번째 연결 자동 사용
+                conns = conn_mgr.list_connections()
+                if conns:
+                    active_connection = conns[0].get('id')
+                else:
+                    return "❌ 활성화된 데이터베이스 연결이 없습니다. 먼저 /connect 명령으로 DB에 연결하세요."
+
             conn_info = conn_mgr.get_connection(active_connection)
+
+            # 오케스트레이터 ConnectionManager에 없으면 AgentConnectionManager 레지스트리 폴백
+            if not conn_info:
+                try:
+                    import json as _json
+                    from backend.agents.data_source.connection_manager import ConnectionManager as AgentConnMgr
+                    agent_mgr = AgentConnMgr(project_id="default")
+                    if agent_mgr.registry_path.exists():
+                        with open(agent_mgr.registry_path, "r", encoding="utf-8") as _f:
+                            _reg = _json.load(_f)
+                        if active_connection in _reg:
+                            _entry = _reg[active_connection]
+                            conn_info = {"type": _entry.get("type"), "config": _entry.get("config", {})}
+                except Exception:
+                    pass
+
             if not conn_info:
                 return f"❌ 연결 정보를 찾을 수 없습니다: {active_connection}"
-            
+
             if conn_info.get('type') != 'sqlite':
                 return f"❌ 현재 query_database 도구는 SQLite만 지원합니다. (현재 타입: {conn_info.get('type')})"
-            
+
             db_path = conn_info.get('config', {}).get('path')
             if not db_path or not os.path.exists(db_path):
                 return f"❌ DB 파일을 찾을 수 없습니다: {db_path}"
-                
+
         except Exception as e:
             return f"❌ 연결 정보 로드 중 오류 발생: {str(e)}"
-        
+
         query = query_description.strip()
         # SQL 블록 제거 (```sql ... ```)
         if "```" in query:
@@ -196,14 +217,35 @@ def _build_default_registry() -> ToolRegistry:
         try:
             conn_mgr = ConnectionManager()
             active_connection = context.get('active_connection') if context else None
-            
+
             if not active_connection:
-                return "❌ 활성화된 데이터베이스 연결이 없습니다."
-                
+                # 연결 미설정 시 첫 번째 연결 자동 사용
+                conns = conn_mgr.list_connections()
+                if conns:
+                    active_connection = conns[0].get('id')
+                else:
+                    return "❌ 활성화된 데이터베이스 연결이 없습니다."
+
             conn_info = conn_mgr.get_connection(active_connection)
+
+            # 오케스트레이터 ConnectionManager에 없으면 AgentConnectionManager 레지스트리 폴백
+            if not conn_info:
+                try:
+                    import json as _json
+                    from backend.agents.data_source.connection_manager import ConnectionManager as AgentConnMgr
+                    agent_mgr = AgentConnMgr(project_id="default")
+                    if agent_mgr.registry_path.exists():
+                        with open(agent_mgr.registry_path, "r", encoding="utf-8") as _f:
+                            _reg = _json.load(_f)
+                        if active_connection in _reg:
+                            _entry = _reg[active_connection]
+                            conn_info = {"type": _entry.get("type"), "config": _entry.get("config", {})}
+                except Exception:
+                    pass
+
             if not conn_info:
                 return f"❌ 연결 정보를 찾을 수 없습니다: {active_connection}"
-                
+
             if conn_info.get('type') != 'sqlite':
                 return f"❌ 현재 analyze_schema 도구는 SQLite만 지원합니다."
                 
@@ -419,10 +461,55 @@ def _build_default_registry() -> ToolRegistry:
                 f"  이슈: {summary.get('total_issues', 0)}개")
     
     def export_report(format_type: str = "json") -> str:
-        """대시보드를 지정된 형식으로 내보냅니다. 형식: json, excel, pdf"""
-        return (f"[내보내기] 형식: {format_type}\n"
-                f"  ExportPackager가 JSON/Excel/PDF 형식으로 패키징합니다.\n"
-                f"  실행: export_packager.export_all(config, output_dir, ['{format_type}'])")
+        """대시보드를 지정된 형식으로 내보냅니다. 형식: json, excel, pdf, all"""
+        from backend.agents.bi_tool.export_packager import ExportPackager
+        from pathlib import Path
+
+        output_dir = Path("output")
+        output_dir.mkdir(exist_ok=True)
+
+        # PoC 기본 dashboard config
+        sample_config = {
+            "title": "BI-Agent PoC Dashboard",
+            "components": [
+                {
+                    "id": "chart_1",
+                    "type": "bar",
+                    "title": "월별 매출 트렌드",
+                    "config": {"dimension": "month", "measure": "revenue"}
+                },
+                {
+                    "id": "kpi_1",
+                    "type": "kpi",
+                    "title": "총 매출",
+                    "config": {"measure": "total_revenue"}
+                }
+            ],
+            "theme": "premium_dark",
+            "generated_by": "BI-Agent"
+        }
+
+        packager = ExportPackager()
+        results = []
+
+        try:
+            if format_type in ("json", "all"):
+                json_path = output_dir / "poc_dashboard.json"
+                packager.export_json(sample_config, json_path)
+                results.append(f"  ✅ JSON: {json_path.resolve()}")
+
+            if format_type in ("excel", "all"):
+                excel_path = output_dir / "poc_dashboard.xlsx"
+                packager.export_excel(sample_config, excel_path)
+                results.append(f"  ✅ Excel: {excel_path.resolve()}")
+
+            if format_type == "pdf":
+                results.append("  ⚠️ PDF 내보내기는 weasyprint 설치 후 지원됩니다.")
+
+            return f"[내보내기 완료] 형식: {format_type}\n" + "\n".join(results)
+
+        except Exception as e:
+            return f"[내보내기 실패] {type(e).__name__}: {str(e)}"
 
     def suggest_questions(analysis_context: str = "") -> str:
         """분석 결과를 기반으로 후속 질문을 자동 제안합니다."""
@@ -507,8 +594,8 @@ def _build_default_registry() -> ToolRegistry:
 
     # ──── 도구 등록 ────
     registry.register("list_connections", "데이터베이스 연결 목록 조회", list_connections)
-    registry.register("query_database", "자연어 기반 데이터 조회", query_database,
-                       {"query_description": "조회할 데이터 설명"})
+    registry.register("query_database", "SQL SELECT 쿼리를 실행하여 데이터를 조회합니다. analyze_schema로 테이블 구조 확인 후 SELECT SQL을 작성하여 전달하세요.", query_database,
+                       {"query_description": "실행할 SQL SELECT 쿼리 (예: SELECT col FROM table WHERE ...)"})
     registry.register("analyze_schema", "테이블/컬럼 구조 분석", analyze_schema,
                        {"table_name": "분석할 테이블명"})
     registry.register("recommend_chart", "데이터 특성 기반 차트 추천", recommend_chart,
@@ -568,7 +655,7 @@ SYSTEM_PROMPT_TEMPLATE = """당신은 BI-Agent의 핵심 분석 에이전트입�
 4. JSON 외의 텍스트는 포함하지 마세요."""
 
 
-class AgenticOrchestrator(AbstractOrchestrator):
+class AgenticOrchestrator:
     """
     ReAct 패턴 기반의 자율 에이전트 오케스트레이터.
     
@@ -597,15 +684,17 @@ class AgenticOrchestrator(AbstractOrchestrator):
                  use_checkpointer: bool = True):
         self._chat_model = llm or BIAgentChatModel()
         self._registry = tool_registry or _build_default_registry()
-        
-        super().__init__(
-            self._chat_model.provider,
-            connection_manager or ConnectionManager()
-        )
+        self.llm = self._chat_model.provider
+        self.connection_manager = connection_manager or ConnectionManager()
         
         self._use_checkpointer = use_checkpointer
         self.workflow = self._create_react_graph()
     
+    @property
+    def registry(self) -> ToolRegistry:
+        """ToolRegistry에 대한 공개 접근자. StageExecutor 통합에 사용됩니다."""
+        return self._registry
+
     def _create_react_graph(self):
         """ReAct 루프 그래프를 생성합니다."""
         graph = StateGraph(AgenticState)

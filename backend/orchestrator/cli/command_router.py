@@ -7,15 +7,22 @@ from typing import Dict, Tuple
 COMMANDS: Dict[str, Tuple[str, bool]] = {
     "/help":    ("도움말 표시", False),
     "/list":    ("연결된 데이터 소스 목록", False),
-    "/connect": ("데이터 소스 연결 (TUI 팝업)", True),
-    "/explore": ("DB 탐색기 (TUI 팝업)", True),
+    "/connect": ("데이터 소스 연결", False),
+    "/explore": ("DB 스키마 탐색기", False),
     "/history": ("대화 히스토리 목록", False),
     "/clear":   ("화면 초기화", False),
     "/quit":    ("종료", False),
     "/init":    ("현재 디렉토리에 plan.md 템플릿 생성", False),
     "/build":   ("plan.md 분석 파이프라인 실행", False),
-    "/edit":    ("plan.md 마크다운 에디터 (TUI)", True),
+    "/edit":    ("plan.md 마크다운 에디터", False),
     "/export":  ("결과물 내보내기 [html/streamlit/pdf]", False),
+    "/analysis-new":     ("새 ALIVE 분석 생성 <제목>", False),
+    "/analysis-quick":   ("퀵 단일파일 분석 생성 <제목>", False),
+    "/analysis-status":  ("현재 분석 상태 확인", False),
+    "/analysis-list":    ("모든 분석 목록 보기", False),
+    "/analysis-run":     ("현재 스테이지 BI-EXEC 실행", False),
+    "/analysis-next":    ("다음 스테이지로 전환", False),
+    "/analysis-archive": ("현재 분석 아카이브", False),
 }
 
 COMMAND_NAMES = list(COMMANDS.keys())

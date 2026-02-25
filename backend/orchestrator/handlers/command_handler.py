@@ -2,13 +2,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional
 
-from textual.app import App
-from textual.containers import VerticalScroll
-from textual.widgets import Label
-
 from backend.orchestrator.handlers.protocols import HandlerContext, CommandHandlerProtocol
-from backend.orchestrator import MessageBubble
-from backend.orchestrator.screens import DatabaseExplorerScreen
 
 logger = logging.getLogger("tui")
 
@@ -273,6 +267,14 @@ class CommandHandler(CommandHandlerProtocol):
                 "• [b]/edit[/b]   - plan.md 마크다운 에디터 열기 (TUI 모달)\n"
                 "• [b]/build[/b]  - plan.md 분석 파이프라인 실행\n"
                 "• [b]/export [fmt][/b] - 결과물 내보내기 (html/pdf)\n\n"
+                "[bold #38bdf8]ALIVE 분석 (Analysis as Markdown):[/bold #38bdf8]\n"
+                "• [b]/analysis-new <제목>[/b]   - 새 ALIVE 분석 프로젝트 생성\n"
+                "• [b]/analysis-quick <제목>[/b] - 퀵 단일파일 분석 생성\n"
+                "• [b]/analysis-status[/b]       - 현재 분석 상태 확인\n"
+                "• [b]/analysis-list[/b]         - 모든 분석 목록 보기\n"
+                "• [b]/analysis-run[/b]          - 현재 스테이지 BI-EXEC 블록 실행\n"
+                "• [b]/analysis-next[/b]         - 다음 스테이지로 진행\n"
+                "• [b]/analysis-archive[/b]      - 현재 분석 아카이브\n\n"
                 "[bold #38bdf8]단축키 가이드:[/bold #38bdf8]\n"
                 "• [b]/[/b] : 명령어 입력 시작 (입력창 포커스 + / 자동입력) ⭐\n"
                 "• [b]q[/b] : 앱 종료\n"
@@ -289,6 +291,233 @@ class CommandHandler(CommandHandlerProtocol):
         elif cmd in ["/quit", "/exit"]:
             if hasattr(self.app, "action_quit"):
                 await self.app.action_quit()
+
+        elif cmd == "/analysis-new":
+            title = " ".join(parts[1:]) if len(parts) > 1 else ""
+            if not title:
+                msg = MessageBubble(role="system", content="[yellow]사용법: /analysis-new <분석 제목>[/yellow]")
+                chat_log.mount(msg)
+                chat_log.scroll_end(animate=False)
+            else:
+                async def run_analysis_new(t=title):
+                    try:
+                        from backend.aac.analysis_manager import AnalysisManager
+                        conn_id = getattr(self.app, "_active_conn_id", None)
+                        mgr = AnalysisManager()
+                        project = mgr.create_analysis(title=t, connection=conn_id or "")
+                        msg = MessageBubble(role="system", content=(
+                            f"[green]✓ ALIVE 분석 생성됨:[/green] [bold]{project.title}[/bold]\n"
+                            f"  ID: [cyan]{project.id}[/cyan]\n"
+                            f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]\n"
+                            f"  경로: [dim]{project.path}[/dim]\n"
+                            f"  [dim]/analysis-run 으로 BI-EXEC 블록을 실행하거나 파일을 편집하세요.[/dim]"
+                        ))
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                    except Exception as e:
+                        msg = MessageBubble(role="system", content=f"[red]✗ 분석 생성 오류: {e}[/red]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                asyncio.create_task(run_analysis_new())
+
+        elif cmd == "/analysis-quick":
+            title = " ".join(parts[1:]) if len(parts) > 1 else ""
+            if not title:
+                msg = MessageBubble(role="system", content="[yellow]사용법: /analysis-quick <분석 제목>[/yellow]")
+                chat_log.mount(msg)
+                chat_log.scroll_end(animate=False)
+            else:
+                async def run_analysis_quick(t=title):
+                    try:
+                        from backend.aac.analysis_manager import AnalysisManager
+                        conn_id = getattr(self.app, "_active_conn_id", None)
+                        mgr = AnalysisManager()
+                        filepath = mgr.create_quick(question=t, connection=conn_id or "")
+                        msg = MessageBubble(role="system", content=(
+                            f"[green]✓ 퀵 분석 생성됨:[/green] [bold]{t}[/bold]\n"
+                            f"  경로: [dim]{filepath}[/dim]\n"
+                            f"  [dim]단일 파일로 ALIVE 전체 구조가 포함되어 있습니다.[/dim]"
+                        ))
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                    except Exception as e:
+                        msg = MessageBubble(role="system", content=f"[red]✗ 퀵 분석 생성 오류: {e}[/red]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                asyncio.create_task(run_analysis_quick())
+
+        elif cmd == "/analysis-next":
+            async def run_analysis_next():
+                try:
+                    from backend.aac.analysis_manager import AnalysisManager
+                    mgr = AnalysisManager()
+                    project = mgr.get_active()
+                    if not project:
+                        msg = MessageBubble(role="system", content="[yellow]활성 분석이 없습니다. /analysis-new 로 먼저 생성하세요.[/yellow]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    prev_stage = project.status.value.upper()
+                    mgr.advance_stage(project)
+                    project = mgr.get_active()
+                    new_stage = project.status.value.upper() if project else "ARCHIVED"
+                    msg = MessageBubble(role="system", content=(
+                        f"[green]✓ 스테이지 전환 완료:[/green] "
+                        f"[yellow]{prev_stage}[/yellow] → [cyan]{new_stage}[/cyan]\n"
+                        f"  [dim]새 스테이지 파일이 생성되었습니다. /analysis-run 으로 실행하세요.[/dim]"
+                    ))
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+                except ValueError as e:
+                    msg = MessageBubble(role="system", content=f"[yellow]⚠ {e}[/yellow]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+                except Exception as e:
+                    msg = MessageBubble(role="system", content=f"[red]✗ 스테이지 전환 오류: {e}[/red]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+            asyncio.create_task(run_analysis_next())
+
+        elif cmd == "/analysis-status":
+            async def run_analysis_status():
+                try:
+                    from backend.aac.analysis_manager import AnalysisManager
+                    mgr = AnalysisManager()
+                    project = mgr.get_active()
+                    if not project:
+                        all_analyses = mgr.list_analyses()
+                        if not all_analyses:
+                            msg = MessageBubble(role="system", content="[yellow]분석 프로젝트가 없습니다. /analysis-new 로 생성하세요.[/yellow]")
+                        else:
+                            msg = MessageBubble(role="system", content="[yellow]활성 분석이 없습니다. /analysis-list 로 목록을 확인하세요.[/yellow]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    stage_emoji = {"ask": "❶", "look": "❷", "investigate": "❸", "voice": "❹", "evolve": "❺"}
+                    emoji = stage_emoji.get(project.status.value, "●")
+                    msg = MessageBubble(role="system", content=(
+                        f"[bold cyan]◈ 현재 분석 상태 ◈[/bold cyan]\n"
+                        f"  제목: [bold]{project.title}[/bold]\n"
+                        f"  ID: [cyan]{project.id}[/cyan]\n"
+                        f"  스테이지: {emoji} [yellow]{project.status.value.upper()}[/yellow]\n"
+                        f"  연결: [dim]{project.connection or '(없음)'}[/dim]\n"
+                        f"  생성: [dim]{project.created}[/dim]\n"
+                        f"  경로: [dim]{project.path}[/dim]\n\n"
+                        f"  [dim]/analysis-run 으로 현재 스테이지 실행 | /analysis-next 로 다음 스테이지 이동[/dim]"
+                    ))
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+                except Exception as e:
+                    msg = MessageBubble(role="system", content=f"[red]✗ 상태 조회 오류: {e}[/red]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+            asyncio.create_task(run_analysis_status())
+
+        elif cmd == "/analysis-list":
+            async def run_analysis_list():
+                try:
+                    from backend.aac.analysis_manager import AnalysisManager
+                    mgr = AnalysisManager()
+                    analyses = mgr.list_analyses()
+                    if not analyses:
+                        msg = MessageBubble(role="system", content="[yellow]분석 프로젝트가 없습니다. /analysis-new 로 생성하세요.[/yellow]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    active = mgr.get_active()
+                    active_id = active.id if active else None
+                    content = "[bold cyan]◈ ALIVE 분석 목록 ◈[/bold cyan]\n\n"
+                    for p in analyses:
+                        marker = "[green]▶[/green] " if p.id == active_id else "  "
+                        content += f"{marker}[bold]{p.title}[/bold] [dim]({p.id})[/dim]\n"
+                        content += f"     스테이지: [yellow]{p.status.value.upper()}[/yellow]  |  생성: [dim]{p.created[:10]}[/dim]\n"
+                    content += f"\n[dim]{len(analyses)}개의 분석 프로젝트[/dim]"
+                    msg = MessageBubble(role="system", content=content)
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+                except Exception as e:
+                    msg = MessageBubble(role="system", content=f"[red]✗ 목록 조회 오류: {e}[/red]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+            asyncio.create_task(run_analysis_list())
+
+        elif cmd == "/analysis-archive":
+            async def run_analysis_archive():
+                try:
+                    from backend.aac.analysis_manager import AnalysisManager
+                    mgr = AnalysisManager()
+                    project = mgr.get_active()
+                    if not project:
+                        msg = MessageBubble(role="system", content="[yellow]활성 분석이 없습니다.[/yellow]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    title = project.title
+                    mgr.archive(project)
+                    msg = MessageBubble(role="system", content=f"[green]✓ 분석 아카이브됨:[/green] [bold]{title}[/bold]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+                except Exception as e:
+                    msg = MessageBubble(role="system", content=f"[red]✗ 아카이브 오류: {e}[/red]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+            asyncio.create_task(run_analysis_archive())
+
+        elif cmd == "/analysis-run":
+            async def run_analysis_run():
+                try:
+                    from backend.aac.analysis_manager import AnalysisManager
+                    from backend.aac.stage_executor import StageExecutor, FileLockedError
+                    mgr = AnalysisManager()
+                    project = mgr.get_active()
+                    if not project:
+                        msg = MessageBubble(role="system", content="[yellow]활성 분석이 없습니다. /analysis-new 로 먼저 생성하세요.[/yellow]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    stage_file = project.current_stage_file()
+                    if not stage_file.exists():
+                        msg = MessageBubble(role="system", content=f"[red]✗ 스테이지 파일 없음: {stage_file}[/red]")
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    orchestrator = getattr(self.app, "_orchestrator", None)
+                    registry = orchestrator.registry if orchestrator else None
+                    executor = StageExecutor(registry=registry)
+                    count = executor.count_bi_exec_blocks(stage_file)
+                    if count == 0:
+                        msg = MessageBubble(role="system", content=(
+                            f"[yellow]실행할 BI-EXEC 블록이 없습니다.[/yellow]\n"
+                            f"  [dim]스테이지: {project.status.value.upper()} | 파일: {stage_file.name}[/dim]"
+                        ))
+                        chat_log.mount(msg)
+                        chat_log.scroll_end(animate=False)
+                        return
+                    start_msg = MessageBubble(role="system", content=(
+                        f"[cyan]▶ BI-EXEC 실행 시작[/cyan]\n"
+                        f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]  |  블록 수: [bold]{count}[/bold]"
+                    ))
+                    chat_log.mount(start_msg)
+                    chat_log.scroll_end(animate=False)
+                    prior_files = project.completed_stage_files()
+                    executor.execute_stage(stage_file, prior_stage_files=prior_files)
+                    result_content = (
+                        f"[green]✓ BI-EXEC 실행 완료[/green]  블록 수: [bold]{count}[/bold]\n"
+                        f"  [dim]결과는 {stage_file.name} 파일에 기록되었습니다.[/dim]"
+                    )
+                    end_msg = MessageBubble(role="system", content=result_content)
+                    chat_log.mount(end_msg)
+                    chat_log.scroll_end(animate=False)
+                except FileLockedError as e:
+                    msg = MessageBubble(role="system", content=f"[yellow]⚠ 파일 잠금: {e}[/yellow]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+                except Exception as e:
+                    msg = MessageBubble(role="system", content=f"[red]✗ 실행 오류: {e}[/red]")
+                    chat_log.mount(msg)
+                    chat_log.scroll_end(animate=False)
+            asyncio.create_task(run_analysis_run())
+
         else:
             msg = MessageBubble(role="system", content=f"[red]알 수 없는 명령어입니다: {cmd}[/red]")
             chat_log.mount(msg)

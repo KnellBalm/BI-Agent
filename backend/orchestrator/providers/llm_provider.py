@@ -50,7 +50,7 @@ class GeminiProvider(LLMProvider):
 
     async def _ensure_active_key(self) -> str:
         """할당량이 남아있는 유효한 키 또는 토큰을 확보합니다."""
-        from backend.orchestrator import auth_manager
+        from backend.orchestrator.managers.auth_manager import auth_manager
         
         provider_data = auth_manager.get_provider_data("gemini")
         api_key = provider_data.get("key") or os.getenv("GEMINI_API_KEY")
@@ -163,7 +163,7 @@ class ClaudeProvider(LLMProvider):
         self._setup_client()
 
     def _setup_client(self):
-        from backend.orchestrator import auth_manager
+        from backend.orchestrator.managers.auth_manager import auth_manager
         api_key = auth_manager.get_provider_data("claude").get("key") or os.getenv("ANTHROPIC_API_KEY")
         if api_key:
             self.client = anthropic.AsyncAnthropic(api_key=api_key)
@@ -220,7 +220,7 @@ class OpenAIProvider(LLMProvider):
         self._setup_client()
 
     def _setup_client(self):
-        from backend.orchestrator import auth_manager
+        from backend.orchestrator.managers.auth_manager import auth_manager
         api_key = auth_manager.get_provider_data("openai").get("key") or os.getenv("OPENAI_API_KEY")
         if api_key:
             self.client = AsyncOpenAI(api_key=api_key)
