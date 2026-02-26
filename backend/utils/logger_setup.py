@@ -44,8 +44,17 @@ def get_unified_debug_handler():
         # 루트 로거에 통합 핸들러 추가 (한 번만)
         root_logger = logging.getLogger()
         if _unified_handler not in root_logger.handlers:
+            # 기존 StreamHandler 제거 (콘솔 노출 방지)
+            for h in root_logger.handlers[:]:
+                if isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler):
+                    root_logger.removeHandler(h)
             root_logger.addHandler(_unified_handler)
             root_logger.setLevel(logging.DEBUG)
+            
+            # 외부 라이브러리 로거 콘솔 노출 억제
+            for noisy in ("httpcore", "httpx", "google_genai", "urllib3",
+                          "google.auth", "google.auth.transport", "hpack"):
+                logging.getLogger(noisy).setLevel(logging.WARNING)
     
     return _unified_handler
 
@@ -67,9 +76,9 @@ def setup_logger(name: str = "bi_agent", log_file: str = "bi_agent.log", level=l
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    # Console Handler (INFO 이상만 표시)
+    # Console Handler (WARNING 이상만 표시 — 사용자에게 불필요한 로그 숨김)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.WARNING)
     console_handler.setFormatter(formatter)
 
     # Module-specific File Handler (10MB per file, keep 3 backups)

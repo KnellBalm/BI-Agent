@@ -7,13 +7,43 @@ LangGraph/Langchain 없이 순수한 While 루프 + Tool Calling으로 동작한
 사용자 질문 → LLM 판단 → 도구 호출 파싱 → 로컬 실행 → 결과 주입 → 반복
 """
 import json
+import logging
 import re
 from typing import List, Dict, Any, Tuple, Optional
 
 from backend.core.tools import ToolRegistry, build_default_registry
 from backend.core.prompts import CORE_SYSTEM_PROMPT, THINKING_SYSTEM_PROMPT
+from backend.utils.logger_setup import setup_logger
+
+logger = setup_logger("core_agent", "core_agent.log")
 
 MAX_ITERATIONS = 8
+
+
+# ──────────────────────────────────────────────
+# 에러 분류 → 사용자 친화적 메시지
+# ──────────────────────────────────────────────
+
+def _format_user_error(e: Exception) -> str:
+    """LLM 호출 에러를 사용자가 이해할 수 있는 한국어 메시지로 변환한다."""
+    msg = str(e).lower()
+
+    if "api_key_invalid" in msg or "api key not found" in msg or "invalid api key" in msg:
+        return "⚠ API 키가 설정되지 않았거나 유효하지 않습니다. /setting set gemini_key <키> 로 설정해주세요."
+
+    if "429" in msg or "quota" in msg or "rate limit" in msg or "resource_exhausted" in msg:
+        return "⚠ API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+
+    if "계정 인증이 필요합니다" in str(e) or "api key" in msg:
+        return "⚠ API 키가 설정되지 않았습니다. /setting set gemini_key <키> 로 설정해주세요."
+
+    if "timeout" in msg or "connection" in msg or "network" in msg:
+        return "⚠ AI 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요."
+
+    if "할당량" in str(e):
+        return "⚠ API 할당량이 소진되었습니다. 잠시 후 다시 시도해주세요."
+
+    return "⚠ AI 서비스 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
 
 
 # ──────────────────────────────────────────────
@@ -55,8 +85,6 @@ async def _call_llm(messages: List[Dict[str, str]], provider=None) -> str:
     if provider is None:
         provider = _get_default_provider()
 
-    # provider의 generate 메서드 호출
-    # 기존 LLMProvider 인터페이스 활용
     try:
         prompt_parts = []
         system_content = ""
@@ -75,7 +103,8 @@ async def _call_llm(messages: List[Dict[str, str]], provider=None) -> str:
         response = await provider.generate(full_prompt)
         return response
     except Exception as e:
-        return f"[LLM 호출 오류] {e}"
+        logger.error(f"LLM 호출 실패: {e}", exc_info=True)
+        return _format_user_error(e)
 
 
 def _get_default_provider():

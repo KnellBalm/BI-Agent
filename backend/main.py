@@ -14,7 +14,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 warnings.filterwarnings("ignore")
-logging.basicConfig(level=logging.CRITICAL)
+
+# 루트 로거 콘솔 출력 차단 (외부 라이브러리 로그 억제)
+_root = logging.getLogger()
+_root.setLevel(logging.CRITICAL)
+for _h in _root.handlers[:]:
+    _root.removeHandler(_h)
 
 load_dotenv()
 
@@ -51,7 +56,7 @@ BANNER = """
 
 COMMAND_NAMES = [
     "/help", "/quit", "/exit", "/clear",
-    "/list", "/connect",
+    "/list", "/connect", "/setting",
     "/thinking", "/run", "/expert",
     "/init", "/build",
     "/analysis-new", "/analysis-quick", "/analysis-status",
@@ -64,6 +69,7 @@ HELP_TEXT = """
   [cyan]/clear[/cyan]             화면 초기화
   [cyan]/quit[/cyan], [cyan]/exit[/cyan]      종료
   [cyan]/list[/cyan]              연결된 데이터 소스 목록
+  [cyan]/setting[/cyan]           설정 관리 (API 키, 모델 등)
 
 [bold]── 마크다운 중심 분석 ──[/bold]
   [cyan]/thinking[/cyan] [idea]   분석 아이디어를 마크다운 계획서 초안으로 확장
@@ -201,6 +207,56 @@ async def repl():
                 console.print(f"[red]오류: {e}[/red]")
             continue
 
+        # ── /setting: 설정 관리 ──
+
+        elif cmd == "/setting":
+            parts = user_input.split(maxsplit=3)
+            sub = parts[1] if len(parts) > 1 else "list"
+
+            try:
+                from backend.utils.setting_manager import setting_manager, SETTING_KEYS
+
+                if sub == "list" or sub == "/setting":
+                    settings = setting_manager.get_all()
+                    t = Table(title="⚙ 현재 설정", box=box.SIMPLE, show_header=True, header_style="bold")
+                    t.add_column("키", style="cyan")
+                    t.add_column("값")
+                    t.add_column("설명", style="dim")
+                    for k, v in settings.items():
+                        desc = SETTING_KEYS.get(k, "")
+                        t.add_row(k, str(v), desc)
+                    console.print(t)
+                    console.print("[dim]  /setting set <키> <값> 으로 변경[/dim]")
+
+                elif sub == "set":
+                    if len(parts) < 4:
+                        console.print("[yellow]사용법: /setting set <키> <값>[/yellow]")
+                        console.print(f"[dim]  지원 키: {', '.join(SETTING_KEYS.keys())}[/dim]")
+                    else:
+                        key, value = parts[2], parts[3]
+                        result = setting_manager.set(key, value)
+                        console.print(f"[green]{result}[/green]")
+
+                elif sub == "help":
+                    console.print("[bold]── 설정 도움말 ──[/bold]")
+                    console.print()
+                    for k, desc in SETTING_KEYS.items():
+                        console.print(f"  [cyan]{k:<15}[/cyan] {desc}")
+                    console.print()
+                    console.print("[bold]사용법:[/bold]")
+                    console.print("  [cyan]/setting[/cyan]              현재 설정 표시")
+                    console.print("  [cyan]/setting set[/cyan] <키> <값>  설정 변경")
+                    console.print("  [cyan]/setting help[/cyan]         이 도움말")
+                    console.print()
+                    console.print("[dim]예시: /setting set gemini_key AIza...[/dim]")
+
+                else:
+                    console.print(f"[dim]알 수 없는 서브 명령어: {sub}  (/setting help 참고)[/dim]")
+
+            except Exception as e:
+                console.print(f"[red]설정 오류: {e}[/red]")
+            continue
+
         # ── /thinking: 마크다운 초안 생성 ──
 
         elif cmd == "/thinking":
@@ -215,7 +271,7 @@ async def repl():
 
             with Live(Spinner("dots", text=Text(" 분석 계획서 초안 작성 중...", style="dim")),
                        console=console, refresh_per_second=12, transient=True):
-                draft = agent.thinking(idea)
+                draft = await agent.thinking(idea)
 
             # 파일 저장
             analyses_dir = Path("analyses")
@@ -252,7 +308,7 @@ async def repl():
 
             with Live(Spinner("dots", text=Text(" 문서 기반 분석 실행 중...", style="dim")),
                        console=console, refresh_per_second=12, transient=True):
-                answer = agent.run(prompt)
+                answer = await agent.run(prompt)
 
             console.print(answer)
 
@@ -293,7 +349,6 @@ async def repl():
 
         elif cmd == "/init":
             try:
-                import os
                 from backend.aac.plan_parser import PlanParser
                 plan_path = "plan.md"
                 if os.path.exists(plan_path):
@@ -312,7 +367,6 @@ async def repl():
 
         elif cmd == "/build":
             try:
-                import os
                 plan_path = "plan.md"
                 if not os.path.exists(plan_path):
                     console.print("[red]✗ plan.md 파일이 없습니다. /init 으로 먼저 생성하세요.[/red]")
@@ -531,7 +585,7 @@ async def repl():
             transient=True,
         ):
             try:
-                answer = agent.run(user_input)
+                answer = await agent.run(user_input)
             except Exception as e:
                 answer = f"오류가 발생했습니다: {e}"
 
