@@ -54,19 +54,32 @@ class GeminiProvider(LLMProvider):
         
         provider_data = auth_manager.get_provider_data("gemini")
         api_key = provider_data.get("key") or os.getenv("GEMINI_API_KEY")
-        token = provider_data.get("token")
+        token_data = provider_data.get("token")
 
-        if not api_key and not token:
-             raise ValueError("계정 인증이 필요합니다. TUI 메인 화면에서 로그인을 진행해주거나 API Key를 설정해 주세요.")
-
-        # API Key 우선 사용
+        # 1) API Key 우선 사용
         if api_key:
             self.client = genai.Client(api_key=api_key)
             return api_key
-        
-        # TODO: OAuth Token 사용 로직 (google-auth Credentials 객체 생성 필요)
-        # 현재는 안내 메시지로 대체
-        raise NotImplementedError("OAuth 토큰 기반 인증은 개발 중입니다. 현재는 API Key를 사용해 주세요.")
+
+        # 2) OAuth Token 사용
+        if token_data and isinstance(token_data, dict):
+            access_token = auth_manager.ensure_valid_token("gemini")
+            if access_token:
+                try:
+                    from google.oauth2.credentials import Credentials
+                    creds = Credentials(token=access_token)
+                    self.client = genai.Client(credentials=creds)
+                    logger.info("GeminiProvider initialized with OAuth token")
+                    return access_token
+                except ImportError:
+                    logger.warning("google-auth not installed, cannot use OAuth token")
+                except Exception as e:
+                    logger.error(f"Failed to initialize with OAuth token: {e}")
+
+        raise ValueError(
+            "계정 인증이 필요합니다. /setting login gemini 으로 로그인하거나, "
+            "/setting set gemini_key <키> 로 API Key를 설정해 주세요."
+        )
 
     async def generate(self, prompt: str) -> str:
         if not quota_manager.can_use_provider("gemini"):

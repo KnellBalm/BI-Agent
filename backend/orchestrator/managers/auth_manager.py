@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import webbrowser
@@ -89,21 +90,102 @@ class AuthManager:
 
     async def login_with_google_oauth(self) -> bool:
         """
-        웹 브라우저를 통해 Google 계정 로그인을 처리하고 OAuth 토큰을 획득합니다.
-        AI Studio의 무료 티어 API를 사용하기 위해 Google OAuth 2.0 흐름을 시뮬레이션하거나 처리합니다.
+        Google OAuth 2.0 PKCE 플로우를 실행하여 토큰을 획득/저장한다.
+        브라우저가 열리고, 사용자가 로그인하면 자동으로 토큰이 저장된다.
         """
         try:
-            # AI Studio API Key 발급 페이지 안내가 가장 확실한 '구독 혜택 활용' 방법임
-            url = "https://aistudio.google.com/app/apikey"
-            console_msg = "\n[bold cyan]Google AI Studio[/bold cyan]로 이동하여 API Key를 발급받으세요."
-            console_msg += "\n유료 구독(Gemini Pro) 계정으로 로그인 시 높은 할당량의 무료 티어를 쓸 수 있습니다."
-            
-            # TUI 환경이 아닐 경우 목적으로 간단히 브라우저만 오픈
-            webbrowser.open(url)
-            return True
+            from backend.orchestrator.managers.oauth_handler import google_oauth_login
+
+            tokens = await asyncio.to_thread(google_oauth_login)
+            if tokens:
+                self.set_provider_token("gemini", tokens)
+                logger.info("Google OAuth login successful, tokens saved")
+                return True
+            else:
+                logger.warning("Google OAuth login failed or was cancelled")
+                return False
         except Exception as e:
             logger.error(f"OAuth login flow error: {e}")
             return False
+
+    async def login_provider(self, provider: str) -> tuple[bool, str]:
+        """
+        Provider별 로그인 플로우를 실행한다.
+
+        Returns:
+            (성공 여부, 사용자 안내 메시지)
+        """
+        if provider == "gemini":
+            client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+            if not client_id:
+                return False, (
+                    "⚠ Google OAuth를 사용하려면 GCP에서 OAuth Client ID를 발급받아야 합니다.\n"
+                    "  1. https://console.cloud.google.com/apis/credentials 에서 앱 등록\n"
+                    "  2. 환경변수에 설정:\n"
+                    "     GOOGLE_OAUTH_CLIENT_ID=<client_id>\n"
+                    "     GOOGLE_OAUTH_CLIENT_SECRET=<client_secret>\n"
+                    "\n"
+                    "  또는 AI Studio에서 API 키 발급 후:\n"
+                    "     /setting set gemini_key <키>"
+                )
+            success = await self.login_with_google_oauth()
+            if success:
+                return True, "✓ Google 계정 로그인 성공! 토큰이 저장되었습니다."
+            return False, "⚠ Google 로그인이 취소되었거나 실패했습니다. 다시 시도해주세요."
+
+        elif provider == "claude":
+            return False, (
+                "⚠ Anthropic(Claude)은 서드파티 앱의 OAuth 로그인을 지원하지 않습니다.\n"
+                "  API 키를 직접 복사하여 설정해주세요:\n"
+                "  1. https://console.anthropic.com/settings/keys 에서 키 생성\n"
+                "  2. /setting set claude_key <키>"
+            )
+
+        elif provider == "openai":
+            return False, (
+                "⚠ OpenAI는 서드파티 앱의 개인 OAuth 로그인을 지원하지 않습니다.\n"
+                "  API 키를 직접 복사하여 설정해주세요:\n"
+                "  1. https://platform.openai.com/api-keys 에서 키 생성\n"
+                "  2. /setting set openai_key <키>"
+            )
+
+        return False, f"⚠ 알 수 없는 프로바이더: {provider}"
+
+    def ensure_valid_token(self, provider: str) -> Optional[str]:
+        """
+        토큰이 만료되었으면 갱신하고 유효한 access_token을 반환한다.
+        API 키 방식이면 None을 반환한다 (호출자가 API 키를 사용해야 함).
+        """
+        data = self.get_provider_data(provider)
+        token_data = data.get("token")
+
+        if not token_data or not isinstance(token_data, dict):
+            return None
+
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return None
+
+        # 만료 확인
+        from backend.orchestrator.managers.oauth_handler import is_token_expired, refresh_access_token
+
+        if not is_token_expired(token_data):
+            return access_token
+
+        # Refresh 시도
+        refresh_token = token_data.get("refresh_token")
+        if not refresh_token:
+            logger.warning(f"{provider} token expired and no refresh token available")
+            return None
+
+        logger.info(f"Refreshing expired {provider} token...")
+        new_tokens = refresh_access_token(refresh_token)
+        if new_tokens:
+            self.set_provider_token(provider, new_tokens)
+            return new_tokens["access_token"]
+
+        logger.error(f"Failed to refresh {provider} token")
+        return None
 
     async def verify_key(self, provider: str, key: str) -> bool:
         """

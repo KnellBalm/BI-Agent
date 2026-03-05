@@ -21,6 +21,11 @@ _root.setLevel(logging.CRITICAL)
 for _h in _root.handlers[:]:
     _root.removeHandler(_h)
 
+# 주요 시끄러운 로거들 개별 침묵
+for noisy in ("httpcore", "httpx", "google_genai", "urllib3", "google.auth", "google_genai.models"):
+    logging.getLogger(noisy).setLevel(logging.CRITICAL)
+    logging.getLogger(noisy).propagate = False
+
 load_dotenv()
 
 from rich.console import Console
@@ -34,13 +39,20 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.styles import Style as PTStyle
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.key_binding import KeyBindings
 
 console = Console()
 
 PROMPT_STYLE = PTStyle.from_dict({
     "prompt": "bold ansicyan",
     "bottom-toolbar": "bg:#1a1a2e #8888aa",
+    # completion menu — 배경에 녹아드는 미니멀 테마
+    "completion-menu": "bg:default #888888",
+    "completion-menu.completion": "bg:default #aaaaaa",
+    "completion-menu.completion.current": "bg:#333333 #ffffff bold",
+    "completion-menu.meta.completion": "bg:default #666666 italic",
+    "completion-menu.meta.completion.current": "bg:#333333 #aaaaaa italic",
 })
 
 HISTORY_FILE = os.path.expanduser("~/.bi-agent/repl_history")
@@ -54,58 +66,164 @@ BANNER = """
 [bold cyan]                     /____/                  [/bold cyan]
 """
 
-COMMAND_NAMES = [
-    "/help", "/quit", "/exit", "/clear",
-    "/list", "/connect", "/setting",
-    "/thinking", "/run", "/expert",
-    "/init", "/build",
-    "/analysis-new", "/analysis-quick", "/analysis-status",
-    "/analysis-list", "/analysis-run", "/analysis-next", "/analysis-archive",
-]
+# ──────────────────────────────────────────────
+# 계층형 명령어 트리 (Nested Command Tree)
+# ──────────────────────────────────────────────
+# children 이 있는 명령어는 서브커맨드를 지원한다.
+COMMAND_TREE: dict = {
+    "/help":    {"meta": "Show this help message"},
+    "/quit":    {"meta": "Exit the application"},
+    "/exit":    {"meta": "Exit the application"},
+    "/clear":   {"meta": "Clear the screen"},
+    "/list":    {"meta": "Show connected data sources"},
+    "/connect": {"meta": "Connect to a new data source"},
+    "/setting": {
+        "meta": "Manage settings, API keys, OAuth login",
+        "children": {
+            "list":  {"meta": "Show current settings"},
+            "set":   {
+                "meta": "Update a setting value",
+                "children": {
+                    "gemini_key": {"meta": "Gemini API key"},
+                    "claude_key": {"meta": "Claude API key"},
+                    "openai_key": {"meta": "OpenAI API key"},
+                    "model":      {"meta": "Default LLM model (e.g. gemini-2.5-flash)"},
+                    "language":   {"meta": "Response language (ko, en, ja)"},
+                },
+            },
+            "login": {
+                "meta": "OAuth login to a provider",
+                "children": {
+                    "gemini": {"meta": "Google OAuth"},
+                    "claude": {"meta": "Claude API key entry"},
+                    "openai": {"meta": "OpenAI API key entry"},
+                },
+            },
+            "help":  {"meta": "Show setting help details"},
+        },
+    },
+    "/thinking":         {"meta": "Expand an idea into a markdown analysis plan"},
+    "/run":              {"meta": "Execute an analysis from a markdown plan"},
+    "/expert":           {"meta": "LangChain Expert mode deep-dive analysis"},
+    "/init":             {"meta": "Generate plan.md template in current dir"},
+    "/build":            {"meta": "Run the analysis pipeline from plan.md"},
+    "/analysis-new":     {"meta": "Create a new ALIVE analysis session"},
+    "/analysis-quick":   {"meta": "Run a quick single-file analysis"},
+    "/analysis-status":  {"meta": "Check current analysis status"},
+    "/analysis-list":    {"meta": "Show all analysis sessions"},
+    "/analysis-run":     {"meta": "Execute BI-EXEC block of current stage"},
+    "/analysis-next":    {"meta": "Transition to the next stage"},
+    "/analysis-archive": {"meta": "Archive the current analysis session"},
+}
+
+COMMAND_NAMES = list(COMMAND_TREE.keys())
+
+
+class SlashCompleter(Completer):
+    """/로 시작하는 계층형 명령어 자동완성 엔진.
+
+    입력 토큰 수에 따라 올바른 depth의 후보를 제안한다.
+    예) "/"        → 1-depth 전체
+        "/setting " → 2-depth (login, set, list, help)
+        "/setting login " → 3-depth (gemini, claude, openai)
+    """
+
+    def get_completions(self, document, complete_event):
+        text = document.text_before_cursor
+        if not text.startswith("/"):
+            return
+
+        parts = text.split()
+        # 커서 바로 앞이 공백이면 다음 depth 진입
+        trailing_space = text.endswith(" ")
+
+        if not trailing_space and len(parts) <= 1:
+            # 1-depth: 메인 명령어 매칭
+            word = parts[0] if parts else "/"
+            for cmd, node in COMMAND_TREE.items():
+                if cmd.startswith(word):
+                    yield Completion(
+                        cmd,
+                        start_position=-len(word),
+                        display=cmd,
+                        display_meta=node.get("meta", ""),
+                    )
+        else:
+            # 2-depth 이상: 부모 노드를 찾아서 children 제안
+            main_cmd = parts[0]  # e.g. "/setting"
+            node = COMMAND_TREE.get(main_cmd)
+            if not node or "children" not in node:
+                return
+
+            # depth 를 따라 내려가기
+            children = node["children"]
+            depth_parts = parts[1:]  # e.g. ["login", "gem"]
+
+            # 이미 완성된 중간 토큰을 따라 내려감
+            while len(depth_parts) > 1 or (len(depth_parts) == 1 and trailing_space):
+                if not depth_parts:
+                    break
+                token = depth_parts[0]
+                child_node = children.get(token)
+                if child_node and "children" in child_node:
+                    children = child_node["children"]
+                    depth_parts = depth_parts[1:]
+                else:
+                    if trailing_space and len(depth_parts) == 1:
+                        child_node = children.get(depth_parts[0])
+                        if child_node and "children" in child_node:
+                            children = child_node["children"]
+                            depth_parts = []
+                        else:
+                            return
+                    else:
+                        break
+
+            # 현재 depth 에서 매칭
+            word = depth_parts[0] if depth_parts else ""
+            for sub, sub_node in children.items():
+                if sub.startswith(word):
+                    yield Completion(
+                        sub,
+                        start_position=-len(word),
+                        display=sub,
+                        display_meta=sub_node.get("meta", ""),
+                    )
 
 HELP_TEXT = """
-[bold]── 기본 명령어 ──[/bold]
-  [cyan]/help[/cyan]              이 도움말 표시
-  [cyan]/clear[/cyan]             화면 초기화
-  [cyan]/quit[/cyan], [cyan]/exit[/cyan]      종료
-  [cyan]/list[/cyan]              연결된 데이터 소스 목록
-  [cyan]/setting[/cyan]           설정 관리 (API 키, 모델 등)
+[bold]── 기본 명령어 (System) ──[/bold]
+  [cyan]/help[/cyan]              명령어 상세 도움말 표시 (Show detailed help)
+  [cyan]/clear[/cyan]             화면 초기화 (Clear screen)
+  [cyan]/quit[/cyan], [cyan]/exit[/cyan]      프로그램 종료 (Exit application)
 
-[bold]── 마크다운 중심 분석 ──[/bold]
-  [cyan]/thinking[/cyan] [idea]   분석 아이디어를 마크다운 계획서 초안으로 확장
-  [cyan]/run[/cyan] [file.md]     마크다운 문서 기반 분석 실행
-  [cyan]/expert[/cyan] [질문]     LangChain 기반 Expert 모드 심층 분석
+[bold]── 연결 및 설정 (Connection & Config) ──[/bold]
+  [cyan]/list[/cyan]              현재 연동된 데이터 소스(DB) 목록 확인
+  [cyan]/connect[/cyan]           새로운 데이터 소스 연동
+  [cyan]/setting[/cyan]           [LLM API Key / 언어 / 모델] 설정 관리
 
-[bold]── AaC (Analysis as Code) ──[/bold]
-  [cyan]/init[/cyan]              현재 디렉토리에 plan.md 템플릿 생성
-  [cyan]/build[/cyan]             plan.md 분석 파이프라인 실행
+[bold]── 마크다운 & 대화형 분석 (Markdown & Chat) ──[/bold]
+  [cyan]/thinking[/cyan] [idea]   간단한 아이디어를 구체적인 마크다운 계획서 초안으로 확장
+  [cyan]/run[/cyan] [file.md]     마크다운 문서의 절차에 따라 분석 자동 실행
+  [cyan]/expert[/cyan] [질문]     LangChain 기반 Expert 모드로 복잡한 질문 심층 분석
 
-[bold]── ALIVE 분석 ──[/bold]
-  [cyan]/analysis-new[/cyan] [제목]      새 ALIVE 분석 생성
-  [cyan]/analysis-quick[/cyan] [질문]    퀵 단일파일 분석 생성
-  [cyan]/analysis-status[/cyan]          현재 분석 상태 확인
-  [cyan]/analysis-list[/cyan]            모든 분석 목록
-  [cyan]/analysis-run[/cyan]             현재 스테이지 BI-EXEC 블록 실행
-  [cyan]/analysis-next[/cyan]            다음 스테이지로 전환
-  [cyan]/analysis-archive[/cyan]         현재 분석 아카이브
+[bold]── AaC (Analysis as Code) 파이프라인 ──[/bold]
+  [cyan]/init[/cyan]              현재 디렉토리에 실행 가능한 plan.md 템플릿 생성
+  [cyan]/build[/cyan]             plan.md에 정의된 분석 파이프라인 전체 실행
 
-[bold]── 자연어 질문 ──[/bold]
-  그냥 질문하세요. AI가 자율적으로 DB를 조회하고 답변합니다.
+[bold]── ALIVE 분석 플로우 (ALIVE Session) ──[/bold]
+  [cyan]/analysis-new[/cyan] [제목]      새로운 ALIVE 분석 세션 생성
+  [cyan]/analysis-quick[/cyan] [질문]    단일 파일을 대상으로 빠른 분석 생성
+  [cyan]/analysis-status[/cyan]          현재 활성화된 분석의 진행 상태 확인
+  [cyan]/analysis-list[/cyan]            전체 분석 세션 목록 표시
+  [cyan]/analysis-run[/cyan]             현재 스테이지의 BI-EXEC 블록(코드) 실행
+  [cyan]/analysis-next[/cyan]            분석을 다음 스테이지로 강제 전환
+  [cyan]/analysis-archive[/cyan]         현재 분석 화면 및 데이터를 아카이브 저장
 
-  > 월별 매출 트렌드를 분석해줘
-  > 이번 분기 가장 많이 팔린 상품 TOP 10은?
+[bold]── 자연어 질문 (Natural Language) ──[/bold]
+  / 없이 평문으로 질문하시면 AI가 연결된 DB를 자동 조회하여 답변합니다.
+  [dim]> 월별 매출 트렌드를 분석해줘[/dim]
+  [dim]> 이번 분기 가장 많이 팔린 상품 TOP 10은?[/dim]
 """
-
-
-def print_banner(conn_info: str = "연결 없음"):
-    console.clear()
-    console.print(BANNER)
-    console.print(
-        f"  [dim]v2.0.0 (Naked)[/dim]  [dim]·[/dim]  "
-        f"[green]●[/green] [dim]{conn_info}[/dim]  [dim]·[/dim]  "
-        f"[dim]/help 로 도움말[/dim]"
-    )
-    console.print()
 
 
 def get_conn_info() -> tuple:
@@ -126,8 +244,66 @@ def get_conn_info() -> tuple:
     return None, "연결 없음"
 
 
-def make_toolbar(conn_display: str):
-    return f" ● {conn_display}  │  /help"
+def get_status_info() -> dict:
+    """현재 CLI 상태를 한눈에 보여주기 위한 정보를 수집한다."""
+    status = {"model": "?", "auth": "미설정", "db": "연결 없음"}
+
+    # 모델
+    try:
+        from backend.utils.setting_manager import setting_manager
+        model = setting_manager.get("model")
+        if model and model != "(미설정)":
+            status["model"] = model
+    except Exception:
+        pass
+
+    # 인증 방식
+    try:
+        from backend.orchestrator.managers.auth_manager import auth_manager
+        gemini_data = auth_manager.get_provider_data("gemini")
+        has_key = bool(gemini_data.get("key") or os.getenv("GEMINI_API_KEY"))
+        has_token = bool(
+            gemini_data.get("token")
+            and isinstance(gemini_data["token"], dict)
+            and gemini_data["token"].get("access_token")
+        )
+        if has_token:
+            status["auth"] = "OAuth"
+        elif has_key:
+            status["auth"] = "API Key"
+    except Exception:
+        pass
+
+    # DB 연결
+    _, conn_display = get_conn_info()
+    status["db"] = conn_display
+
+    return status
+
+
+def print_banner(conn_info: str = "연결 없음"):
+    console.clear()
+    console.print(BANNER)
+    info = get_status_info()
+    console.print(
+        f"  [dim]v2.0.0 (Naked)[/dim]  [dim]·[/dim]  "
+        f"[bold cyan]{info['model']}[/bold cyan]  [dim]·[/dim]  "
+        f"[green]●[/green] [dim]{info['auth']}[/dim]  [dim]·[/dim]  "
+        f"[dim]{info['db']}[/dim]  [dim]·[/dim]  "
+        f"[dim]/help 로 도움말[/dim]"
+    )
+    console.print()
+
+
+def make_toolbar(conn_display: str = ""):
+    """하단 툴바에 모델, 인증 방식, DB 정보를 실시간 표시한다."""
+    info = get_status_info()
+    return (
+        f" Model: {info['model']}  │  "
+        f"Auth: {info['auth']}  │  "
+        f"DB: {info['db']}  │  "
+        f"/help"
+    )
 
 
 async def repl():
@@ -144,14 +320,37 @@ async def repl():
     conn_id, conn_display = get_conn_info()
     print_banner(conn_display)
 
-    completer = WordCompleter(COMMAND_NAMES, sentence=True)
+    completer = SlashCompleter()
+
+    # Tab = 현재 선택 항목을 확정(입력창에 삽입) + 공백 추가
+    kb = KeyBindings()
+    @kb.add("tab")
+    def _(event):
+        b = event.app.current_buffer
+        if b.text.startswith("/"):
+            if b.complete_state:
+                cc = b.complete_state.current_completion
+                if cc is None:
+                    # 메뉴는 떠있지만 선택이 안 된 상태 → 첫 항목 선택
+                    b.complete_next()
+                    cc = b.complete_state and b.complete_state.current_completion
+                if cc:
+                    b.apply_completion(cc)
+                    b.insert_text(" ")
+            else:
+                b.start_completion(select_first=True)
+        else:
+            b.insert_text("    ")
 
     session: PromptSession = PromptSession(
         history=FileHistory(HISTORY_FILE),
         auto_suggest=AutoSuggestFromHistory(),
         completer=completer,
+        complete_while_typing=True,
+        reserve_space_for_menu=6,
+        key_bindings=kb,
         style=PROMPT_STYLE,
-        bottom_toolbar=lambda: make_toolbar(conn_display),
+        bottom_toolbar=lambda: make_toolbar(),
     )
 
     while True:
@@ -228,6 +427,18 @@ async def repl():
                     console.print(t)
                     console.print("[dim]  /setting set <키> <값> 으로 변경[/dim]")
 
+                elif sub == "login":
+                    provider = parts[2] if len(parts) > 2 else "gemini"
+                    valid_providers = ["gemini", "claude", "openai"]
+                    if provider not in valid_providers:
+                        console.print(f"[yellow]지원 프로바이더: {', '.join(valid_providers)}[/yellow]")
+                    else:
+                        from backend.orchestrator.managers.auth_manager import auth_manager
+                        console.print(f"[dim]  {provider} 로그인을 시도합니다...[/dim]")
+                        success, msg = await auth_manager.login_provider(provider)
+                        style = "green" if success else "yellow"
+                        console.print(f"[{style}]{msg}[/{style}]")
+
                 elif sub == "set":
                     if len(parts) < 4:
                         console.print("[yellow]사용법: /setting set <키> <값>[/yellow]")
@@ -244,11 +455,13 @@ async def repl():
                         console.print(f"  [cyan]{k:<15}[/cyan] {desc}")
                     console.print()
                     console.print("[bold]사용법:[/bold]")
-                    console.print("  [cyan]/setting[/cyan]              현재 설정 표시")
-                    console.print("  [cyan]/setting set[/cyan] <키> <값>  설정 변경")
-                    console.print("  [cyan]/setting help[/cyan]         이 도움말")
+                    console.print("  [cyan]/setting[/cyan]                  현재 설정 표시")
+                    console.print("  [cyan]/setting set[/cyan] <키> <값>      설정 변경")
+                    console.print("  [cyan]/setting login[/cyan] [provider]  OAuth 로그인 (gemini)")
+                    console.print("  [cyan]/setting help[/cyan]             이 도움말")
                     console.print()
                     console.print("[dim]예시: /setting set gemini_key AIza...[/dim]")
+                    console.print("[dim]예시: /setting login gemini[/dim]")
 
                 else:
                     console.print(f"[dim]알 수 없는 서브 명령어: {sub}  (/setting help 참고)[/dim]")

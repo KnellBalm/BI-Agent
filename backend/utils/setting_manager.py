@@ -31,6 +31,9 @@ SETTING_KEYS = {
     "gemini_key":  "Gemini API 키",
     "claude_key":  "Claude API 키",
     "openai_key":  "OpenAI API 키",
+    "gemini_oauth": "Google OAuth 연결 상태",
+    "claude_oauth": "Claude OAuth 연결 상태",
+    "openai_oauth": "OpenAI OAuth 연결 상태",
     "model":       "기본 LLM 모델 (예: gemini-2.0-flash)",
     "language":    "응답 언어 (ko, en, ja, ...)",
 }
@@ -53,7 +56,7 @@ class SettingManager:
 
         result = {}
 
-        # API Keys (마스킹)
+        # API Keys (마스킹) + OAuth 토큰 상태
         for setting_key, provider in _API_KEY_MAP.items():
             raw = auth_manager.get_provider_data(provider).get("key")
             if not raw:
@@ -61,6 +64,16 @@ class SettingManager:
                 env_map = {"gemini": "GEMINI_API_KEY", "claude": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
                 raw = os.getenv(env_map.get(provider, ""))
             result[setting_key] = self._mask(raw) if raw else "(미설정)"
+
+        # OAuth 토큰 상태
+        for provider in ["gemini", "claude", "openai"]:
+            token_data = auth_manager.get_provider_data(provider).get("token")
+            if token_data and isinstance(token_data, dict) and token_data.get("access_token"):
+                from backend.orchestrator.managers.oauth_handler import is_token_expired
+                status = "⏳ 만료됨" if is_token_expired(token_data) else "✓ 활성"
+                result[f"{provider}_oauth"] = status
+            else:
+                result[f"{provider}_oauth"] = "(미연결)"
 
         # Preferences
         prefs = self._load_preferences()

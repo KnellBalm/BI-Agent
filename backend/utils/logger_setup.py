@@ -53,8 +53,9 @@ def get_unified_debug_handler():
             
             # 외부 라이브러리 로거 콘솔 노출 억제
             for noisy in ("httpcore", "httpx", "google_genai", "urllib3",
-                          "google.auth", "google.auth.transport", "hpack"):
-                logging.getLogger(noisy).setLevel(logging.WARNING)
+                          "google.auth", "google.auth.transport", "hpack",
+                          "google_genai.models"):
+                logging.getLogger(noisy).setLevel(logging.CRITICAL)
     
     return _unified_handler
 
@@ -76,9 +77,9 @@ def setup_logger(name: str = "bi_agent", log_file: str = "bi_agent.log", level=l
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
-    # Console Handler (WARNING 이상만 표시 — 사용자에게 불필요한 로그 숨김)
+    # Console Handler (CRITICAL 이상만 표시 — 사용자에게 로깅 노이즈 노출 차단)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)
+    console_handler.setLevel(logging.CRITICAL)
     console_handler.setFormatter(formatter)
 
     # Module-specific File Handler (10MB per file, keep 3 backups)
@@ -102,7 +103,7 @@ def setup_logger(name: str = "bi_agent", log_file: str = "bi_agent.log", level=l
         logger.addHandler(console_handler)
         if file_handler is not None:
             logger.addHandler(file_handler)
-        logger.info(f"Logger '{name}' initialized with unified debug logging")
+        logger.debug(f"Logger '{name}' initialized with unified debug logging")
         
     return logger
 
