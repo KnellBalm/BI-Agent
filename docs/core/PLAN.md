@@ -4,13 +4,15 @@
 
 ---
 
-## 🎯 Recent Updates (2026-02-19)
+## 🎯 Recent Updates (2026-03-06)
 
-**V2.3.0-development** 릴리스를 통해 다음을 달성했습니다:
-- ✅ **Phase 4 Step 11~12 전체 구현**: ChartRecommender, ThemeEngine(5종), LayoutCalculator, InteractionLogic, DrilldownMapper
-- ✅ **Phase 5 Step 13~15 전체 구현**: SummaryGenerator, ReportLinter, JSONValidator, ExportPackager
-- ✅ **E2E 테스트 스위트 구축**: 77개 E2E 테스트 (4개 시나리오), 총 387개 이상 테스트 통과
-- ✅ **AgenticOrchestrator 13개 도구 레지스트리**: 모든 BI 파이프라인 도구 통합 검증
+**V0.1.1-development** 릴리스를 통해 다음을 달성했습니다:
+- ✅ **CLI v3 TUI 전면 재구축**: `prompt_toolkit Application(full_screen=True)` 기반 3-panel 레이아웃 (고정 헤더 + 스크롤 출력 + 고정 입력)
+- ✅ **모듈러 아키텍처 전환**: 모놀리식 `main.py` (827줄) → `backend/cli/` 패키지 (app, layout, commands, handlers/)
+- ✅ **명령어 네임스페이스 재편**: `/explore`, `/project`, `/report`, `/analysis`, `/status`, `/connect`, `/setting` 계층 구조
+- ✅ **BI-Agent 마스코트 및 상태 헤더**: 멀티컬러 노드 캐릭터 + 우측 정보 표시 (Claude CLI 스타일)
+
+이전 마일스톤: V2.3.0-development (Phase 4~5 전체 완료 + E2E 테스트)
 
 상세 변경 내역은 [CHANGELOG.md](./CHANGELOG.md)를 참조하세요.
 
@@ -108,6 +110,31 @@
 - [x] InHouse JSON 최종 빌드 및 스키마 정합성 검증 (`JSONValidator`)
 - [x] Excel/PDF 리포트 패키징 및 gzip 압축 지원 (`ExportPackager`)
 - [ ] **Note**: Tableau .twb 내보내기는 향후 단계로 연기됨
+
+---
+
+### [Phase 6: CLI v3 — TUI 전면 재구축 ✅]
+#### **Step 16. 모듈러 아키텍처 전환**
+- [x] 모놀리식 `main.py` (827줄) → `backend/cli/` 패키지 분리
+- [x] `app.py` (TUI Application), `layout.py` (헤더 빌드), `commands.py` (COMMAND_TREE + SlashCompleter)
+- [x] `handlers/` 디렉터리: explore, project, report, connect, setting, analysis 핸들러
+- [x] `bi-agent` CLI 엔트리포인트 정상화 (`__init__.py` → `main()` export)
+
+#### **Step 17. prompt_toolkit full-screen 3-panel TUI**
+- [x] `Application(full_screen=True)` + `HSplit` 고정 레이아웃 (헤더 4줄 고정 / 출력 스크롤 / 입력 1줄 고정)
+- [x] 멀티컬러 노드 마스코트(◉) + 우측 정보 표시 (Claude CLI 스타일 헤더)
+- [x] 입력 자동완성 (`SlashCompleter` + Tab 동작 커스텀 바인딩)
+- [x] 출력 자동 스크롤 (`Buffer.set_document` + `bypass_readonly`)
+- [x] 핸들러 출력 캡처 메커니즘 (`Console(file=StringIO)` → `output_buffer` 합류)
+
+#### **Step 18. 명령어 네임스페이스 재편**
+- [x] `/explore` — schema, query, preview (DB 직접 조회)
+- [x] `/project` — new, list, open, status (프로젝트 관리)
+- [x] `/report` — new, list, show, edit, append (마크다운 리포트 CRUD)
+- [x] `/status` — 현재 에이전트 상세 상태 (모델, 인증, DB, 프로젝트, 활성 분석)
+- [x] `/connect` — sqlite, excel, pg 데이터 소스 등록 + 헤더 즉시 반영
+- [x] `/setting` — 설정 관리, OAuth 로그인, API 키 변경
+- [x] `/analysis` — ALIVE 분석 파이프라인 (new, run, next, status, list, archive)
 
 ---
 

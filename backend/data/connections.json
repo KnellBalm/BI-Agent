@@ -18,5 +18,14 @@
             "user": "",
             "password": ""
         }
+    },
+    "suwon": {
+        "type": "postgresql",
+        "config": {
+            "path": "/Users/zokr/python_workspace/BI-Agent/postgresql::/odp:odp.123@192.168.106.6:5432/suwon",
+            "name": "suwon"
+        },
+        "ssh": null,
+        "name": "suwon"
     }
 }

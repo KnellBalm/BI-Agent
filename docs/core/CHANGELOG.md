@@ -4,6 +4,56 @@
 
 ---
 
+## 2026-03-06 (v0.1.1-development) 🖥️
+
+### Major Highlights: "CLI v3 — TUI 전면 재구축 + 명령어 네임스페이스 재편"
+
+기존 모놀리식 REPL을 `prompt_toolkit Application(full_screen=True)` 기반 3-panel 대시보드 TUI로 완전히 재구축했습니다. 고정 헤더, 스크롤 출력 영역, 고정 입력창이 분리되어 터미널 대시보드 경험을 제공합니다.
+
+### 🟢 Added (신규 기능)
+
+#### Phase 6 Step 16: 모듈러 아키텍처 전환
+- **모놀리식 분해**: `main.py` (827줄) → `backend/cli/` 패키지
+  - `app.py`: `BIAgentTUI` 클래스 (prompt_toolkit Application, 명령 처리)
+  - `layout.py`: 헤더 빌드 (`build_header_text`)
+  - `commands.py`: `COMMAND_TREE` + `SlashCompleter` (계층적 자동완성)
+  - `__init__.py`: `main()` 함수 export (`bi-agent` CLI 엔트리포인트)
+- **핸들러 디렉터리** (`handlers/`):
+  - `explore_handler.py`: `/explore` (schema, query, preview)
+  - `project_handler.py`: `/project` (new, list, open, status)
+  - `report_handler.py`: `/report` (new, list, show, edit, append)
+
+#### Phase 6 Step 17: prompt_toolkit full-screen 3-panel TUI
+- **`BIAgentTUI` 클래스**: `Application(full_screen=True)` + `HSplit` 레이아웃
+  - 고정 헤더 (4줄): `FormattedTextControl` + ANSI escape 컬러
+  - 스크롤 출력 영역: `BufferControl(read_only=True)` + 자동 스크롤
+  - 고정 입력 (1줄): `BufferControl` + `BeforeInput("❯ ")`
+  - 구분선: `Window(char="─")` × 2
+- **BI-Agent 마스코트**: 멀티컬러 노드 캐릭터 (Cyan/Yellow/Green)
+- **상태 헤더**: 모델명, 인증 상태, 연결 DB, CWD를 마스코트 우측에 표시
+- **핸들러 출력 캡처**: `Console(file=StringIO, no_color=True)` → `output_buffer` 합류
+
+#### Phase 6 Step 18: 명령어 네임스페이스 재편
+- **`/status`** 신규: 모델, 인증, DB, 프로젝트, 활성 분석 등 현재 상태 상세 확인
+- **`/explore`** 신규: DB 스키마 조회, SQL 쿼리 실행, 테이블 미리보기
+- **`/project`** 신규: `.bi-project/` 기반 프로젝트 관리
+- **`/report`** 신규: 마크다운 리포트 CRUD
+- **`/connect`** 개선: 연결 후 헤더 즉시 반영 (`_refresh_header`)
+- **`/setting`** 개선: set, login, help 서브커맨드
+
+### 🟡 Improved (개선 사항)
+- **자동완성**: 계층적 `COMMAND_TREE` 기반 멀티레벨 Tab 자동완성
+- **Enter 키**: `asyncio.ensure_future` 기반 비동기 명령 처리
+- **`/connect` 동기화**: `conns[-1]` 참조로 최신 연결 정보를 헤더에 반영
+- **`/clear`**: 출력 영역만 초기화 + 헤더 갱신
+
+### 🔵 Architecture (아키텍처)
+- **ANSI scroll region 방식 폐기**: 입력 텍스트 미표시 + 출력 누락 이슈로 폐기
+- **prompt_toolkit Application 채택**: `full_screen=True` + `HSplit`으로 고정 패널 구현
+- **핸들러 분리**: 각 핸들러가 독립 모듈로 존재, `console` 인스턴스 교체 방식으로 출력 캡처
+
+---
+
 ## 2026-02-19 (v2.3.2-development) 🤖
 
 ### Major Highlights: "Step 14.2 Proactive Questions 완성"
@@ -38,12 +88,12 @@
 
 ### 📊 Test Coverage Summary
 
-| 카테고리 | 테스트 수 | 실행 시간 | 상태 |
-|----------|-----------|-----------|------|
-| E2E ProactiveQuestions | 22 | 3.40s | ✅ |
-| E2E ToolRegistry | 20 | <4s | ✅ (15개 도구) |
-| **전체 E2E** | **116** | **~10s** | **✅** |
-| **총 테스트** | **426+** | — | **✅** |
+| 카테고리               | 테스트 수 | 실행 시간 | 상태          |
+| ---------------------- | --------- | --------- | ------------- |
+| E2E ProactiveQuestions | 22        | 3.40s     | ✅             |
+| E2E ToolRegistry       | 20        | <4s       | ✅ (15개 도구) |
+| **전체 E2E**           | **116**   | **~10s**  | **✅**         |
+| **총 테스트**          | **426+**  | —         | **✅**         |
 
 ---
 
@@ -123,16 +173,16 @@
 
 ### 📊 Test Coverage Summary
 
-| 카테고리 | 테스트 수 | 실행 시간 | 상태 |
-|----------|-----------|-----------|------|
-| E2E Pipeline | 12 | <1s | ✅ |
-| E2E ToolRegistry | 20 | <1s | ✅ (14개 도구) |
-| E2E Quality | 13 | <1s | ✅ |
-| E2E Visualization | 32 | <1s | ✅ |
-| E2E PreviewServer | 17 | 4.42s | ✅ |
-| Phase 2 Unit | 106+ | — | ✅ |
-| Phase 3 Unit | 204+ | — | ✅ |
-| **전체** | **404+** | **~6s (E2E)** | **✅** |
+| 카테고리          | 테스트 수 | 실행 시간     | 상태          |
+| ----------------- | --------- | ------------- | ------------- |
+| E2E Pipeline      | 12        | <1s           | ✅             |
+| E2E ToolRegistry  | 20        | <1s           | ✅ (14개 도구) |
+| E2E Quality       | 13        | <1s           | ✅             |
+| E2E Visualization | 32        | <1s           | ✅             |
+| E2E PreviewServer | 17        | 4.42s         | ✅             |
+| Phase 2 Unit      | 106+      | —             | ✅             |
+| Phase 3 Unit      | 204+      | —             | ✅             |
+| **전체**          | **404+**  | **~6s (E2E)** | **✅**         |
 
 ---
 
@@ -257,13 +307,13 @@ Phase 0(Section 0) 완전 완성, 모든 P0 우선순위 이슈 해결, Step 5/6
 
 ### 📊 Test Coverage Summary
 
-| 모듈 | 테스트 수 | 커버리지 | 상태 |
-|------|----------|---------|------|
-| Intent 클래스 | 15 | 100% | ✅ |
-| 데이터 소스 | 20 | 96% | ✅ |
-| 오케스트레이터 | 12 | 90% | ✅ |
-| 통합 테스트 | 13 | 88% | ✅ |
-| **전체** | **60** | **94%** | **✅ Production-Ready** |
+| 모듈           | 테스트 수 | 커버리지 | 상태                   |
+| -------------- | --------- | -------- | ---------------------- |
+| Intent 클래스  | 15        | 100%     | ✅                      |
+| 데이터 소스    | 20        | 96%      | ✅                      |
+| 오케스트레이터 | 12        | 90%      | ✅                      |
+| 통합 테스트    | 13        | 88%      | ✅                      |
+| **전체**       | **60**    | **94%**  | **✅ Production-Ready** |
 
 ---
 

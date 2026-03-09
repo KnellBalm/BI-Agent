@@ -46,6 +46,7 @@ console = Console()
 
 PROMPT_STYLE = PTStyle.from_dict({
     "prompt": "bold ansicyan",
+    "status": "#666666",
     "bottom-toolbar": "bg:#1a1a2e #8888aa",
     # completion menu — 배경에 녹아드는 미니멀 테마
     "completion-menu": "bg:default #888888",
@@ -76,7 +77,14 @@ COMMAND_TREE: dict = {
     "/exit":    {"meta": "Exit the application"},
     "/clear":   {"meta": "Clear the screen"},
     "/list":    {"meta": "Show connected data sources"},
-    "/connect": {"meta": "Connect to a new data source"},
+    "/connect": {
+        "meta": "Connect to a new data source",
+        "children": {
+            "sqlite": {"meta": "Connect to a SQLite database file"},
+            "excel":  {"meta": "Connect to an Excel file"},
+            "pg":     {"meta": "Connect to PostgreSQL database"},
+        },
+    },
     "/setting": {
         "meta": "Manage settings, API keys, OAuth login",
         "children": {
@@ -107,13 +115,18 @@ COMMAND_TREE: dict = {
     "/expert":           {"meta": "LangChain Expert mode deep-dive analysis"},
     "/init":             {"meta": "Generate plan.md template in current dir"},
     "/build":            {"meta": "Run the analysis pipeline from plan.md"},
-    "/analysis-new":     {"meta": "Create a new ALIVE analysis session"},
-    "/analysis-quick":   {"meta": "Run a quick single-file analysis"},
-    "/analysis-status":  {"meta": "Check current analysis status"},
-    "/analysis-list":    {"meta": "Show all analysis sessions"},
-    "/analysis-run":     {"meta": "Execute BI-EXEC block of current stage"},
-    "/analysis-next":    {"meta": "Transition to the next stage"},
-    "/analysis-archive": {"meta": "Archive the current analysis session"},
+    "/analysis": {
+        "meta": "ALIVE analysis workflow",
+        "children": {
+            "new":     {"meta": "Create a new ALIVE analysis session"},
+            "quick":   {"meta": "Run a quick single-file analysis"},
+            "status":  {"meta": "Check current analysis status"},
+            "list":    {"meta": "Show all analysis sessions"},
+            "run":     {"meta": "Execute BI-EXEC block of current stage"},
+            "next":    {"meta": "Transition to the next stage"},
+            "archive": {"meta": "Archive the current analysis session"},
+        },
+    },
 }
 
 COMMAND_NAMES = list(COMMAND_TREE.keys())
@@ -211,13 +224,13 @@ HELP_TEXT = """
   [cyan]/build[/cyan]             plan.md에 정의된 분석 파이프라인 전체 실행
 
 [bold]── ALIVE 분석 플로우 (ALIVE Session) ──[/bold]
-  [cyan]/analysis-new[/cyan] [제목]      새로운 ALIVE 분석 세션 생성
-  [cyan]/analysis-quick[/cyan] [질문]    단일 파일을 대상으로 빠른 분석 생성
-  [cyan]/analysis-status[/cyan]          현재 활성화된 분석의 진행 상태 확인
-  [cyan]/analysis-list[/cyan]            전체 분석 세션 목록 표시
-  [cyan]/analysis-run[/cyan]             현재 스테이지의 BI-EXEC 블록(코드) 실행
-  [cyan]/analysis-next[/cyan]            분석을 다음 스테이지로 강제 전환
-  [cyan]/analysis-archive[/cyan]         현재 분석 화면 및 데이터를 아카이브 저장
+  [cyan]/analysis new[/cyan] [제목]       새로운 ALIVE 분석 세션 생성
+  [cyan]/analysis quick[/cyan] [질문]    단일 파일을 대상으로 빠른 분석 생성
+  [cyan]/analysis status[/cyan]          현재 활성화된 분석의 진행 상태 확인
+  [cyan]/analysis list[/cyan]            전체 분석 세션 목록 표시
+  [cyan]/analysis run[/cyan]             현재 스테이지의 BI-EXEC 블록(코드) 실행
+  [cyan]/analysis next[/cyan]            분석을 다음 스테이지로 강제 전환
+  [cyan]/analysis archive[/cyan]         현재 분석 화면 및 데이터를 아카이브 저장
 
 [bold]── 자연어 질문 (Natural Language) ──[/bold]
   / 없이 평문으로 질문하시면 AI가 연결된 DB를 자동 조회하여 답변합니다.
@@ -356,7 +369,15 @@ async def repl():
     while True:
         try:
             user_input = await session.prompt_async(
-                [("class:prompt", " > ")],
+                lambda: [
+                    ("class:status", f" {get_status_info()['model']}"),
+                    ("", " · "),
+                    ("class:status", f"{get_status_info()['auth']}"),
+                    ("", " · "),
+                    ("class:status", f"{get_status_info()['db']}"),
+                    ("", "\n"),
+                    ("class:prompt", " > "),
+                ],
             )
         except KeyboardInterrupt:
             console.print("\n[dim](Ctrl+C — /quit 으로 종료)[/dim]")
@@ -404,6 +425,39 @@ async def repl():
                     console.print("[dim]연결된 데이터 소스가 없습니다.[/dim]")
             except Exception as e:
                 console.print(f"[red]오류: {e}[/red]")
+            continue
+
+        # ── /connect: 데이터 소스 연결 ──
+
+        elif cmd == "/connect":
+            parts = user_input.split(maxsplit=2)
+            if len(parts) < 3:
+                console.print("[bold]── 데이터 소스 연결 ──[/bold]")
+                console.print()
+                console.print("  [cyan]/connect sqlite[/cyan]  <파일 경로>     SQLite DB 연결")
+                console.print("  [cyan]/connect excel[/cyan]   <파일 경로>     Excel 파일 연결")
+                console.print("  [cyan]/connect pg[/cyan]      <연결 문자열>   PostgreSQL 연결")
+                console.print()
+                console.print("  [dim]예시: /connect sqlite ./data/sales.db[/dim]")
+                console.print("  [dim]      /connect excel  ./data/report.xlsx[/dim]")
+                console.print("  [dim]      /connect pg     postgresql://user:pw@host:5432/db[/dim]")
+            else:
+                conn_type = parts[1].lower()
+                conn_path = parts[2]
+                try:
+                    from backend.orchestrator.managers.connection_manager import ConnectionManager
+                    cm = ConnectionManager()
+                    type_map = {"sqlite": "sqlite", "excel": "excel", "pg": "postgresql", "postgresql": "postgresql"}
+                    resolved_type = type_map.get(conn_type)
+                    if not resolved_type:
+                        console.print(f"[yellow]지원 타입: sqlite, excel, pg[/yellow]")
+                    else:
+                        conn_id = os.path.splitext(os.path.basename(conn_path))[0]
+                        config = {"path": os.path.abspath(conn_path), "name": conn_id}
+                        cm.register_connection(conn_id, resolved_type, config)
+                        console.print(f"[green]✓ '{conn_id}' ({resolved_type}) 연결 등록 완료[/green]")
+                except Exception as e:
+                    console.print(f"[red]연결 오류: {e}[/red]")
             continue
 
         # ── /setting: 설정 관리 ──
@@ -614,169 +668,125 @@ async def repl():
                 console.print(f"[red]✗ 오류: {e}[/red]")
             continue
 
-        # ── /analysis-new: 새 ALIVE 분석 생성 ──
+        # ── /analysis: ALIVE 분석 워크플로우 ──
 
-        elif cmd == "/analysis-new":
-            title = user_input[len("/analysis-new"):].strip()
-            if not title:
-                console.print("[yellow]사용법: /analysis-new <분석 제목>[/yellow]")
-            else:
-                try:
-                    from backend.aac.analysis_manager import AnalysisManager
-                    mgr = AnalysisManager()
-                    project = mgr.create_analysis(title=title, connection="")
-                    console.print(f"[green]✓ ALIVE 분석 생성됨:[/green] [bold]{project.title}[/bold]")
-                    console.print(f"  ID: [cyan]{project.id}[/cyan]")
-                    console.print(f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]")
-                    console.print(f"  경로: [dim]{project.path}[/dim]")
-                    console.print(f"  [dim]/analysis-run 으로 BI-EXEC 블록을 실행하거나 파일을 편집하세요.[/dim]")
-                except Exception as e:
-                    console.print(f"[red]✗ 오류: {e}[/red]")
-            continue
+        elif cmd == "/analysis":
+            parts = user_input.split(maxsplit=2)
+            sub = parts[1] if len(parts) > 1 else "status"
+            arg = parts[2] if len(parts) > 2 else ""
 
-        # ── /analysis-quick: 퀵 단일파일 분석 생성 ──
-
-        elif cmd == "/analysis-quick":
-            question = user_input[len("/analysis-quick"):].strip()
-            if not question:
-                console.print("[yellow]사용법: /analysis-quick <분석 질문>[/yellow]")
-            else:
-                try:
-                    from backend.aac.analysis_manager import AnalysisManager
-                    mgr = AnalysisManager()
-                    filepath = mgr.create_quick(question=question, connection="")
-                    console.print(f"[green]✓ 퀵 분석 생성됨:[/green] [bold]{question}[/bold]")
-                    console.print(f"  경로: [dim]{filepath}[/dim]")
-                    console.print(f"  [dim]단일 파일로 ALIVE 전체 구조가 포함되어 있습니다.[/dim]")
-                except Exception as e:
-                    console.print(f"[red]✗ 오류: {e}[/red]")
-            continue
-
-        # ── /analysis-status: 현재 분석 상태 ──
-
-        elif cmd == "/analysis-status":
             try:
                 from backend.aac.analysis_manager import AnalysisManager
                 mgr = AnalysisManager()
-                project = mgr.get_active()
-                if not project:
-                    all_analyses = mgr.list_analyses()
-                    if not all_analyses:
-                        console.print("[yellow]분석 프로젝트가 없습니다. /analysis-new 로 생성하세요.[/yellow]")
+
+                if sub == "new":
+                    if not arg:
+                        console.print("[yellow]사용법: /analysis new <분석 제목>[/yellow]")
                     else:
-                        console.print("[yellow]활성 분석이 없습니다. /analysis-list 로 목록을 확인하세요.[/yellow]")
-                else:
-                    stage_emoji = {"ask": "❶", "look": "❷", "investigate": "❸", "voice": "❹", "evolve": "❺"}
-                    emoji = stage_emoji.get(project.status.value, "●")
-                    console.print(f"[bold cyan]◈ 현재 분석 상태 ◈[/bold cyan]")
-                    console.print(f"  제목: [bold]{project.title}[/bold]")
-                    console.print(f"  ID: [cyan]{project.id}[/cyan]")
-                    console.print(f"  스테이지: {emoji} [yellow]{project.status.value.upper()}[/yellow]")
-                    console.print(f"  연결: [dim]{project.connection or '(없음)'}[/dim]")
-                    console.print(f"  생성: [dim]{project.created}[/dim]")
-                    console.print(f"  경로: [dim]{project.path}[/dim]")
-                    console.print(f"  [dim]/analysis-run 으로 현재 스테이지 실행 | /analysis-next 로 다음 스테이지 이동[/dim]")
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
-            continue
+                        project = mgr.create_analysis(title=arg, connection="")
+                        console.print(f"[green]✓ ALIVE 분석 생성됨:[/green] [bold]{project.title}[/bold]")
+                        console.print(f"  ID: [cyan]{project.id}[/cyan]")
+                        console.print(f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]")
+                        console.print(f"  경로: [dim]{project.path}[/dim]")
+                        console.print(f"  [dim]/analysis run 으로 BI-EXEC 블록을 실행하거나 파일을 편집하세요.[/dim]")
 
-        # ── /analysis-list: 모든 분석 목록 ──
-
-        elif cmd == "/analysis-list":
-            try:
-                from backend.aac.analysis_manager import AnalysisManager
-                mgr = AnalysisManager()
-                analyses = mgr.list_analyses()
-                if not analyses:
-                    console.print("[yellow]분석 프로젝트가 없습니다. /analysis-new 로 생성하세요.[/yellow]")
-                else:
-                    active = mgr.get_active()
-                    active_id = active.id if active else None
-                    console.print(f"[bold cyan]◈ ALIVE 분석 목록 ◈[/bold cyan]")
-                    for p in analyses:
-                        marker = "[green]▶[/green]" if p.id == active_id else " "
-                        console.print(f"  {marker} [bold]{p.title}[/bold] [dim]({p.id})[/dim]")
-                        console.print(f"      스테이지: [yellow]{p.status.value.upper()}[/yellow]  |  생성: [dim]{p.created[:10]}[/dim]")
-                    console.print(f"\n[dim]{len(analyses)}개의 분석 프로젝트[/dim]")
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
-            continue
-
-        # ── /analysis-run: 현재 스테이지 BI-EXEC 실행 ──
-
-        elif cmd == "/analysis-run":
-            try:
-                from backend.aac.analysis_manager import AnalysisManager
-                from backend.aac.stage_executor import StageExecutor, FileLockedError
-                mgr = AnalysisManager()
-                project = mgr.get_active()
-                if not project:
-                    console.print("[yellow]활성 분석이 없습니다. /analysis-new 로 먼저 생성하세요.[/yellow]")
-                else:
-                    stage_file = project.current_stage_file()
-                    if not stage_file.exists():
-                        console.print(f"[red]✗ 스테이지 파일 없음: {stage_file}[/red]")
+                elif sub == "quick":
+                    if not arg:
+                        console.print("[yellow]사용법: /analysis quick <분석 질문>[/yellow]")
                     else:
-                        try:
-                            from backend.orchestrator.orchestrators.agentic_orchestrator import AgenticOrchestrator
-                            registry = AgenticOrchestrator(use_checkpointer=False)._registry
-                        except Exception:
-                            registry = None
-                        executor = StageExecutor(registry=registry)
-                        count = executor.count_bi_exec_blocks(stage_file)
-                        if count == 0:
-                            console.print(f"[yellow]실행할 BI-EXEC 블록이 없습니다.[/yellow]")
-                            console.print(f"  [dim]스테이지: {project.status.value.upper()} | 파일: {stage_file.name}[/dim]")
-                        else:
-                            console.print(f"[cyan]▶ BI-EXEC 실행 시작[/cyan]")
-                            console.print(f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]  |  블록 수: [bold]{count}[/bold]")
-                            prior_files = project.completed_stage_files()
-                            with Live(Spinner("dots", text=Text(" 실행 중...", style="dim")),
-                                       console=console, refresh_per_second=12, transient=True):
-                                executor.execute_stage(stage_file, prior_stage_files=prior_files)
-                            console.print(f"[green]✓ BI-EXEC 실행 완료[/green]  블록 수: [bold]{count}[/bold]")
-                            console.print(f"  [dim]결과는 {stage_file.name} 파일에 기록되었습니다.[/dim]")
-            except FileLockedError as e:
-                console.print(f"[yellow]⚠ 파일 잠금: {e}[/yellow]")
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
-            continue
+                        filepath = mgr.create_quick(question=arg, connection="")
+                        console.print(f"[green]✓ 퀵 분석 생성됨:[/green] [bold]{arg}[/bold]")
+                        console.print(f"  경로: [dim]{filepath}[/dim]")
+                        console.print(f"  [dim]단일 파일로 ALIVE 전체 구조가 포함되어 있습니다.[/dim]")
 
-        # ── /analysis-next: 다음 스테이지로 전환 ──
-
-        elif cmd == "/analysis-next":
-            try:
-                from backend.aac.analysis_manager import AnalysisManager
-                mgr = AnalysisManager()
-                project = mgr.get_active()
-                if not project:
-                    console.print("[yellow]활성 분석이 없습니다. /analysis-new 로 먼저 생성하세요.[/yellow]")
-                else:
-                    prev_stage = project.status.value.upper()
-                    mgr.advance_stage(project)
+                elif sub == "status":
                     project = mgr.get_active()
-                    new_stage = project.status.value.upper() if project else "ARCHIVED"
-                    console.print(f"[green]✓ 스테이지 전환 완료:[/green] [yellow]{prev_stage}[/yellow] → [cyan]{new_stage}[/cyan]")
-                    console.print(f"  [dim]새 스테이지 파일이 생성되었습니다. /analysis-run 으로 실행하세요.[/dim]")
-            except ValueError as e:
-                console.print(f"[yellow]⚠ {e}[/yellow]")
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
-            continue
+                    if not project:
+                        all_analyses = mgr.list_analyses()
+                        if not all_analyses:
+                            console.print("[yellow]분석 프로젝트가 없습니다. /analysis new 로 생성하세요.[/yellow]")
+                        else:
+                            console.print("[yellow]활성 분석이 없습니다. /analysis list 로 목록을 확인하세요.[/yellow]")
+                    else:
+                        stage_emoji = {"ask": "❶", "look": "❷", "investigate": "❸", "voice": "❹", "evolve": "❺"}
+                        emoji = stage_emoji.get(project.status.value, "●")
+                        console.print(f"[bold cyan]◈ 현재 분석 상태 ◈[/bold cyan]")
+                        console.print(f"  제목: [bold]{project.title}[/bold]")
+                        console.print(f"  ID: [cyan]{project.id}[/cyan]")
+                        console.print(f"  스테이지: {emoji} [yellow]{project.status.value.upper()}[/yellow]")
+                        console.print(f"  연결: [dim]{project.connection or '(없음)'}[/dim]")
+                        console.print(f"  생성: [dim]{project.created}[/dim]")
+                        console.print(f"  경로: [dim]{project.path}[/dim]")
+                        console.print(f"  [dim]/analysis run 으로 현재 스테이지 실행 | /analysis next 로 다음 스테이지 이동[/dim]")
 
-        # ── /analysis-archive: 현재 분석 아카이브 ──
+                elif sub == "list":
+                    analyses = mgr.list_analyses()
+                    if not analyses:
+                        console.print("[yellow]분석 프로젝트가 없습니다. /analysis new 로 생성하세요.[/yellow]")
+                    else:
+                        active = mgr.get_active()
+                        active_id = active.id if active else None
+                        console.print(f"[bold cyan]◈ ALIVE 분석 목록 ◈[/bold cyan]")
+                        for p in analyses:
+                            marker = "[green]▶[/green]" if p.id == active_id else " "
+                            console.print(f"  {marker} [bold]{p.title}[/bold] [dim]({p.id})[/dim]")
+                            console.print(f"      스테이지: [yellow]{p.status.value.upper()}[/yellow]  |  생성: [dim]{p.created[:10]}[/dim]")
+                        console.print(f"\n[dim]{len(analyses)}개의 분석 프로젝트[/dim]")
 
-        elif cmd == "/analysis-archive":
-            try:
-                from backend.aac.analysis_manager import AnalysisManager
-                mgr = AnalysisManager()
-                project = mgr.get_active()
-                if not project:
-                    console.print("[yellow]활성 분석이 없습니다.[/yellow]")
+                elif sub == "run":
+                    from backend.aac.stage_executor import StageExecutor, FileLockedError
+                    project = mgr.get_active()
+                    if not project:
+                        console.print("[yellow]활성 분석이 없습니다. /analysis new 로 먼저 생성하세요.[/yellow]")
+                    else:
+                        stage_file = project.current_stage_file()
+                        if not stage_file.exists():
+                            console.print(f"[red]✗ 스테이지 파일 없음: {stage_file}[/red]")
+                        else:
+                            try:
+                                from backend.orchestrator.orchestrators.agentic_orchestrator import AgenticOrchestrator
+                                registry = AgenticOrchestrator(use_checkpointer=False)._registry
+                            except Exception:
+                                registry = None
+                            executor = StageExecutor(registry=registry)
+                            count = executor.count_bi_exec_blocks(stage_file)
+                            if count == 0:
+                                console.print(f"[yellow]실행할 BI-EXEC 블록이 없습니다.[/yellow]")
+                                console.print(f"  [dim]스테이지: {project.status.value.upper()} | 파일: {stage_file.name}[/dim]")
+                            else:
+                                console.print(f"[cyan]▶ BI-EXEC 실행 시작[/cyan]")
+                                console.print(f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]  |  블록 수: [bold]{count}[/bold]")
+                                prior_files = project.completed_stage_files()
+                                with Live(Spinner("dots", text=Text(" 실행 중...", style="dim")),
+                                           console=console, refresh_per_second=12, transient=True):
+                                    executor.execute_stage(stage_file, prior_stage_files=prior_files)
+                                console.print(f"[green]✓ BI-EXEC 실행 완료[/green]  블록 수: [bold]{count}[/bold]")
+                                console.print(f"  [dim]결과는 {stage_file.name} 파일에 기록되었습니다.[/dim]")
+
+                elif sub == "next":
+                    project = mgr.get_active()
+                    if not project:
+                        console.print("[yellow]활성 분석이 없습니다. /analysis new 로 먼저 생성하세요.[/yellow]")
+                    else:
+                        prev_stage = project.status.value.upper()
+                        mgr.advance_stage(project)
+                        project = mgr.get_active()
+                        new_stage = project.status.value.upper() if project else "ARCHIVED"
+                        console.print(f"[green]✓ 스테이지 전환 완료:[/green] [yellow]{prev_stage}[/yellow] → [cyan]{new_stage}[/cyan]")
+                        console.print(f"  [dim]새 스테이지 파일이 생성되었습니다. /analysis run 으로 실행하세요.[/dim]")
+
+                elif sub == "archive":
+                    project = mgr.get_active()
+                    if not project:
+                        console.print("[yellow]활성 분석이 없습니다.[/yellow]")
+                    else:
+                        title = project.title
+                        mgr.archive(project)
+                        console.print(f"[green]✓ 분석 아카이브됨:[/green] [bold]{title}[/bold]")
+
                 else:
-                    title = project.title
-                    mgr.archive(project)
-                    console.print(f"[green]✓ 분석 아카이브됨:[/green] [bold]{title}[/bold]")
+                    console.print(f"[dim]알 수 없는 서브커맨드: {sub}  /analysis (new|quick|status|list|run|next|archive)[/dim]")
+
             except Exception as e:
                 console.print(f"[red]✗ 오류: {e}[/red]")
             continue

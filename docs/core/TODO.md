@@ -4,7 +4,7 @@
 
 ---
 
-> 마지막 업데이트: 2026-02-20 (Phase 4~5 전체 완료 + E2E 테스트 스위트 구축)
+> 마지막 업데이트: 2026-03-06 (Phase 6: CLI v3 TUI 전면 재구축 완료)
 > 목표: 15단계 초정밀 여정 구현을 통한 분석가 최적화 워크스페이스 구축
 
 ---
@@ -140,6 +140,19 @@
 - [x] **Step 15. 최종 출력**: `JSONValidator` + `ExportPackager` ✅
   - `JSONValidator`: InHouse 스키마 검증, 참조 무결성, 준수 점수
   - `ExportPackager`: JSON/Excel/PDF 패키징, gzip 압축 지원
+
+---
+
+## ✅ Phase 6: CLI v3 — TUI 전면 재구축 (2026-03-06 Complete)
+- [x] **Step 16. 모듈러 아키텍처**: `main.py` → `backend/cli/` (app, layout, commands, handlers/) ✅
+- [x] **Step 17. full-screen 3-panel TUI**: `Application(full_screen=True)` + `HSplit` 고정 레이아웃 ✅
+  - 고정 헤더 (4줄) + 스크롤 출력 + 고정 입력 (1줄)
+  - 멀티컬러 노드 마스코트 + 우측 상태 표시 (Claude CLI 스타일)
+  - 핸들러 출력 캡처 → `output_buffer` 합류
+- [x] **Step 18. 명령어 네임스페이스**: `/explore`, `/project`, `/report`, `/status`, `/connect`, `/setting`, `/analysis` ✅
+  - 계층적 `COMMAND_TREE` + Tab 자동완성
+  - `/status` 신규: 에이전트 상세 상태 확인
+  - `/connect` 개선: 헤더 즉시 반영
 
 ---
 
