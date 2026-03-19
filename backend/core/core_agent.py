@@ -109,8 +109,29 @@ async def _call_llm(messages: List[Dict[str, str]], provider=None) -> str:
 
 def _get_default_provider():
     """기본 LLM Provider를 생성한다."""
-    from backend.orchestrator.providers.llm_provider import GeminiProvider
-    return GeminiProvider()
+    return _GeminiProvider()
+
+
+class _GeminiProvider:
+    """간단한 Gemini API 호출 래퍼."""
+
+    async def generate(self, prompt: str) -> str:
+        import os
+        from backend.utils.setting_manager import setting_manager
+
+        api_key = setting_manager.get("gemini_key") or os.getenv("GEMINI_API_KEY") or ""
+        model_name = setting_manager.get("model") or "gemini-2.0-flash"
+
+        if not api_key or api_key == "(미설정)":
+            raise ValueError("계정 인증이 필요합니다. /setting set gemini_key <키> 로 API 키를 설정하세요.")
+
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        response = await client.aio.models.generate_content(
+            model=model_name,
+            contents=prompt,
+        )
+        return response.text
 
 
 # ──────────────────────────────────────────────

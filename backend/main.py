@@ -272,17 +272,8 @@ def get_status_info() -> dict:
 
     # 인증 방식
     try:
-        from backend.orchestrator.managers.auth_manager import auth_manager
-        gemini_data = auth_manager.get_provider_data("gemini")
-        has_key = bool(gemini_data.get("key") or os.getenv("GEMINI_API_KEY"))
-        has_token = bool(
-            gemini_data.get("token")
-            and isinstance(gemini_data["token"], dict)
-            and gemini_data["token"].get("access_token")
-        )
-        if has_token:
-            status["auth"] = "OAuth"
-        elif has_key:
+        has_key = bool(os.getenv("GEMINI_API_KEY"))
+        if has_key:
             status["auth"] = "API Key"
     except Exception:
         pass
@@ -445,16 +436,23 @@ async def repl():
                 conn_type = parts[1].lower()
                 conn_path = parts[2]
                 try:
-                    from backend.orchestrator.managers.connection_manager import ConnectionManager
-                    cm = ConnectionManager()
+                    from backend.utils.path_config import path_manager
+                    import json as _json
                     type_map = {"sqlite": "sqlite", "excel": "excel", "pg": "postgresql", "postgresql": "postgresql"}
                     resolved_type = type_map.get(conn_type)
                     if not resolved_type:
                         console.print(f"[yellow]지원 타입: sqlite, excel, pg[/yellow]")
                     else:
                         conn_id = os.path.splitext(os.path.basename(conn_path))[0]
-                        config = {"path": os.path.abspath(conn_path), "name": conn_id}
-                        cm.register_connection(conn_id, resolved_type, config)
+                        registry_path = path_manager.get_project_path("default") / "connections.json"
+                        registry_path.parent.mkdir(parents=True, exist_ok=True)
+                        reg = {}
+                        if registry_path.exists():
+                            with open(registry_path) as f:
+                                reg = _json.load(f)
+                        reg[conn_id] = {"name": conn_id, "type": resolved_type, "config": {"path": os.path.abspath(conn_path)}}
+                        with open(registry_path, "w") as f:
+                            _json.dump(reg, f, indent=2)
                         console.print(f"[green]✓ '{conn_id}' ({resolved_type}) 연결 등록 완료[/green]")
                 except Exception as e:
                     console.print(f"[red]연결 오류: {e}[/red]")
@@ -487,11 +485,7 @@ async def repl():
                     if provider not in valid_providers:
                         console.print(f"[yellow]지원 프로바이더: {', '.join(valid_providers)}[/yellow]")
                     else:
-                        from backend.orchestrator.managers.auth_manager import auth_manager
-                        console.print(f"[dim]  {provider} 로그인을 시도합니다...[/dim]")
-                        success, msg = await auth_manager.login_provider(provider)
-                        style = "green" if success else "yellow"
-                        console.print(f"[{style}]{msg}[/{style}]")
+                        console.print(f"[yellow]OAuth 로그인은 현재 지원되지 않습니다. /setting set gemini_key <키> 로 API 키를 설정하세요.[/yellow]")
 
                 elif sub == "set":
                     if len(parts) < 4:
@@ -594,201 +588,32 @@ async def repl():
                 console.print("[dim]사용법: /expert [복잡한 분석 질문][/dim]")
                 continue
 
-            try:
-                from backend.orchestrator.orchestrators.agentic_orchestrator import AgenticOrchestrator
-                expert = AgenticOrchestrator(use_checkpointer=False)
-                with Live(Spinner("dots", text=Text(" Expert 모드 분석 중...", style="dim")),
-                           console=console, refresh_per_second=12, transient=True):
-                    result = asyncio.get_event_loop().run_until_complete(
-                        expert.run(question)
-                    ) if not asyncio.get_event_loop().is_running() else await expert.run(question)
+            if agent is None:
+                console.print("[red]Agent가 초기화되지 않았습니다.[/red]")
+                continue
 
-                if isinstance(result, dict):
-                    answer = result.get("final_response") or result.get("final_answer") or str(result)
-                else:
-                    answer = str(result)
-                console.print(answer)
-            except Exception as e:
-                console.print(f"[red]Expert 모드 오류: {e}[/red]")
+            with Live(Spinner("dots", text=Text(" Expert 모드 분석 중...", style="dim")),
+                       console=console, refresh_per_second=12, transient=True):
+                answer = await agent.run(question)
+            console.print(answer)
             continue
 
         # ── /init: plan.md 템플릿 생성 ──
 
         elif cmd == "/init":
-            try:
-                from backend.aac.plan_parser import PlanParser
-                plan_path = "plan.md"
-                if os.path.exists(plan_path):
-                    console.print(f"[yellow]⚠ {plan_path}가 이미 존재합니다.[/yellow]")
-                else:
-                    template = PlanParser().generate_template()
-                    with open(plan_path, "w", encoding="utf-8") as f:
-                        f.write(template)
-                    console.print(f"[green]✓ {plan_path} 템플릿이 생성되었습니다.[/green] [dim](경로: {os.getcwd()})[/dim]")
-                    console.print(f"[dim]IDE에서 편집 후 /build 로 분석을 시작하세요.[/dim]")
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
+            console.print("[yellow]/init 명령어는 더 이상 지원되지 않습니다.[/yellow]")
             continue
 
         # ── /build: plan.md 파이프라인 실행 ──
 
         elif cmd == "/build":
-            try:
-                plan_path = "plan.md"
-                if not os.path.exists(plan_path):
-                    console.print("[red]✗ plan.md 파일이 없습니다. /init 으로 먼저 생성하세요.[/red]")
-                else:
-                    from backend.aac.plan_parser import PlanParser
-                    from backend.aac.aac_orchestrator import AaCOrchestrator
-                    parser = PlanParser()
-                    intent = parser.parse_file(plan_path)
-                    console.print(f"[cyan]▶ 분석 시작[/cyan]  목표: [bold]{intent.goal or '(목표 미지정)'}[/bold]")
-                    console.print(f"  데이터소스: {intent.data_sources or ['(미지정)']}")
-                    console.print(f"  지표: {intent.metrics or ['(미지정)']}")
-                    orchestrator_aac = AaCOrchestrator(intent=intent)
-                    with Live(Spinner("dots", text=Text(" 파이프라인 실행 중...", style="dim")),
-                               console=console, refresh_per_second=12, transient=True):
-                        results = await orchestrator_aac.run()
-                    step_labels = {
-                        "profile": "데이터 프로파일링",
-                        "query": "데이터 조회",
-                        "transform": "데이터 가공",
-                        "visualize": "시각화",
-                        "insight": "인사이트 도출",
-                    }
-                    console.print("[green]✓ 파이프라인 완료[/green]")
-                    for r in results:
-                        label = step_labels.get(r.step.value, r.step.value)
-                        if r.success:
-                            console.print(f"  [green]✓[/green] {label}")
-                        else:
-                            console.print(f"  [red]✗[/red] {label}: {r.error}")
-                    console.print("[dim]/export html 로 결과물을 내보내세요.[/dim]")
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
+            console.print("[yellow]/build 명령어는 더 이상 지원되지 않습니다.[/yellow]")
             continue
 
         # ── /analysis: ALIVE 분석 워크플로우 ──
 
         elif cmd == "/analysis":
-            parts = user_input.split(maxsplit=2)
-            sub = parts[1] if len(parts) > 1 else "status"
-            arg = parts[2] if len(parts) > 2 else ""
-
-            try:
-                from backend.aac.analysis_manager import AnalysisManager
-                mgr = AnalysisManager()
-
-                if sub == "new":
-                    if not arg:
-                        console.print("[yellow]사용법: /analysis new <분석 제목>[/yellow]")
-                    else:
-                        project = mgr.create_analysis(title=arg, connection="")
-                        console.print(f"[green]✓ ALIVE 분석 생성됨:[/green] [bold]{project.title}[/bold]")
-                        console.print(f"  ID: [cyan]{project.id}[/cyan]")
-                        console.print(f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]")
-                        console.print(f"  경로: [dim]{project.path}[/dim]")
-                        console.print(f"  [dim]/analysis run 으로 BI-EXEC 블록을 실행하거나 파일을 편집하세요.[/dim]")
-
-                elif sub == "quick":
-                    if not arg:
-                        console.print("[yellow]사용법: /analysis quick <분석 질문>[/yellow]")
-                    else:
-                        filepath = mgr.create_quick(question=arg, connection="")
-                        console.print(f"[green]✓ 퀵 분석 생성됨:[/green] [bold]{arg}[/bold]")
-                        console.print(f"  경로: [dim]{filepath}[/dim]")
-                        console.print(f"  [dim]단일 파일로 ALIVE 전체 구조가 포함되어 있습니다.[/dim]")
-
-                elif sub == "status":
-                    project = mgr.get_active()
-                    if not project:
-                        all_analyses = mgr.list_analyses()
-                        if not all_analyses:
-                            console.print("[yellow]분석 프로젝트가 없습니다. /analysis new 로 생성하세요.[/yellow]")
-                        else:
-                            console.print("[yellow]활성 분석이 없습니다. /analysis list 로 목록을 확인하세요.[/yellow]")
-                    else:
-                        stage_emoji = {"ask": "❶", "look": "❷", "investigate": "❸", "voice": "❹", "evolve": "❺"}
-                        emoji = stage_emoji.get(project.status.value, "●")
-                        console.print(f"[bold cyan]◈ 현재 분석 상태 ◈[/bold cyan]")
-                        console.print(f"  제목: [bold]{project.title}[/bold]")
-                        console.print(f"  ID: [cyan]{project.id}[/cyan]")
-                        console.print(f"  스테이지: {emoji} [yellow]{project.status.value.upper()}[/yellow]")
-                        console.print(f"  연결: [dim]{project.connection or '(없음)'}[/dim]")
-                        console.print(f"  생성: [dim]{project.created}[/dim]")
-                        console.print(f"  경로: [dim]{project.path}[/dim]")
-                        console.print(f"  [dim]/analysis run 으로 현재 스테이지 실행 | /analysis next 로 다음 스테이지 이동[/dim]")
-
-                elif sub == "list":
-                    analyses = mgr.list_analyses()
-                    if not analyses:
-                        console.print("[yellow]분석 프로젝트가 없습니다. /analysis new 로 생성하세요.[/yellow]")
-                    else:
-                        active = mgr.get_active()
-                        active_id = active.id if active else None
-                        console.print(f"[bold cyan]◈ ALIVE 분석 목록 ◈[/bold cyan]")
-                        for p in analyses:
-                            marker = "[green]▶[/green]" if p.id == active_id else " "
-                            console.print(f"  {marker} [bold]{p.title}[/bold] [dim]({p.id})[/dim]")
-                            console.print(f"      스테이지: [yellow]{p.status.value.upper()}[/yellow]  |  생성: [dim]{p.created[:10]}[/dim]")
-                        console.print(f"\n[dim]{len(analyses)}개의 분석 프로젝트[/dim]")
-
-                elif sub == "run":
-                    from backend.aac.stage_executor import StageExecutor, FileLockedError
-                    project = mgr.get_active()
-                    if not project:
-                        console.print("[yellow]활성 분석이 없습니다. /analysis new 로 먼저 생성하세요.[/yellow]")
-                    else:
-                        stage_file = project.current_stage_file()
-                        if not stage_file.exists():
-                            console.print(f"[red]✗ 스테이지 파일 없음: {stage_file}[/red]")
-                        else:
-                            try:
-                                from backend.orchestrator.orchestrators.agentic_orchestrator import AgenticOrchestrator
-                                registry = AgenticOrchestrator(use_checkpointer=False)._registry
-                            except Exception:
-                                registry = None
-                            executor = StageExecutor(registry=registry)
-                            count = executor.count_bi_exec_blocks(stage_file)
-                            if count == 0:
-                                console.print(f"[yellow]실행할 BI-EXEC 블록이 없습니다.[/yellow]")
-                                console.print(f"  [dim]스테이지: {project.status.value.upper()} | 파일: {stage_file.name}[/dim]")
-                            else:
-                                console.print(f"[cyan]▶ BI-EXEC 실행 시작[/cyan]")
-                                console.print(f"  스테이지: [yellow]{project.status.value.upper()}[/yellow]  |  블록 수: [bold]{count}[/bold]")
-                                prior_files = project.completed_stage_files()
-                                with Live(Spinner("dots", text=Text(" 실행 중...", style="dim")),
-                                           console=console, refresh_per_second=12, transient=True):
-                                    executor.execute_stage(stage_file, prior_stage_files=prior_files)
-                                console.print(f"[green]✓ BI-EXEC 실행 완료[/green]  블록 수: [bold]{count}[/bold]")
-                                console.print(f"  [dim]결과는 {stage_file.name} 파일에 기록되었습니다.[/dim]")
-
-                elif sub == "next":
-                    project = mgr.get_active()
-                    if not project:
-                        console.print("[yellow]활성 분석이 없습니다. /analysis new 로 먼저 생성하세요.[/yellow]")
-                    else:
-                        prev_stage = project.status.value.upper()
-                        mgr.advance_stage(project)
-                        project = mgr.get_active()
-                        new_stage = project.status.value.upper() if project else "ARCHIVED"
-                        console.print(f"[green]✓ 스테이지 전환 완료:[/green] [yellow]{prev_stage}[/yellow] → [cyan]{new_stage}[/cyan]")
-                        console.print(f"  [dim]새 스테이지 파일이 생성되었습니다. /analysis run 으로 실행하세요.[/dim]")
-
-                elif sub == "archive":
-                    project = mgr.get_active()
-                    if not project:
-                        console.print("[yellow]활성 분석이 없습니다.[/yellow]")
-                    else:
-                        title = project.title
-                        mgr.archive(project)
-                        console.print(f"[green]✓ 분석 아카이브됨:[/green] [bold]{title}[/bold]")
-
-                else:
-                    console.print(f"[dim]알 수 없는 서브커맨드: {sub}  /analysis (new|quick|status|list|run|next|archive)[/dim]")
-
-            except Exception as e:
-                console.print(f"[red]✗ 오류: {e}[/red]")
+            console.print("[yellow]/analysis 명령어는 더 이상 지원되지 않습니다.[/yellow]")
             continue
 
         elif cmd and cmd.startswith("/"):
