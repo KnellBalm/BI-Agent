@@ -801,17 +801,27 @@ async def repl():
             console.print("[red]Agent가 초기화되지 않았습니다.[/red]")
             continue
 
-        with Live(
-            Spinner("dots", text=Text(" 분석 중...", style="dim")),
-            console=console,
-            refresh_per_second=12,
-            transient=True,
-        ):
+        # SQL 실행 전 사용자 확인 콜백
+        async def _confirm_sql(sql: str) -> bool:
+            console.print()
+            console.print("[bold yellow]⚡ SQL 실행 확인[/bold yellow]")
+            console.print(f"[dim]```sql\n{sql}\n```[/dim]")
             try:
-                answer = await agent.run(user_input)
-            except Exception as e:
-                answer = f"오류가 발생했습니다: {e}"
+                ans = await session.prompt_async("  실행하시겠습니까? (엔터/y=실행, n=취소): ")
+                return ans.strip().lower() not in ("n", "no", "아니", "취소")
+            except (KeyboardInterrupt, EOFError):
+                return False
 
+        agent.confirm_callback = _confirm_sql
+        console.print("[dim]  분석 중...[/dim]")
+        try:
+            answer = await agent.run(user_input)
+        except Exception as e:
+            answer = f"오류가 발생했습니다: {e}"
+        finally:
+            agent.confirm_callback = None
+
+        console.print()
         console.print(answer)
 
 

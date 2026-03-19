@@ -123,11 +123,17 @@ class CoreAgent:
     def __init__(self, registry: Optional[ToolRegistry] = None, provider=None):
         self.registry = registry or build_default_registry()
         self.provider = provider
+        self.confirm_callback = None  # async (sql: str) -> bool
 
     async def run(self, user_input: str, context: Dict[str, Any] = None) -> str:
         """사용자 입력을 받아 도구를 자율적으로 호출하고 최종 답변을 반환한다."""
+        from backend.core.tools import get_schema_context
+        schema_context = get_schema_context()
+        schema_section = schema_context if schema_context else "(연결된 DB 없음 — /connect 로 먼저 연결하세요)"
+
         system_prompt = CORE_SYSTEM_PROMPT.format(
-            tools_prompt=self.registry.get_tools_prompt()
+            tools_prompt=self.registry.get_tools_prompt(),
+            schema_context=schema_section,
         )
 
         messages = [
@@ -137,15 +143,21 @@ class CoreAgent:
 
         for iteration in range(MAX_ITERATIONS):
             response = await _call_llm(messages, self.provider)
-
             tool_invocations = extract_tool_invocations(response)
 
             if not tool_invocations:
-                # 도구 호출 없음 = 최종 답변
                 return response
 
-            # 도구 실행
             for name, args in tool_invocations:
+                # HITL: query_database 실행 전 사용자 확인
+                if name == "query_database" and self.confirm_callback is not None:
+                    sql = args.get("sql_query", "")
+                    confirmed = await self.confirm_callback(sql)
+                    if not confirmed:
+                        messages.append({"role": "assistant", "content": response})
+                        messages.append({"role": "user", "content": "tool_result(query_database): [사용자가 SQL 실행을 취소했습니다.]"})
+                        continue
+
                 result = self.registry.execute(name, args, context=context)
                 messages.append({"role": "assistant", "content": response})
                 messages.append({"role": "user", "content": f"tool_result({name}): {result}"})

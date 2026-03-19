@@ -87,13 +87,10 @@ Thumbs.db
 .env.*
 backend/data/usage_cache.json
 usage_cache.json
+.omc
 # Local Test Data
 backend/data/*.json
 config/connections.json
 
 test_*
-
-.omc
-.claude
-
 tests/

@@ -88,6 +88,32 @@ def _get_db_path(conn_info: dict) -> Optional[str]:
     return conn_info.get("config", {}).get("path")
 
 
+def get_schema_context() -> str:
+    """현재 연결된 DB의 스키마를 프롬프트 주입용 간결한 텍스트로 반환한다."""
+    conn_info = _get_connection_info()
+    if not conn_info or conn_info.get("type") != "sqlite":
+        return ""
+    db_path = _get_db_path(conn_info)
+    if not db_path or not os.path.exists(db_path):
+        return ""
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        tables = [t[0] for t in cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()]
+        lines = [f"DB: {os.path.basename(db_path)}"]
+        for tbl in tables:
+            cols = cur.execute(f'PRAGMA table_info("{tbl}")').fetchall()
+            count = cur.execute(f'SELECT COUNT(*) FROM "{tbl}"').fetchone()[0]
+            col_defs = ", ".join(f"{c[1]}({c[2]})" for c in cols)
+            lines.append(f"  {tbl}({count}행): {col_defs}")
+        conn.close()
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
 # ──────────────────────────────────────────────
 # 핵심 도구 구현
 # ──────────────────────────────────────────────

@@ -1,62 +1,27 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name = "bi-agent"
+name = "bi-agent-mcp"
 version = "0.1.0"
-description = "Autonomous Business Intelligence Agent with Proactive Insights"
-readme = "README.md"
-requires-python = ">=3.10"
-authors = [
-    {name = "BI-Agent Team", email = "info@bi-agent.ai"},
-]
-license = {text = "MIT"}
+description = "BI 작업 도구를 LLM 클라이언트에 제공하는 MCP 서버"
+requires-python = ">=3.11"
 dependencies = [
-    "textual>=0.47.1",
-    "google-genai",
-    "pandas",
-    "duckdb",
-    "plotly",
-    "httpx",
-    "rich",
-    "python-dotenv",
-    "google-auth",
-    "google-auth-oauthlib",
-    "anthropic",
-    "openai",
-    "mcp",
-    "sshtunnel>=0.4.0",
-    "paramiko>=2.7.2,<4.0.0",
-    # Orchestration & Agent framework
-    "langgraph>=0.0.40",
-    "langchain>=0.1.0",
-    "langchain-google-genai>=0.0.5",
-    # Database drivers
-    "sqlalchemy>=2.0.0",
-    "psycopg2-binary>=2.9.0",
-    "pymysql>=1.1.0",
-    # Step 13: Preview server
-    "flask>=3.0.0",
-    # Step 15: Export (weasyprint for PDF, openpyxl for Excel)
-    "openpyxl>=3.1.0",
-    "weasyprint>=62.0",
-    # Clipboard support (pyperclip with graceful degradation)
-    "pyperclip>=1.8.0",
-    # Validation
-    "python-frontmatter>=1.0.0",
-    "pydantic>=2.0.0",
-    "defusedxml>=0.7.1",  # XML parsing security (Tableau .twb support)
-    "prompt_toolkit>=3.0.0",  # CLI REPL input with history and completion
+    "mcp>=1.0",
+    "psycopg2-binary>=2.9",
+    "pymysql>=1.1",
+    "keyring>=24.0",
+    "google-auth>=2.0",
+    "google-auth-oauthlib>=1.0",
+    "google-analytics-data>=0.18",
+    "defusedxml>=0.7",
+    "httpx>=0.25",
+    "google-cloud-bigquery>=3.0",
 ]
 
 [project.scripts]
-bi-agent = "backend.cli:main"
-bi-agent-cli = "backend.main:main"
+bi-agent-mcp = "bi_agent_mcp.server:mcp.run"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["backend*"]
-
-[tool.setuptools.package-data]
-"*" = ["*.js", "*.json", "*.css", "*.tcss", "*.md"]
+include = ["bi_agent_mcp*"]
