@@ -45,5 +45,16 @@ from bi_agent_mcp.tools.tableau import generate_twbx
 
 mcp.tool()(generate_twbx)
 
+# setup tools — agent 대화 기반 초기 설정
+from bi_agent_mcp.tools.setup import (
+    check_setup_status,
+    configure_datasource,
+    test_datasource,
+)
+
+mcp.tool()(check_setup_status)
+mcp.tool()(configure_datasource)
+mcp.tool()(test_datasource)
+
 if __name__ == "__main__":
     mcp.run()
