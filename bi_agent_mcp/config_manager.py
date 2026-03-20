@@ -1,5 +1,6 @@
 """bi-agent 설정 관리자 — config 파일 + OS keyring 통합."""
 
+import copy
 import json
 import logging
 from pathlib import Path
@@ -82,7 +83,7 @@ class ConfigManager:
             datasources = config.get("datasources", {})
 
             db = datasources.get("db", {})
-            db_configured = bool(db.get("host") or db.get("type") == "bigquery" and db.get("project_id"))
+            db_configured = bool(db.get("host") or (db.get("type") == "bigquery" and db.get("project_id")))
 
             ga4 = datasources.get("ga4", {})
             ga4_configured = bool(ga4.get("property_id") or ga4.get("client_id"))
@@ -141,7 +142,7 @@ class ConfigManager:
     def _load_config(self) -> dict:
         """config.json 읽기. 없으면 기본값 반환."""
         if not CONFIG_FILE.exists():
-            return dict(_DEFAULT_CONFIG)
+            return copy.deepcopy(_DEFAULT_CONFIG)
         try:
             with CONFIG_FILE.open("r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -150,7 +151,7 @@ class ConfigManager:
             return data
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("config.json 읽기 실패, 기본값 사용: %s", e)
-            return dict(_DEFAULT_CONFIG)
+            return copy.deepcopy(_DEFAULT_CONFIG)
 
     def _save_config(self, data: dict) -> None:
         """config.json 저장."""
@@ -171,6 +172,7 @@ _SECRET_KEYS: dict[str, list[str]] = {
 _SECRET_ENV_VARS: dict[str, str] = {
     "db_password": "BI_AGENT_PG_PASSWORD",  # PG 기본값
     "ga4_client_secret": "BI_AGENT_GOOGLE_CLIENT_SECRET",
+    "ga4_refresh_token": "BI_AGENT_GA4_REFRESH_TOKEN",
     "amplitude_api_key": "BI_AGENT_AMPLITUDE_API_KEY",
     "amplitude_secret_key": "BI_AGENT_AMPLITUDE_SECRET_KEY",
 }

@@ -93,4 +93,5 @@ backend/data/*.json
 config/connections.json
 
 test_*
+!tests/unit/test_*.py
 tests/*.pyc
