@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "bi-agent": {
+      "command": "/Users/zokr/python_workspace/BI-Agent/venv/bin/python",
+      "args": ["-m", "bi_agent_mcp"]
+    },
+    "postgres": {
+      "command": "/Users/zokr/python_workspace/BI-Agent/venv/bin/python",
+      "args": ["/Users/zokr/python_workspace/BI-Agent/postgres_mcp.py"],
+      "env": {
+        "PG_DBNAME": "suwon",
+        "PG_USER": "odp",
+        "PG_PASSWORD": "",
+        "PG_HOST": "localhost",
+        "PG_PORT": "5432"
+      }
+    }
+  }
+}

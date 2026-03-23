@@ -11,6 +11,14 @@ from bi_agent_mcp.tools.db import (
 
 mcp = FastMCP("bi-agent")
 
+# v0 file tools — CSV/Excel 파일 데이터 소스
+from bi_agent_mcp.tools.files import connect_file, list_files, query_file, get_file_schema
+
+mcp.tool()(connect_file)
+mcp.tool()(list_files)
+mcp.tool()(query_file)
+mcp.tool()(get_file_schema)
+
 # v0 tools — DB 연결 및 쿼리
 mcp.tool()(connect_db)
 mcp.tool()(list_connections)
@@ -32,13 +40,17 @@ from bi_agent_mcp.tools.analysis import (
     suggest_analysis,
     generate_report,
     save_query,
-    list_saved_queries
+    list_saved_queries,
+    load_domain_context,
+    list_query_history,
 )
 
 mcp.tool()(suggest_analysis)
 mcp.tool()(generate_report)
 mcp.tool()(save_query)
 mcp.tool()(list_saved_queries)
+mcp.tool()(load_domain_context)
+mcp.tool()(list_query_history)
 
 # v2 tools (Output Generation)
 from bi_agent_mcp.tools.tableau import generate_twbx

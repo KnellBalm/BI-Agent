@@ -1,147 +1,46 @@
-# BI-Agent 초정밀 사용자 여정 및 세부 구현 명세 (Roadmap 2.1)
+# bi-agent-mcp 전략 및 로드맵 (PLAN.md)
 
 > **[ 🗺️ 전략/로드맵 ]** · [ 🛠️ 상세 설계 (DETAILED_SPEC)](./DETAILED_SPEC.md) · [ 📋 현재 실행 (TODO)](./TODO.md) · [ 📜 변경 이력 (CHANGELOG)](./CHANGELOG.md)
 
 ---
 
-## 🎯 Recent Updates (2026-03-06)
-
-**V0.1.1-development** 릴리스를 통해 다음을 달성했습니다:
-- ✅ **CLI v3 TUI 전면 재구축**: `prompt_toolkit Application(full_screen=True)` 기반 3-panel 레이아웃 (고정 헤더 + 스크롤 출력 + 고정 입력)
-- ✅ **모듈러 아키텍처 전환**: 모놀리식 `main.py` (827줄) → `backend/cli/` 패키지 (app, layout, commands, handlers/)
-- ✅ **명령어 네임스페이스 재편**: `/explore`, `/project`, `/report`, `/analysis`, `/status`, `/connect`, `/setting` 계층 구조
-- ✅ **BI-Agent 마스코트 및 상태 헤더**: 멀티컬러 노드 캐릭터 + 우측 정보 표시 (Claude CLI 스타일)
-
-이전 마일스톤: V2.3.0-development (Phase 4~5 전체 완료 + E2E 테스트)
-
-상세 변경 내역은 [CHANGELOG.md](./CHANGELOG.md)를 참조하세요.
-
----
-
 ## 1. 프로젝트 비전
-분석가가 터미널에 접속하여 최종 BI 리포트 결과물을 얻기까지, 에이전트의 사고 과정과 상호작용을 투명하게 공개하고 제어할 수 있는 **지능형 분석 워크스페이스**를 구축합니다.
+
+**bi-agent-mcp** 는 LLM 클라이언트(Claude, Cursor 등)가 데이터베이스 및 파일 기반 분석 도구를 자연어로 호출할 수 있는 **MCP(Model Context Protocol) 서버 패키지**입니다.
+
+기존 TUI/LangGraph 오케스트레이터 코드를 제거하고, 표준 MCP 인터페이스를 통해 DB 연결·쿼리·분석·리포트 생성 기능을 LLM 클라이언트에 직접 제공합니다.
 
 ---
 
-## 2. 15단계 초정밀 마일스톤 및 세부 구현 로드맵
+## 2. 로드맵
 
-### [Phase 0: 파운데이션 리팩토링 - 필수 전제 조건]
-#### **Section 0. 공유 의도 아키텍처 수립**
-- [x] `BaseIntent` 추상 클래스 설계 (`datasource`, `filters`, `title` 공유)
-- [x] `ChartIntent` 클래스 확장 및 리팩토링
-- [x] `AnalysisIntent` 클래스 신규 개발 (복합 분석 목적 및 가설 기반)
+### Phase 1 — 레거시 정리 + 데이터 소스 확장 (✅ 완료 — 2026-03-20)
 
----
-
-### [Phase 1: 진입 및 환경 최적화]
-#### **Step 1. 시스템 기동 (Launch)**
-- [x] ASCII 배너 렌더링 엔진 고도화
-- [x] `.env` 및 `credentials.json` 존재 여부 체크 로직
-- [x] 필수 라이브러리(Textual, Rich 등) 환경 검증
-#### **Step 2. 지능형 인증 (Smart Auth)**
-- [x] LLM 공급자별 API 키 유효성 즉시 검증 (Ping test)
-- [x] 마스킹된 키 표시 및 수정 전용 UI (`AuthScreen`)
-- [x] 쿼터 소진 시 알림 및 자동 대체 모델 제안 로직
-#### **Step 3. 데이터 엔진 연결 (Connection)**
-- [x] SQLite/MySQL/Postgres 커넥터 UI 인터페이스
-- [x] Excel 파일 경로 및 시트 스캔 기능
-- [x] 연결 성공 시 기본적인 스키마 통계 자동 출력 (MetadataScanner 연동)
+- 구 TUI/LangGraph 오케스트레이터 코드(backend/, .agent/, .agents/, .serena/ 등) 완전 제거
+- 연결 영속성: `~/.config/bi-agent/connections.json` 저장/복원
+- Snowflake 지원 추가 (`snowflake-connector-python>=3.0`)
+- Excel/CSV 파일 데이터 소스 추가 (`tools/files.py`, DuckDB 기반 SQL)
+- docs 전면 업데이트
 
 ---
 
-### [Phase 2: 의도 파악 및 컨텍스트 스캐닝]
-#### **Step 4. 분석 의도 선언 (Intent)**
-- [x] **`/intent` 명령어 도입**: 사용자의 복합적인 분석 의도를 접수하고 LLM 기반 실행 플랜 생성
-- [x] 사용자 자연어 질문에서 분석 목적(성능, 트렌드, 이상치) 자동 추출
-- [x] 최근 명령 히스토리 저장 및 탭 자동완성 최적화
-#### **Step 5. 타겟 데이터 선정 (Targeting)**
-- [x] 다중 테이블 환경에서 질문에 적합한 테이블 추천 알고리즘 (LLM 기반)
-- [x] 테이블 선택용 인터랙티브 `TableSelectionScreen` 모달 UI 서비스
-- [x] 테이블 간 ERD 관계 자동 추론 및 조인(Join) 필요성 제안
-#### **Step 6. 딥 스캐닝 (Scanning)**
-- [x] 컬럼별 상세 통계량(결측치 비율, 4분위수, 분포 등) 실시간 산출
-- [x] 샘플 데이터(5~10행) 추출 및 TUI 내 그리드 컴포넌트 출력
-- [x] 데이터 타입(Numerical, Categorical, Time) 자동 교정 시스템
+### Phase 2 — 도메인 지식 시스템 + BI 스킬 + MCP 도구 강화 (✅ 완료 — 2026-03-20)
+
+- `load_domain_context` MCP 도구 추가 (context/ 마크다운 파일 로드)
+- `list_query_history` MCP 도구 추가 (쿼리 실행 이력 조회)
+- `suggest_analysis` 도메인 컨텍스트 연동 개선 (question 파라미터, context/ 자동 탐색)
+- context/ 비즈니스 도메인 지식 템플릿 시스템 구축 (README + 5개 마크다운 템플릿)
+- .claude/commands/ BI 스킬 5개 생성 (/bi-connect, /bi-explore, /bi-analyze, /bi-report, /bi-domain)
 
 ---
 
-### [Phase 3: 전략 수립 및 가설 검증]
-#### **Step 7. 분석 실행 플랜 수립 (Planning)**
-- [x] `/intent` 입력 시 **LLM 기반 상세 분석 파이프라인(Pipeline)** 제안 로직
-- [x] 업종별/분석 테마별 가설 템플릿 엔진 구축
-- [x] 분석 결과에서 기대되는 비즈니스 가치(ROI) 사전 시뮬레이션
-#### **Step 8. 사고 과정 시각화 (Thinking CoT)**
-- [x] 에이전트 간 내부 메시지 버스(`AgentMessageBus`) 실시간 노출 패널
-- [x] LLM의 "생각 중..." 단계를 구체적인 한국어 상태 메시지로 변환
-- [x] 장시간 분석 시 단계별 체크마크 및 진행률 인디케이터
-#### **Step 9. 사용자 정렬 (Alignment)**
-- [x] 생성된 가설 중 사용자가 선택/수정할 수 있는 `HypothesisScreen` 구축
-- [x] 분석 제약 조건(기간, 지역, 카테고리) 추가 입력 워크플로우 (`ConstraintScreen`)
-- [x] 에이전트의 제안에 대한 '승인/수정/반려' 단축키 시스템
+### Phase 3 — 테스트 품질 + 멀티유저 (🔲 예정)
+
+- GA4/Amplitude 단위 테스트 (httpx/google-auth mock)
+- pytest-cov 활성화 + 80% 커버리지 게이트
+- E2E 통합 테스트 (로컬 DB — SQLite/Docker PostgreSQL)
+- MCP 서버 토큰 인증 레이어
 
 ---
 
-### [Phase 4: 리포트 조립 및 인터랙티브 설계 ✅]
-#### **Step 10. 최적 쿼리 생성 (Querying)**
-- [x] 가설 검증용 SQL 자동 생성 및 DB 문법 호환성 체크
-- [x] 실행 오류 시 에러 로그 기반 자동 쿼리 수정 루프 (Self-healing)
-- [x] 복잡한 연산 시 Pandas Transformation 코드 자동 생성 및 실행
-#### **Step 11. 레이아웃 디자인 (Designing)**
-- [x] 데이터 특성별 최적 차트 추천 엔진 (`ChartRecommender` — 7가지 패턴)
-- [x] 프리미엄 테마 엔진 기반 색상 팔레트 및 컴포넌트별 스타일 주입 (`ThemeEngine` — 5종 테마)
-- [x] 컴포넌트 간 최적 배치(Grid) 자동 계산 알고리즘 (`LayoutCalculator` — 3가지 전략)
-#### **Step 12. 인터랙션 주입 (Interactive)**
-- [x] 전역 필터 연동을 위한 `varList` 및 `eventList` JSON 자동 생성 (`InteractionLogic`)
-- [x] 드릴다운(Drill-down) 및 크로스 필터링 로직 매핑 (`DrilldownMapper`)
-- [x] 양방향 크로스 필터, 필터 상태 관리, 브레드크럼 네비게이션
-
----
-
-### [Phase 5: 결과 검수 및 최종 익스포트 ✅]
-#### **Step 13. 초안 브리핑 (Preview)**
-- [x] 분석 결과에 대한 LLM 한국어 요약 브리핑 및 인사이트 추출 (`SummaryGenerator`)
-- [ ] 로컬 웹 서버 기반 웹 대시보드 프리뷰 자동 실행 로직
-- [x] TUI 내에서 주요 지표(KPI Cards) 데이터 구조 렌더링
-#### **Step 14. 반복적 교정 (Refine)**
-- [x] 최종 결과물의 가시성 및 가독성 자동 검수(Linting) 단계 (`ReportLinter`)
-- [x] 수정 가능한 이슈 자동 교정 (`auto_fix` 기능)
-- [x] 추가 심층 분석 질문(Proactive Questions) 자동 제안 (`ProactiveQuestionGenerator`)
-#### **Step 15. 최종 출력 및 배포 (Export)**
-- [x] InHouse JSON 최종 빌드 및 스키마 정합성 검증 (`JSONValidator`)
-- [x] Excel/PDF 리포트 패키징 및 gzip 압축 지원 (`ExportPackager`)
-- [ ] **Note**: Tableau .twb 내보내기는 향후 단계로 연기됨
-
----
-
-### [Phase 6: CLI v3 — TUI 전면 재구축 ✅]
-#### **Step 16. 모듈러 아키텍처 전환**
-- [x] 모놀리식 `main.py` (827줄) → `backend/cli/` 패키지 분리
-- [x] `app.py` (TUI Application), `layout.py` (헤더 빌드), `commands.py` (COMMAND_TREE + SlashCompleter)
-- [x] `handlers/` 디렉터리: explore, project, report, connect, setting, analysis 핸들러
-- [x] `bi-agent` CLI 엔트리포인트 정상화 (`__init__.py` → `main()` export)
-
-#### **Step 17. prompt_toolkit full-screen 3-panel TUI**
-- [x] `Application(full_screen=True)` + `HSplit` 고정 레이아웃 (헤더 4줄 고정 / 출력 스크롤 / 입력 1줄 고정)
-- [x] 멀티컬러 노드 마스코트(◉) + 우측 정보 표시 (Claude CLI 스타일 헤더)
-- [x] 입력 자동완성 (`SlashCompleter` + Tab 동작 커스텀 바인딩)
-- [x] 출력 자동 스크롤 (`Buffer.set_document` + `bypass_readonly`)
-- [x] 핸들러 출력 캡처 메커니즘 (`Console(file=StringIO)` → `output_buffer` 합류)
-
-#### **Step 18. 명령어 네임스페이스 재편**
-- [x] `/explore` — schema, query, preview (DB 직접 조회)
-- [x] `/project` — new, list, open, status (프로젝트 관리)
-- [x] `/report` — new, list, show, edit, append (마크다운 리포트 CRUD)
-- [x] `/status` — 현재 에이전트 상세 상태 (모델, 인증, DB, 프로젝트, 활성 분석)
-- [x] `/connect` — sqlite, excel, pg 데이터 소스 등록 + 헤더 즉시 반영
-- [x] `/setting` — 설정 관리, OAuth 로그인, API 키 변경
-- [x] `/analysis` — ALIVE 분석 파이프라인 (new, run, next, status, list, archive)
-
----
-
-## 3. 리스크 및 대응 전략
-- **LLM Rate Limit**: 적극적인 캐싱 및 로컬 폴백 모델 활용.
-- **스키마 불일치**: 각 단계별 검증 및 사용자 확인 절차 강화.
-- **TUI 반응성**: 비동기 워커 및 상태 표시기를 통한 응답성 유지.
-
----
 Copyright © 2026 BI-Agent Team. All rights reserved.

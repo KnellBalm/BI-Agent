@@ -1,12 +1,16 @@
 """bi-agent DB 도구 — connect_db, list_connections, get_schema, run_query, profile_table."""
+import json
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from psycopg2 import sql as pg_sql
 
 from bi_agent_mcp.auth.credentials import mask_password
 from bi_agent_mcp.config import QUERY_LIMIT, BQ_MAX_BYTES_BILLED
+
+_CONN_FILE = Path("~/.config/bi-agent/connections.json").expanduser()
 
 # ──────────────────────────────────────────────
 # 연결 레지스트리
@@ -15,7 +19,7 @@ from bi_agent_mcp.config import QUERY_LIMIT, BQ_MAX_BYTES_BILLED
 @dataclass
 class ConnectionInfo:
     conn_id: str
-    db_type: str    # "postgresql" | "mysql" | "bigquery"
+    db_type: str    # "postgresql" | "mysql" | "bigquery" | "snowflake"
     host: str
     port: int
     database: str
@@ -23,9 +27,63 @@ class ConnectionInfo:
     password: str   # 메모리에만 보관, 절대 로그 출력 금지
     project_id: str = ""
     dataset: str = ""
+    account: str = ""
+    warehouse: str = ""
+    schema_: str = ""
+    persisted: bool = False
 
 
 _connections: Dict[str, ConnectionInfo] = {}
+
+
+def _save_connections() -> None:
+    """비밀번호를 제외한 연결 정보를 JSON 파일에 저장. 실패 시 조용히 무시."""
+    try:
+        _CONN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        data = {}
+        for cid, info in _connections.items():
+            data[cid] = {
+                "conn_id": info.conn_id,
+                "db_type": info.db_type,
+                "host": info.host,
+                "port": info.port,
+                "database": info.database,
+                "user": info.user,
+                "project_id": info.project_id,
+                "dataset": info.dataset,
+                "account": info.account,
+                "warehouse": info.warehouse,
+                "schema_": info.schema_,
+            }
+        _CONN_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+    except Exception:
+        pass
+
+
+def _load_connections() -> None:
+    """파일에서 연결 정보 복원 (password는 빈 문자열). 실패 시 조용히 무시."""
+    try:
+        if not _CONN_FILE.exists():
+            return
+        data = json.loads(_CONN_FILE.read_text())
+        for cid, d in data.items():
+            _connections[cid] = ConnectionInfo(
+                conn_id=d["conn_id"],
+                db_type=d["db_type"],
+                host=d.get("host", ""),
+                port=d.get("port", 0),
+                database=d.get("database", ""),
+                user=d.get("user", ""),
+                password="",
+                project_id=d.get("project_id", ""),
+                dataset=d.get("dataset", ""),
+                account=d.get("account", ""),
+                warehouse=d.get("warehouse", ""),
+                schema_=d.get("schema_", ""),
+                persisted=True,
+            )
+    except Exception:
+        pass
 
 
 def get_connection(conn_id: str) -> Optional[ConnectionInfo]:
@@ -96,6 +154,18 @@ def _make_bq_client(info: ConnectionInfo):
     return bigquery.Client(project=info.project_id)
 
 
+def _make_snowflake_connection(info: ConnectionInfo):
+    import snowflake.connector
+    return snowflake.connector.connect(
+        account=info.account,
+        user=info.user,
+        password=info.password,
+        warehouse=info.warehouse,
+        database=info.database,
+        schema=info.schema_ or "PUBLIC",
+    )
+
+
 def _get_conn(info: ConnectionInfo):
     if info.db_type == "postgresql":
         return _make_pg_connection(info)
@@ -103,6 +173,8 @@ def _get_conn(info: ConnectionInfo):
         return _make_mysql_connection(info)
     elif info.db_type == "bigquery":
         return _make_bq_client(info)
+    elif info.db_type == "snowflake":
+        return _make_snowflake_connection(info)
     else:
         raise ValueError(f"지원하지 않는 DB 타입: {info.db_type}")
 
@@ -178,21 +250,27 @@ def connect_db(
     password: str = "",
     project_id: str = "",
     dataset: str = "",
+    account: str = "",
+    warehouse: str = "",
+    schema_: str = "",
 ) -> str:
-    """PostgreSQL, MySQL, 또는 BigQuery 데이터베이스에 연결하고 연결 ID를 반환합니다.
+    """PostgreSQL, MySQL, BigQuery, 또는 Snowflake 데이터베이스에 연결하고 연결 ID를 반환합니다.
 
     Args:
-        db_type: 데이터베이스 종류 ("postgresql", "mysql", 또는 "bigquery")
+        db_type: 데이터베이스 종류 ("postgresql", "mysql", "bigquery", 또는 "snowflake")
         host: 호스트 주소 (postgresql/mysql)
         port: 포트 번호 (postgresql/mysql)
-        database: 데이터베이스 이름 (postgresql/mysql)
-        user: 사용자명 (postgresql/mysql)
-        password: 비밀번호 (postgresql/mysql)
+        database: 데이터베이스 이름 (postgresql/mysql/snowflake)
+        user: 사용자명 (postgresql/mysql/snowflake)
+        password: 비밀번호 (postgresql/mysql/snowflake)
         project_id: GCP 프로젝트 ID (bigquery)
         dataset: BigQuery 데이터셋 이름 (bigquery)
+        account: Snowflake 계정 식별자 (snowflake)
+        warehouse: Snowflake 웨어하우스 이름 (snowflake)
+        schema_: Snowflake 스키마 이름 (snowflake, 기본값: PUBLIC)
     """
-    if db_type not in ("postgresql", "mysql", "bigquery"):
-        return f"[ERROR] 지원하지 않는 DB 타입: {db_type}. 'postgresql', 'mysql', 또는 'bigquery'를 사용하세요."
+    if db_type not in ("postgresql", "mysql", "bigquery", "snowflake"):
+        return f"[ERROR] 지원하지 않는 DB 타입: {db_type}. 'postgresql', 'mysql', 'bigquery', 또는 'snowflake'를 사용하세요."
 
     from bi_agent_mcp.config import BQ_PROJECT_ID, BQ_DATASET
 
@@ -207,6 +285,9 @@ def connect_db(
         password=password,
         project_id=project_id or BQ_PROJECT_ID,
         dataset=dataset or BQ_DATASET,
+        account=account,
+        warehouse=warehouse,
+        schema_=schema_,
     )
 
     # 연결 테스트
@@ -221,12 +302,23 @@ def connect_db(
         return f"[ERROR] 연결 실패: {e}"
 
     _connections[conn_id] = info
+    _save_connections()
+
     if db_type == "bigquery":
         return (
             f"연결 등록 완료: {conn_id}\n"
             f"  타입: {db_type}\n"
             f"  프로젝트: {info.project_id}\n"
             f"  데이터셋: {info.dataset}"
+        )
+    if db_type == "snowflake":
+        return (
+            f"연결 등록 완료: {conn_id}\n"
+            f"  타입: {db_type}\n"
+            f"  계정: {account}\n"
+            f"  웨어하우스: {warehouse}\n"
+            f"  데이터베이스: {database}\n"
+            f"  사용자: {user}"
         )
     return (
         f"연결 등록 완료: {conn_id}\n"
@@ -243,12 +335,13 @@ def list_connections() -> str:
         return "등록된 연결이 없습니다. connect_db를 먼저 호출하세요."
 
     lines = ["등록된 연결 목록:\n"]
-    lines.append("| conn_id | 타입 | 호스트 | 데이터베이스 | 사용자 | 비밀번호 |")
-    lines.append("| --- | --- | --- | --- | --- | --- |")
+    lines.append("| conn_id | 타입 | 호스트 | 데이터베이스 | 사용자 | 비밀번호 | 상태 |")
+    lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for cid, info in _connections.items():
+        status = "(저장됨)" if info.persisted else ""
         lines.append(
             f"| {cid} | {info.db_type} | {info.host}:{info.port} "
-            f"| {info.database} | {info.user} | {mask_password(info.password)} |"
+            f"| {info.database} | {info.user} | {mask_password(info.password)} | {status} |"
         )
     return "\n".join(lines)
 
@@ -416,6 +509,52 @@ def get_schema(conn_id: str, table_name: str = "") -> str:
                         lines.append("  " + " | ".join(pairs))
                 return "\n".join(lines)
 
+        elif info.db_type == "snowflake":
+            schema_name = info.schema_ or "PUBLIC"
+            if not table_name:
+                cur.execute(
+                    "SELECT table_name, table_type FROM information_schema.tables "
+                    "WHERE table_schema = %s ORDER BY table_name",
+                    (schema_name.upper(),)
+                )
+                rows = cur.fetchall()
+                if not rows:
+                    return f"스키마 '{schema_name}'에 테이블이 없습니다."
+                lines = [f"데이터베이스 '{info.database}' 스키마 '{schema_name}' 테이블 목록:\n"]
+                for r in rows:
+                    lines.append(f"- {r[0]} ({r[1]})")
+                return "\n".join(lines)
+            else:
+                err = _validate_identifier(table_name)
+                if err:
+                    return f"[ERROR] {err}"
+                cur.execute(
+                    "SELECT column_name, data_type, is_nullable, column_default "
+                    "FROM information_schema.columns "
+                    "WHERE table_schema = %s AND table_name = %s "
+                    "ORDER BY ordinal_position",
+                    (schema_name.upper(), table_name.upper())
+                )
+                cols = cur.fetchall()
+                if not cols:
+                    return f"[ERROR] 테이블 '{table_name}'을 찾을 수 없습니다."
+                cur.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+                count = cur.fetchone()[0]
+                lines = [f"테이블 '{table_name}' ({count}행)\n"]
+                lines.append("| 컬럼명 | 타입 | NULL허용 | 기본값 |")
+                lines.append("| --- | --- | --- | --- |")
+                for col in cols:
+                    lines.append(f"| {col[0]} | {col[1]} | {col[2]} | {col[3] or ''} |")
+                cur.execute(f'SELECT * FROM "{table_name}" LIMIT 2')
+                samples = cur.fetchall()
+                col_names = [c[0] for c in cols]
+                if samples:
+                    lines.append("\n샘플 데이터:")
+                    for row in samples:
+                        pairs = [f"{col_names[i]}={row[i]}" for i in range(len(col_names))]
+                        lines.append("  " + " | ".join(pairs))
+                return "\n".join(lines)
+
         return "[ERROR] 지원하지 않는 DB 타입입니다."
     except Exception as e:
         return f"[ERROR] 스키마 조회 실패: {e}"
@@ -473,6 +612,12 @@ def run_query(conn_id: str, sql: str) -> str:
                 [desc[0] for desc in cur.description] if cur.description else []
             )
             rows_list = [dict(r) for r in rows]
+        elif info.db_type == "snowflake":
+            cur = conn.cursor()
+            safe_query = f"SELECT * FROM ({query}) LIMIT {QUERY_LIMIT}"
+            cur.execute(safe_query)
+            rows_list = cur.fetchall()
+            columns = [desc[0] for desc in cur.description] if cur.description else []
         else:
             cur = conn.cursor()
             safe_query = f"SELECT * FROM ({query}) AS _sub LIMIT {QUERY_LIMIT}"
@@ -484,7 +629,29 @@ def run_query(conn_id: str, sql: str) -> str:
             return f"결과 없음 (SQL: `{query}`)"
 
         sql_preview = query[:80] + ("..." if len(query) > 80 else "")
-        return _rows_to_markdown(columns, rows_list, len(rows_list), sql_preview)
+        result = _rows_to_markdown(columns, rows_list, len(rows_list), sql_preview)
+
+        # 쿼리 이력 저장 (순환 import 방지를 위해 직접 저장)
+        try:
+            import datetime
+            _hist_file = Path("~/.config/bi-agent/query_history.json").expanduser()
+            _hist_file.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                history = json.loads(_hist_file.read_text(encoding="utf-8")) if _hist_file.exists() else []
+            except Exception:
+                history = []
+            history.append({
+                "timestamp": datetime.datetime.now().isoformat(),
+                "conn_id": conn_id,
+                "sql": query[:500],
+                "row_count": len(rows_list) if isinstance(rows_list, list) else 0,
+            })
+            history = history[-100:]  # 최대 100개
+            _hist_file.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+        return result
     except Exception as e:
         return f"[ERROR] 쿼리 실행 실패: {e}"
     finally:
@@ -666,8 +833,51 @@ def profile_table(conn_id: str, table_name: str) -> str:
                 )
             return "\n".join(lines)
 
+        elif info.db_type == "snowflake":
+            err = _validate_identifier(table_name)
+            if err:
+                return f"[ERROR] {err}"
+            schema_name = info.schema_ or "PUBLIC"
+            cur.execute(
+                "SELECT column_name, data_type FROM information_schema.columns "
+                "WHERE table_schema = %s AND table_name = %s ORDER BY ordinal_position",
+                (schema_name.upper(), table_name.upper())
+            )
+            cols = cur.fetchall()
+            if not cols:
+                return f"[ERROR] 테이블 '{table_name}'을 찾을 수 없습니다."
+            cur.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+            total = cur.fetchone()[0]
+            lines = [f"테이블 '{table_name}' 프로파일링 (전체 {total}행)\n"]
+            lines.append("| 컬럼명 | 타입 | NULL수 | NULL% | 유니크수 | min | max |")
+            lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+            for col_name, col_type in cols:
+                cur.execute(f"""
+                    SELECT
+                        SUM(CASE WHEN "{col_name}" IS NULL THEN 1 ELSE 0 END) AS null_count,
+                        COUNT(DISTINCT "{col_name}") AS unique_count,
+                        MIN(CAST("{col_name}" AS VARCHAR)) AS min_val,
+                        MAX(CAST("{col_name}" AS VARCHAR)) AS max_val
+                    FROM "{table_name}"
+                """)
+                stat = cur.fetchone()
+                null_count = stat[0] or 0
+                unique_count = stat[1] or 0
+                min_val = stat[2] or ""
+                max_val = stat[3] or ""
+                null_pct = f"{null_count / total * 100:.1f}%" if total > 0 else "0%"
+                lines.append(
+                    f"| {col_name} | {col_type} | {null_count} | {null_pct} "
+                    f"| {unique_count} | {min_val} | {max_val} |"
+                )
+            return "\n".join(lines)
+
         return "[ERROR] 지원하지 않는 DB 타입입니다."
     except Exception as e:
         return f"[ERROR] 프로파일링 실패: {e}"
     finally:
         conn.close()
+
+
+# 모듈 로드 시 저장된 연결 복원
+_load_connections()

@@ -10,18 +10,18 @@
 
 ```mermaid
 graph TD
-    A[PLAN.md<br/>전략 및 비전] -->|What/Whh| B[DETAILED_SPEC.md<br/>기술 및 상세 설계]
+    A[PLAN.md<br/>전략 및 비전] -->|What/Why| B[DETAILED_SPEC.md<br/>기술 및 상세 설계]
     B -->|How| C[TODO.md<br/>태스크 및 실행 현황]
     C -->|Action| D[CHANGELOG.md<br/>변경 및 완료 기록]
     D -->|Feedback| A
 ```
 
-| 문서명 | 역할 | 업데이트 시점 |
-| :--- | :--- | :--- |
-| [**PLAN.md**](./core/PLAN.md) | **전략 (Strategy)**: 마일스톤 및 로드맵 | 새로운 Phase 시작 시 |
-| [**DETAILED_SPEC.md**](./core/DETAILED_SPEC.md) | **설계 (Design)**: 기술 구조 및 프롬프트 명세 | 세부 로직 확정 시 |
-| [**TODO.md**](./core/TODO.md) | **실행 (Action)**: 현재 진행 태스크 체크리스트 | 매일 작업 시작/종료 시 |
-| [**CHANGELOG.md**](./core/CHANGELOG.md) | **기록 (History)**: 완료된 변경 사항 이력 | 주요 기능 완성 및 배포 시 |
+| 문서명                                          | 역할                                           | 업데이트 시점             |
+| :---------------------------------------------- | :--------------------------------------------- | :------------------------ |
+| [**PLAN.md**](./core/PLAN.md)                   | **전략 (Strategy)**: 마일스톤 및 로드맵        | 새로운 Phase 시작 시      |
+| [**DETAILED_SPEC.md**](./core/DETAILED_SPEC.md) | **설계 (Design)**: 기술 구조 및 프롬프트 명세  | 세부 로직 확정 시         |
+| [**TODO.md**](./core/TODO.md)                   | **실행 (Action)**: 현재 진행 태스크 체크리스트 | 매일 작업 시작/종료 시    |
+| [**CHANGELOG.md**](./core/CHANGELOG.md)         | **기록 (History)**: 완료된 변경 사항 이력      | 주요 기능 완성 및 배포 시 |
 
 ---
 

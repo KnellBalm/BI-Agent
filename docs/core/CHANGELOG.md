@@ -4,6 +4,78 @@
 
 ---
 
+## 2026-03-20 (v0.3.0-development)
+
+### Major Highlights: "Phase 2 — 도메인 지식 시스템 + BI 스킬 + MCP 도구 강화"
+
+MCP 도구만 사용하는 것을 넘어, 사용자의 비즈니스 도메인 지식과 재사용 가능한 워크플로우 스킬을 결합하여 **개인화된 BI 분석 역량**을 제공하는 시스템을 구축했습니다.
+
+### Added (신규 기능)
+
+#### 비즈니스 도메인 지식 시스템 (`context/`)
+- **context/README.md**: 도메인 지식 시스템 사용 가이드
+- **context/01_business_context.md**: 회사/팀/사업 개요 템플릿
+- **context/02_data_sources.md**: 데이터 소스 및 테이블 설명 템플릿
+- **context/03_kpi_dictionary.md**: KPI/지표 정의 사전 템플릿 (SQL 포함)
+- **context/04_analysis_patterns.md**: 트렌드/코호트/퍼널/RFM 분석 패턴 라이브러리
+- **context/05_glossary.md**: 비즈니스 용어사전 및 약어 사전
+- 파일을 작성할수록 AI 분석 품질이 자동 향상
+
+#### Claude Code BI 스킬 (`.claude/commands/`)
+- **/bi-connect**: 데이터 소스 연결 + 도메인 컨텍스트 로드
+- **/bi-explore**: 도메인 맥락 기반 데이터 탐색 및 비즈니스 언어 설명
+- **/bi-analyze**: 도메인 인식 기반 심층 분석 + 경영진 수준 보고서
+- **/bi-report**: KPI 정의 기반 정기 리포트 자동 생성
+- **/bi-domain**: 도메인 컨텍스트 현황 확인 및 완성도 점수
+
+#### MCP 도구 신규 추가
+- **load_domain_context(sections)**: context/ 마크다운 파일 로드 -> MCP 컨텍스트 주입
+- **list_query_history(limit)**: 쿼리 실행 이력 조회 (~/.config/bi-agent/query_history.json)
+
+### Improved (개선 사항)
+- **suggest_analysis**: `question` 파라미터 추가, context/ 자동 탐색으로 도메인 맥락 반영
+- **run_query**: 실행 시 쿼리 이력 자동 저장 (최대 100건)
+
+### 현재 MCP 도구 수: 21개
+
+---
+
+## 2026-03-20 (v0.2.0-development) 🧹
+
+### Major Highlights: "Phase 1 — 레거시 정리 + 데이터 소스 확장"
+
+기존 TUI/LangGraph 오케스트레이터 코드를 완전히 제거하고, MCP 서버 패키지(bi_agent_mcp)를 확장했습니다.
+
+### 🗑️ Removed (레거시 제거)
+- **backend/** 전체 제거: 구 LangGraph ReAct 오케스트레이터, prompt_toolkit TUI, HITL 루프
+- **.agent/, .agents/, .serena/** 제거: 구 에이전트 설정, 스킬, Serena 메모리
+- **analyses/, bin/, config/, examples/, scripts/, logs/** 제거: 구 백엔드 지원 파일
+- **tests/integration/, tests/e2e/, tests/performance/** 제거: 구 백엔드 테스트
+- **bi_agent.egg-info/, dist/** 제거: 구 패키지명 아티팩트 및 빌드 캐시
+
+### 🟢 Added (신규 기능)
+
+#### 연결 영속성 (Connection Persistence)
+- `~/.config/bi-agent/connections.json`에 연결 정보 자동 저장 (비밀번호 제외)
+- 서버 재시작 후 연결 자동 복원 (`_load_connections()`)
+- `list_connections()` 결과에 "(저장됨)" 상태 표시
+
+#### Snowflake 지원
+- `connect_db(db_type="snowflake", account=..., warehouse=..., ...)` 지원
+- `snowflake-connector-python>=3.0` 의존성 추가
+- `get_schema()`, `run_query()`, `profile_table()` Snowflake 지원
+
+#### Excel/CSV 파일 데이터 소스 (tools/files.py 신규)
+- `connect_file(path)`: CSV/XLSX/XLS 파일 로드, file_id 반환
+- `list_files()`: 로드된 파일 목록
+- `query_file(file_id, sql)`: DuckDB 기반 SQL 실행
+- `get_file_schema(file_id)`: 컬럼 정보 조회
+- `duckdb>=0.9`, `openpyxl>=3.1`, `pandas>=2.0` 의존성 추가
+
+### 📊 현재 MCP 도구 수: 19개
+
+---
+
 ## 2026-03-06 (v0.1.1-development) 🖥️
 
 ### Major Highlights: "CLI v3 — TUI 전면 재구축 + 명령어 네임스페이스 재편"
