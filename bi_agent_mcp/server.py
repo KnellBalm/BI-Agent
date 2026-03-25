@@ -133,5 +133,26 @@ mcp.tool()(cohort_analysis)
 mcp.tool()(pivot_table)
 mcp.tool()(top_n_analysis)
 
+# orchestration tools — 분석 오케스트레이션 (플랜 기반 분석 워크플로우)
+from bi_agent_mcp.tools.orchestration import (
+    create_analysis_plan,
+    get_analysis_plan,
+    update_analysis_step,
+    add_analysis_step,
+    synthesize_findings,
+    list_analysis_plans,
+    complete_analysis_plan,
+    delete_analysis_plan,
+)
+
+mcp.tool()(create_analysis_plan)
+mcp.tool()(get_analysis_plan)
+mcp.tool()(update_analysis_step)
+mcp.tool()(add_analysis_step)
+mcp.tool()(synthesize_findings)
+mcp.tool()(list_analysis_plans)
+mcp.tool()(complete_analysis_plan)
+mcp.tool()(delete_analysis_plan)
+
 if __name__ == "__main__":
     mcp.run()
