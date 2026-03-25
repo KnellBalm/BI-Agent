@@ -112,5 +112,26 @@ from bi_agent_mcp.tools.compare import compare_queries
 
 mcp.tool()(compare_queries)
 
+# analytics tools — BI 심층 분석
+from bi_agent_mcp.tools.analytics import (
+    trend_analysis,
+    correlation_analysis,
+    distribution_analysis,
+    segment_analysis,
+    funnel_analysis,
+    cohort_analysis,
+    pivot_table,
+    top_n_analysis,
+)
+
+mcp.tool()(trend_analysis)
+mcp.tool()(correlation_analysis)
+mcp.tool()(distribution_analysis)
+mcp.tool()(segment_analysis)
+mcp.tool()(funnel_analysis)
+mcp.tool()(cohort_analysis)
+mcp.tool()(pivot_table)
+mcp.tool()(top_n_analysis)
+
 if __name__ == "__main__":
     mcp.run()
