@@ -1,5 +1,7 @@
 """bi-agent DB 도구 — connect_db, list_connections, get_schema, run_query, profile_table."""
+import hashlib
 import json
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,6 +13,16 @@ from bi_agent_mcp.auth.credentials import mask_password
 from bi_agent_mcp.config import QUERY_LIMIT, BQ_MAX_BYTES_BILLED
 
 _CONN_FILE = Path("~/.config/bi-agent/connections.json").expanduser()
+
+# ──────────────────────────────────────────────
+# 쿼리 결과 캐시
+# ──────────────────────────────────────────────
+
+# {(conn_id, sql_hash): {"result": str, "expires": float, "hits": int}}
+_query_cache: dict = {}
+_CACHE_TTL = 300  # 5분
+_cache_hits = 0
+_cache_misses = 0
 
 # ──────────────────────────────────────────────
 # 연결 레지스트리
@@ -569,6 +581,8 @@ def run_query(conn_id: str, sql: str) -> str:
         conn_id: connect_db로 얻은 연결 ID
         sql: 실행할 SELECT SQL 쿼리
     """
+    global _cache_hits, _cache_misses
+
     info = _connections.get(conn_id)
     if not info:
         return f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
@@ -582,6 +596,19 @@ def run_query(conn_id: str, sql: str) -> str:
     error = _validate_select(query)
     if error:
         return f"[ERROR] {error}"
+
+    # 캐시 확인 (SELECT 쿼리만)
+    sql_stripped = query.upper()
+    cache_key = (conn_id, hashlib.md5(query.encode()).hexdigest())
+    if sql_stripped.startswith("SELECT"):
+        if cache_key in _query_cache:
+            entry = _query_cache[cache_key]
+            if time.time() < entry["expires"]:
+                _cache_hits += 1
+                entry["hits"] += 1
+                remaining = int(entry["expires"] - time.time())
+                return entry["result"] + f"\n\n*캐시에서 반환됨 (TTL: {remaining}초 남음)*"
+        _cache_misses += 1
 
     try:
         conn = _get_conn(info)
@@ -651,6 +678,13 @@ def run_query(conn_id: str, sql: str) -> str:
         except Exception:
             pass
 
+        # SELECT 쿼리 결과 캐시 저장
+        if sql_stripped.startswith("SELECT"):
+            _query_cache[cache_key] = {
+                "result": result,
+                "expires": time.time() + _CACHE_TTL,
+                "hits": 0,
+            }
         return result
     except Exception as e:
         return f"[ERROR] 쿼리 실행 실패: {e}"
@@ -877,6 +911,34 @@ def profile_table(conn_id: str, table_name: str) -> str:
         return f"[ERROR] 프로파일링 실패: {e}"
     finally:
         conn.close()
+
+
+def clear_cache(conn_id: str = "") -> str:
+    """쿼리 결과 캐시를 무효화합니다.
+
+    Args:
+        conn_id: 특정 연결의 캐시만 삭제. 비워두면 전체 삭제.
+    """
+    global _query_cache, _cache_hits, _cache_misses
+
+    if conn_id:
+        before = len(_query_cache)
+        _query_cache = {k: v for k, v in _query_cache.items() if k[0] != conn_id}
+        deleted = before - len(_query_cache)
+        total = len(_query_cache)
+    else:
+        deleted = len(_query_cache)
+        _query_cache = {}
+        total = 0
+
+    total_requests = _cache_hits + _cache_misses
+    hit_rate = f"{_cache_hits / total_requests * 100:.1f}%" if total_requests > 0 else "N/A"
+
+    return (
+        f"{deleted}개 캐시 항목이 삭제되었습니다.\n"
+        f"남은 캐시: {total}개\n"
+        f"캐시 히트율: {hit_rate} ({_cache_hits} 히트 / {total_requests} 요청)"
+    )
 
 
 # 모듈 로드 시 저장된 연결 복원

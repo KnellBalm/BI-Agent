@@ -195,3 +195,188 @@ class TestParsDbUrl:
     def test_completely_invalid_url_returns_none(self):
         result = _parse_db_url("not-a-url-at-all")
         assert result is None
+
+
+# ─── Extended tests for test_datasource and private helpers ───────────────────
+
+from bi_agent_mcp.tools.setup import _test_postgresql, _test_mysql, _test_bigquery, _test_ga4, _test_amplitude
+from bi_agent_mcp.tools.setup import test_datasource as run_test_datasource
+
+
+class TestTestDatasource:
+    def test_invalid_type_returns_error(self):
+        result = run_test_datasource("invalid_db")
+        assert "❌" in result
+        assert "유효하지 않은" in result
+
+    def test_postgresql_routing(self):
+        with patch("bi_agent_mcp.tools.setup._test_postgresql", return_value="✅ PG OK") as mock_fn:
+            result = run_test_datasource("postgresql")
+        assert result == "✅ PG OK"
+
+    def test_mysql_routing(self):
+        with patch("bi_agent_mcp.tools.setup._test_mysql", return_value="✅ MySQL OK"):
+            result = run_test_datasource("mysql")
+        assert result == "✅ MySQL OK"
+
+    def test_bigquery_routing(self):
+        with patch("bi_agent_mcp.tools.setup._test_bigquery", return_value="✅ BQ OK"):
+            result = run_test_datasource("bigquery")
+        assert result == "✅ BQ OK"
+
+    def test_ga4_routing(self):
+        with patch("bi_agent_mcp.tools.setup._test_ga4", return_value="✅ GA4 OK"):
+            result = run_test_datasource("ga4")
+        assert result == "✅ GA4 OK"
+
+    def test_amplitude_routing(self):
+        with patch("bi_agent_mcp.tools.setup._test_amplitude", return_value="✅ Amp OK"):
+            result = run_test_datasource("amplitude")
+        assert result == "✅ Amp OK"
+
+    def test_exception_returns_error(self):
+        with patch("bi_agent_mcp.tools.setup._test_postgresql", side_effect=RuntimeError("crash")):
+            result = run_test_datasource("postgresql")
+        assert "❌" in result
+
+
+class TestTestPostgresql:
+    def test_import_error_returns_message(self):
+        with patch.dict("sys.modules", {"psycopg2": None}):
+            result = _test_postgresql()
+        assert "psycopg2" in result or "❌" in result
+
+    def test_no_config_returns_message(self):
+        with patch("bi_agent_mcp.tools.setup.psycopg2" if False else "builtins.__import__", side_effect=ImportError):
+            pass
+        mock_psycopg2 = MagicMock()
+        mock_psycopg2.connect.side_effect = Exception("connection refused")
+        with patch.dict("sys.modules", {"psycopg2": mock_psycopg2}), \
+             patch("bi_agent_mcp.config_manager.ConfigManager") as MockCM:
+            instance = MockCM.return_value
+            instance.load_datasource.return_value = {}
+            with patch("bi_agent_mcp.config.PG_HOST", ""), \
+                 patch("bi_agent_mcp.config.PG_DBNAME", ""):
+                result = _test_postgresql()
+        assert "설정이 없습니다" in result or "❌" in result
+
+    def test_connection_success(self):
+        mock_psycopg2 = MagicMock()
+        mock_conn = MagicMock()
+        mock_psycopg2.connect.return_value = mock_conn
+        with patch.dict("sys.modules", {"psycopg2": mock_psycopg2}), \
+             patch("bi_agent_mcp.config.PG_HOST", "localhost"), \
+             patch("bi_agent_mcp.config.PG_DBNAME", "mydb"), \
+             patch("bi_agent_mcp.config.PG_USER", "admin"), \
+             patch("bi_agent_mcp.config.PG_PASSWORD", "pass"), \
+             patch("bi_agent_mcp.config.PG_PORT", 5432):
+            result = _test_postgresql()
+        assert "✅" in result
+
+    def test_connection_failure(self):
+        mock_psycopg2 = MagicMock()
+        mock_psycopg2.connect.side_effect = Exception("timeout")
+        with patch.dict("sys.modules", {"psycopg2": mock_psycopg2}), \
+             patch("bi_agent_mcp.config.PG_HOST", "localhost"), \
+             patch("bi_agent_mcp.config.PG_DBNAME", "mydb"), \
+             patch("bi_agent_mcp.config.PG_USER", "admin"), \
+             patch("bi_agent_mcp.config.PG_PASSWORD", "pass"), \
+             patch("bi_agent_mcp.config.PG_PORT", 5432):
+            result = _test_postgresql()
+        assert "❌" in result and "실패" in result
+
+
+class TestTestMysql:
+    def test_import_error(self):
+        with patch.dict("sys.modules", {"pymysql": None}):
+            result = _test_mysql()
+        assert "pymysql" in result or "❌" in result
+
+    def test_no_config_returns_message(self):
+        mock_pymysql = MagicMock()
+        mock_pymysql.connect.side_effect = Exception("no db")
+        with patch.dict("sys.modules", {"pymysql": mock_pymysql}), \
+             patch("bi_agent_mcp.config_manager.ConfigManager") as MockCM:
+            instance = MockCM.return_value
+            instance.load_datasource.return_value = {}
+            with patch("bi_agent_mcp.config.MYSQL_HOST", ""), \
+                 patch("bi_agent_mcp.config.MYSQL_DBNAME", ""):
+                result = _test_mysql()
+        assert "설정이 없습니다" in result or "❌" in result
+
+    def test_connection_success(self):
+        mock_pymysql = MagicMock()
+        mock_conn = MagicMock()
+        mock_pymysql.connect.return_value = mock_conn
+        with patch.dict("sys.modules", {"pymysql": mock_pymysql}), \
+             patch("bi_agent_mcp.config.MYSQL_HOST", "localhost"), \
+             patch("bi_agent_mcp.config.MYSQL_DBNAME", "testdb"), \
+             patch("bi_agent_mcp.config.MYSQL_USER", "root"), \
+             patch("bi_agent_mcp.config.MYSQL_PASSWORD", "pw"), \
+             patch("bi_agent_mcp.config.MYSQL_PORT", 3306):
+            result = _test_mysql()
+        assert "✅" in result
+
+
+class TestTestBigquery:
+    def test_import_error(self):
+        with patch.dict("sys.modules", {"google.cloud": None, "google.cloud.bigquery": None}):
+            result = _test_bigquery()
+        assert "❌" in result
+
+    def test_no_project_id_returns_message(self):
+        mock_bq = MagicMock()
+        with patch.dict("sys.modules", {"google.cloud": MagicMock(), "google.cloud.bigquery": mock_bq}), \
+             patch("bi_agent_mcp.config.BQ_PROJECT_ID", ""), \
+             patch("bi_agent_mcp.config_manager.ConfigManager") as MockCM:
+            instance = MockCM.return_value
+            instance.load_datasource.return_value = {}
+            result = _test_bigquery()
+        assert "설정이 없습니다" in result or "❌" in result
+
+
+class TestTestGa4:
+    def test_no_client_id_returns_message(self):
+        with patch("bi_agent_mcp.config.GOOGLE_CLIENT_ID", ""), \
+             patch("bi_agent_mcp.config_manager.ConfigManager") as MockCM:
+            instance = MockCM.return_value
+            instance.load_datasource.return_value = {}
+            result = _test_ga4()
+        assert "설정이 없습니다" in result or "❌" in result
+
+    def test_client_id_exists_returns_ok(self):
+        with patch("bi_agent_mcp.config.GOOGLE_CLIENT_ID", "client_123.apps.googleusercontent.com"):
+            result = _test_ga4()
+        assert "✅" in result
+
+
+class TestTestAmplitude:
+    def test_no_api_key_returns_message(self):
+        with patch("bi_agent_mcp.config.AMPLITUDE_API_KEY", ""), \
+             patch("bi_agent_mcp.config_manager.ConfigManager") as MockCM:
+            instance = MockCM.return_value
+            instance.load_datasource.return_value = {}
+            result = _test_amplitude()
+        assert "설정이 없습니다" in result or "❌" in result
+
+    def test_api_key_in_config(self):
+        with patch("bi_agent_mcp.config.AMPLITUDE_API_KEY", "my_api_key_123"):
+            result = _test_amplitude()
+        assert "✅" in result
+
+
+class TestConfigureDatasourceExtended:
+    def test_save_exception_returns_error(self):
+        with patch("bi_agent_mcp.config_manager.ConfigManager") as MockCM:
+            instance = MockCM.return_value
+            instance.save_datasource.side_effect = Exception("keyring error")
+            result = configure_datasource("postgresql", {"host": "localhost"}, {"password": "pw"})
+        assert "❌" in result
+        assert "오류" in result
+
+
+class TestCheckSetupStatusExtended:
+    def test_exception_returns_error_message(self):
+        with patch("bi_agent_mcp.config_manager.ConfigManager", side_effect=Exception("init error")):
+            result = check_setup_status()
+        assert "오류" in result

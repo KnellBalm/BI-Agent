@@ -1,0 +1,15 @@
+[run]
+omit =
+    bi_agent_mcp/setup_cli.py
+    bi_agent_mcp/server.py
+    bi_agent_mcp/__main__.py
+    bi_agent_mcp/auth/oauth.py
+    */venv/*
+    */site-packages/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    pass

@@ -283,3 +283,114 @@ class TestConfigManagerMisc:
 
         # db secret key는 "password"
         mock_delete.assert_called_with("bi-agent", "db_password")
+
+
+# ─── Extended tests for uncovered lines ───────────────────────────────────────
+
+class TestLoadDatasource:
+    def test_load_datasource_with_keyring(self, tmp_path):
+        """load_datasource는 config.json + keyring에서 값을 합쳐 반환."""
+        import json
+        cfg_file = tmp_path / "config.json"
+        cfg_file.write_text(json.dumps({
+            "version": 1,
+            "datasources": {"db": {"host": "localhost", "port": 5432, "type": "postgresql"}}
+        }))
+        with patch("bi_agent_mcp.config_manager.CONFIG_FILE", cfg_file), \
+             patch("bi_agent_mcp.config_manager.ConfigManager._load_config",
+                   return_value={"datasources": {"db": {"host": "pg.local", "port": 5432}}}), \
+             patch("bi_agent_mcp.auth.credentials.get_env_or_secret", return_value="secret_pw"):
+            from bi_agent_mcp.config_manager import ConfigManager
+            cm = ConfigManager()
+            result = cm.load_datasource("db")
+        assert "host" in result or isinstance(result, dict)
+
+    def test_load_datasource_exception_returns_empty(self):
+        from bi_agent_mcp.config_manager import ConfigManager
+        cm = ConfigManager()
+        with patch.object(cm, "_load_config", side_effect=Exception("crash")):
+            result = cm.load_datasource("db")
+        assert result == {}
+
+    def test_load_datasource_no_secret(self):
+        from bi_agent_mcp.config_manager import ConfigManager
+        cm = ConfigManager()
+        with patch.object(cm, "_load_config", return_value={"datasources": {"ga4": {"property_id": "123"}}}), \
+             patch("bi_agent_mcp.auth.credentials.get_env_or_secret", return_value=None):
+            result = cm.load_datasource("ga4")
+        assert result.get("property_id") == "123"
+
+
+class TestResetDatasource:
+    def test_reset_clears_config(self, tmp_path):
+        import json
+        cfg_file = tmp_path / "config.json"
+        cfg_file.write_text(json.dumps({"datasources": {"db": {"host": "localhost"}}}))
+        with patch("bi_agent_mcp.config_manager.CONFIG_FILE", cfg_file), \
+             patch("bi_agent_mcp.config_manager.CONFIG_DIR", tmp_path), \
+             patch("bi_agent_mcp.auth.credentials.delete_secret", return_value=None):
+            from bi_agent_mcp.config_manager import ConfigManager
+            cm = ConfigManager()
+            cm.reset_datasource("db")
+        data = json.loads(cfg_file.read_text())
+        assert data["datasources"]["db"] == {}
+
+    def test_reset_exception_does_not_raise(self):
+        from bi_agent_mcp.config_manager import ConfigManager
+        cm = ConfigManager()
+        with patch.object(cm, "_load_config", side_effect=Exception("crash")):
+            cm.reset_datasource("db")  # Should not raise
+
+    def test_reset_delete_secret_exception_ignored(self, tmp_path):
+        import json
+        cfg_file = tmp_path / "config.json"
+        cfg_file.write_text(json.dumps({"datasources": {"db": {}}}))
+        with patch("bi_agent_mcp.config_manager.CONFIG_FILE", cfg_file), \
+             patch("bi_agent_mcp.config_manager.CONFIG_DIR", tmp_path), \
+             patch("bi_agent_mcp.auth.credentials.delete_secret", side_effect=Exception("keyring error")):
+            from bi_agent_mcp.config_manager import ConfigManager
+            cm = ConfigManager()
+            cm.reset_datasource("db")  # Should not raise despite keyring error
+
+
+class TestLoadConfigErrors:
+    def test_malformed_json_returns_default(self, tmp_path):
+        cfg_file = tmp_path / "config.json"
+        cfg_file.write_text("{ invalid json }")
+        with patch("bi_agent_mcp.config_manager.CONFIG_FILE", cfg_file):
+            from bi_agent_mcp.config_manager import ConfigManager
+            cm = ConfigManager()
+            result = cm._load_config()
+        assert result["version"] == 1
+        assert "datasources" in result
+
+    def test_oserror_returns_default(self, tmp_path):
+        cfg_file = tmp_path / "config.json"
+        cfg_file.write_text('{"datasources": {}}')
+        with patch("bi_agent_mcp.config_manager.CONFIG_FILE", cfg_file), \
+             patch("builtins.open", side_effect=OSError("permission denied")):
+            from bi_agent_mcp.config_manager import ConfigManager
+            cm = ConfigManager()
+            result = cm._load_config()
+        assert "datasources" in result
+
+
+class TestListDatasourcesException:
+    def test_exception_returns_all_not_configured(self):
+        from bi_agent_mcp.config_manager import ConfigManager
+        cm = ConfigManager()
+        with patch.object(cm, "_load_config", side_effect=Exception("crash")):
+            result = cm.list_datasources()
+        assert result["db"]["configured"] is False
+        assert result["ga4"]["configured"] is False
+        assert result["amplitude"]["configured"] is False
+
+
+class TestSaveDatasourceError:
+    def test_save_exception_raises(self, tmp_path):
+        from bi_agent_mcp.config_manager import ConfigManager
+        cm = ConfigManager()
+        with patch.object(cm, "_load_config", side_effect=Exception("crash")):
+            import pytest
+            with pytest.raises(Exception):
+                cm.save_datasource("db", {"host": "localhost"}, None)

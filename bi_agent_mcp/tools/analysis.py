@@ -56,7 +56,32 @@ def generate_report(sections: list) -> str:
         return f"[ERROR] 리포트 파일 생성 실패: {e}"
 
 
-def save_query(name: str, sql: str, connection_id: str = "") -> str:
+def _load_queries() -> dict:
+    """저장된 쿼리 파일을 읽어 dict로 반환합니다."""
+    if not QUERIES_FILE.exists():
+        return {}
+    try:
+        with open(QUERIES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"쿼리 파일을 읽는 중 오류 발생: {e}")
+        return {}
+
+
+def _save_queries(queries: dict) -> None:
+    """쿼리 dict를 파일에 저장합니다."""
+    with open(QUERIES_FILE, "w", encoding="utf-8") as f:
+        json.dump(queries, f, ensure_ascii=False, indent=2)
+
+
+def save_query(
+    name: str,
+    sql: str,
+    connection_id: str = "",
+    tags: list = None,
+    description: str = "",
+    parameters: dict = None,
+) -> str:
     """
     나중에 재사용할 수 있도록 SQL 쿼리를 JSON 파일에 저장합니다.
 
@@ -64,32 +89,124 @@ def save_query(name: str, sql: str, connection_id: str = "") -> str:
         name: 쿼리 이름 (예: "월별 매출 추이")
         sql: 저장할 SQL 쿼리 문자열
         connection_id: 쿼리가 실행되어야 할 DB 연결 ID (기본값: "")
+        tags: 태그 목록 (예: ["매출", "월별"])
+        description: 쿼리 설명
+        parameters: 파라미터 정의 (예: {"user_id": "사용자 ID"})
 
     Returns:
         저장 결과 메시지
     """
-    queries = {}
-    if QUERIES_FILE.exists():
-        try:
-            with open(QUERIES_FILE, "r", encoding="utf-8") as f:
-                queries = json.load(f)
-        except Exception as e:
-            logger.warning(f"기존 쿼리 파일을 읽는 중 오류 발생: {e}")
+    queries = _load_queries()
 
     saved_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     queries[name] = {
         "sql": sql,
         "connection_id": connection_id,
         "saved_at": saved_at,
+        "tags": tags or [],
+        "description": description,
+        "parameters": parameters or {},
     }
 
     try:
-        with open(QUERIES_FILE, "w", encoding="utf-8") as f:
-            json.dump(queries, f, ensure_ascii=False, indent=2)
+        _save_queries(queries)
         return f"[SUCCESS] 쿼리 '{name}' 저장 완료 (경로: {QUERIES_FILE})"
     except Exception as e:
         logger.error(f"쿼리 저장 중 오류 발생: {e}")
         return f"[ERROR] 쿼리 저장에 실패했습니다: {e}"
+
+
+def search_saved_queries(keyword: str = "", tags: list = None) -> str:
+    """
+    저장된 쿼리를 키워드 또는 태그로 검색합니다.
+
+    Args:
+        keyword: 쿼리명(name) 또는 SQL에서 부분 문자열 검색 (대소문자 무시)
+        tags: 이 태그들을 모두 가진 쿼리만 반환 (AND 조건)
+
+    Returns:
+        검색 결과 Markdown 테이블
+    """
+    queries = _load_queries()
+    if not queries:
+        return "저장된 쿼리가 없습니다."
+
+    results = {}
+    kw_lower = keyword.lower() if keyword else ""
+    for name, info in queries.items():
+        if kw_lower and kw_lower not in name.lower() and kw_lower not in info.get("sql", "").lower():
+            continue
+        if tags:
+            query_tags = info.get("tags", [])
+            if not all(t in query_tags for t in tags):
+                continue
+        results[name] = info
+
+    if not results:
+        return "검색 결과가 없습니다."
+
+    header = "| 이름 | 설명 | 태그 | 연결 ID | SQL 미리보기 (50자) | 저장 시각 |"
+    separator = "|------|------|------|---------|---------------------|-----------|"
+    rows = [header, separator]
+    for name, info in results.items():
+        description = info.get("description", "")
+        tag_str = ", ".join(info.get("tags", []))
+        connection_id = info.get("connection_id", "")
+        sql_preview = info.get("sql", "")[:50].replace("\n", " ")
+        saved_at = info.get("saved_at", "")
+        rows.append(f"| {name} | {description} | {tag_str} | {connection_id} | {sql_preview} | {saved_at} |")
+
+    return "\n".join(rows)
+
+
+def run_saved_query(query_id: str, conn_id: str, params: dict = None) -> str:
+    """
+    저장된 쿼리를 로드하여 실행합니다.
+
+    Args:
+        query_id: 저장된 쿼리 이름(ID)
+        conn_id: 실행할 DB 연결 ID
+        params: SQL의 {param_name} 플레이스홀더를 치환할 파라미터 dict
+
+    Returns:
+        쿼리 결과 Markdown 테이블
+    """
+    queries = _load_queries()
+    if query_id not in queries:
+        return f"[ERROR] 쿼리 ID '{query_id}'를 찾을 수 없습니다."
+
+    sql = queries[query_id].get("sql", "")
+    if params:
+        try:
+            sql = sql.format_map(params)
+        except KeyError as e:
+            return f"[ERROR] 파라미터 바인딩 실패 — 누락된 키: {e}"
+
+    from bi_agent_mcp.tools.db import run_query
+    return run_query(conn_id=conn_id, sql=sql)
+
+
+def delete_saved_query(query_id: str) -> str:
+    """
+    저장된 쿼리를 삭제합니다.
+
+    Args:
+        query_id: 삭제할 쿼리 이름(ID)
+
+    Returns:
+        삭제 결과 메시지
+    """
+    queries = _load_queries()
+    if query_id not in queries:
+        return f"[ERROR] 쿼리 ID '{query_id}'를 찾을 수 없습니다."
+
+    del queries[query_id]
+    try:
+        _save_queries(queries)
+        return f"쿼리 '{query_id}'이 삭제되었습니다."
+    except Exception as e:
+        logger.error(f"쿼리 삭제 중 오류 발생: {e}")
+        return f"[ERROR] 쿼리 삭제에 실패했습니다: {e}"
 
 
 def list_saved_queries() -> str:

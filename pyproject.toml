@@ -50,6 +50,19 @@ bi-agent-mcp-setup = "bi_agent_mcp.setup_cli:setup"
 test = [
     "pytest>=7.0",
     "pytest-mock>=3.0",
+    "pytest-cov>=4.1",
+]
+
+[tool.coverage.run]
+source = ["bi_agent_mcp"]
+omit = ["*/tests/*", "*/__pycache__/*", "*/venv/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "except ImportError",
+    "raise NotImplementedError",
 ]
 
 [tool.setuptools.packages.find]

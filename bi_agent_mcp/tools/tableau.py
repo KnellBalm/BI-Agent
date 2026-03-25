@@ -3,15 +3,49 @@ Tableau 시각화용 통합 패키지(.twbx) 생성 도구.
 """
 import csv
 import logging
-import os
+import re
 import shutil
 import uuid
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 logger = logging.getLogger(__name__)
+
+
+def _detect_column_type(values: list) -> str:
+    """샘플 값으로 컬럼 타입 추론. 'date', 'measure', 'dimension' 반환."""
+    date_pattern = re.compile(r'^\d{4}[-/]\d{2}([-/]\d{2})?$')
+    numeric_pattern = re.compile(r'^-?\d+(\.\d+)?$')
+
+    non_empty = [str(v).strip() for v in values if v and str(v).strip() not in ('', 'None', 'null')]
+    if not non_empty:
+        return 'dimension'
+
+    date_count = sum(1 for v in non_empty if date_pattern.match(v))
+    numeric_count = sum(1 for v in non_empty if numeric_pattern.match(v))
+
+    if date_count / len(non_empty) > 0.7:
+        return 'date'
+    if numeric_count / len(non_empty) > 0.7:
+        return 'measure'
+    return 'dimension'
+
+
+def _determine_chart_layout(col_types: dict) -> tuple[str, list, list]:
+    """컬럼 타입 기반 차트 타입, columns_shelf, rows_shelf 반환."""
+    dates = [c for c, t in col_types.items() if t == 'date']
+    measures = [c for c, t in col_types.items() if t == 'measure']
+    dimensions = [c for c, t in col_types.items() if t == 'dimension']
+
+    if dates and measures:
+        return 'line', dates[:1], measures[:1]
+    elif dimensions and measures:
+        return 'bar', dimensions[:1], measures[:1]
+    elif len(measures) >= 2:
+        return 'scatter', measures[:1], measures[1:2]
+    else:
+        return 'text', list(col_types.keys())[:2], []
 
 
 def _parse_markdown_table(md_table_str: str) -> tuple[list[str], list[list[str]]]:
@@ -43,33 +77,57 @@ def _parse_markdown_table(md_table_str: str) -> tuple[list[str], list[list[str]]
     return headers, rows
 
 
-def generate_twbx(query_result: str, chart_type: str = "Bar", title: str = "TWBX Report") -> str:
+def generate_twbx(
+    query_result: str = "",
+    chart_type: str = "auto",
+    title: str = "TWBX Report",
+    data: str = "",
+) -> str:
     """
     마크다운 포맷의 데이터를 CSV와 연동된 Tableau Workbook 패키지(.twbx)로 자동 생성합니다.
     생성된 파일은 홈 디렉토리의 Downloads 폴더에 저장됩니다.
-    
+
     Args:
-        query_result: 데이터 (마크다운 테이블 포맷 문자열)
-        chart_type: 생성할 기초 차트 종류 ("Bar", "Line", "Scatter", "Text" 등)
+        query_result: 데이터 (마크다운 테이블 포맷 문자열) - 하위 호환용
+        data: 데이터 (마크다운 테이블 포맷 문자열) - query_result 대체
+        chart_type: 생성할 차트 종류 ("auto", "Bar", "Line", "Scatter", "Text" 등). "auto"이면 데이터 타입 자동 감지
         title: 저장될 워크북 및 시트 이름
-        
+
     Returns:
         최종 생성된 TWBX 파일 절대 경로 메시지
     """
+    # data 파라미터 우선, 없으면 query_result 사용
+    input_data = data if data else query_result
+
     # 1. 마크다운 테이블 파싱
-    headers, data_rows = _parse_markdown_table(query_result)
+    headers, data_rows = _parse_markdown_table(input_data)
     if not headers or not data_rows:
         return "[ERROR] 마크다운 테이블 포맷이 유효하지 않거나 데이터가 없습니다."
-        
-    # 차트 유형 매핑 (Tableau 내부 mark class 매핑 참고)
+
+    # 차트 유형 결정
     mark_mapping = {
         "bar": "Bar",
         "line": "Line",
-        "scatter": "Shape", # 산점도의 기초 형태
+        "scatter": "Shape",
         "heatmap": "Square",
-        "text": "Text"
+        "text": "Text",
     }
-    mark_type = mark_mapping.get(chart_type.lower(), "Bar")
+
+    if chart_type.lower() == "auto":
+        # 각 컬럼의 값으로 타입 감지
+        col_types = {}
+        for i, header in enumerate(headers):
+            col_values = [row[i] for row in data_rows if i < len(row)]
+            col_types[header] = _detect_column_type(col_values)
+        auto_chart, columns_shelf, rows_shelf = _determine_chart_layout(col_types)
+        mark_type = mark_mapping.get(auto_chart, "Bar")
+    else:
+        mark_type = mark_mapping.get(chart_type.lower(), "Bar")
+        col_types = {}
+        for i, header in enumerate(headers):
+            col_values = [row[i] for row in data_rows if i < len(row)]
+            col_types[header] = _detect_column_type(col_values)
+        _, columns_shelf, rows_shelf = _determine_chart_layout(col_types)
     
     # 작업에 쓸 유일 ID 생성
     job_id = str(uuid.uuid4())[:8]
@@ -89,7 +147,26 @@ def generate_twbx(query_result: str, chart_type: str = "Bar", title: str = "TWBX
             writer.writerow(headers)
             writer.writerows(data_rows)
             
-        # 3. 최소한의 유효한 .twb (XML) 템플릿 파일 생성
+        # 3. shelf 바인딩 XML 조각 생성
+        columns_fields_xml = ""
+        for col_field in columns_shelf:
+            columns_fields_xml += f"        <column-instance column='[{col_field}]' derivation='None' name='[{col_field}]' pivot='key' type='nominal' />\n"
+
+        rows_fields_xml = ""
+        for row_field in rows_shelf:
+            rows_fields_xml += f"        <column-instance column='[{row_field}]' derivation='Sum' name='SUM([{row_field}])' pivot='key' type='quantitative' />\n"
+
+        # mark_type을 Tableau style encoding 값으로 변환
+        style_mark_type_mapping = {
+            "Bar": "bar",
+            "Line": "line",
+            "Shape": "circle",
+            "Square": "square",
+            "Text": "text",
+        }
+        style_mark_type = style_mark_type_mapping.get(mark_type, "bar")
+
+        # 4. 최소한의 유효한 .twb (XML) 템플릿 파일 생성
         # 주의: Tableau XML 형식은 버전과 구조에 민감하므로 가장 기본적인 통용 버전을 사용
         twb_content = f"""<?xml version='1.0' encoding='utf-8' ?>
 <workbook source-build='2021.2.0' source-platform='mac' version='18.1' xml:base='https://public.tableau.com' xmlns:user='http://www.tableausoftware.com/xml/user'>
@@ -119,8 +196,18 @@ def generate_twbx(query_result: str, chart_type: str = "Bar", title: str = "TWBX
           <datasources>
             <datasource name='federated.1' />
           </datasources>
+          <columns-fields>
+{columns_fields_xml}          </columns-fields>
+          <rows-fields>
+{rows_fields_xml}          </rows-fields>
         </view>
-        <style />
+        <style>
+          <style-rule element='mark'>
+            <encoding attr='type'>
+              <nominal value='{style_mark_type}' />
+            </encoding>
+          </style-rule>
+        </style>
         <panes>
           <pane selection-relaxation-option='selection-relaxation-allow'>
             <view>
