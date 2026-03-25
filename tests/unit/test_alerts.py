@@ -173,3 +173,171 @@ class TestDeleteAlert:
         result = delete_alert("nonexistent-id-1234")
         assert "[ERROR]" in result
         assert "nonexistent-id-1234" in result
+
+    def test_delete_save_exception(self, patch_alerts_file):
+        """삭제 중 저장 오류 → [ERROR] 반환 (lines 194-196)."""
+        create_alert(conn_id="pg1", name="저장오류알림", sql="SELECT 1", condition="eq:1")
+        data = json.loads(patch_alerts_file.read_text())
+        alert_id = data[0]["alert_id"]
+
+        with patch.object(alerts_module, "_save_alerts", side_effect=OSError("디스크 오류")):
+            result = delete_alert(alert_id)
+        assert "[ERROR]" in result
+
+
+class TestLoadAlertsCorrupt:
+    """_load_alerts 예외 처리 테스트."""
+
+    def test_corrupt_json_returns_empty(self, patch_alerts_file):
+        """잘못된 JSON 파일 → 빈 목록 반환 (lines 19-21)."""
+        patch_alerts_file.write_text("not valid json")
+        result = list_alerts()
+        assert "없습니다" in result
+
+    def test_create_alert_save_exception(self, patch_alerts_file):
+        """create_alert 저장 오류 → [ERROR] 반환 (lines 83-85)."""
+        with patch.object(alerts_module, "_save_alerts", side_effect=OSError("권한 없음")):
+            result = create_alert(conn_id="pg1", name="알림", sql="SELECT 1", condition="gt:0")
+        assert "[ERROR]" in result
+
+
+class TestEvaluateConditionEdgeCases:
+    """_evaluate_condition 엣지 케이스."""
+
+    def test_invalid_condition_format_returns_false(self, patch_alerts_file):
+        """잘못된 condition 형식 → False (lines 37-38)."""
+        conn_id = "pg_eval_bad"
+        create_alert(conn_id=conn_id, name="잘못된조건", sql="SELECT 50", condition="invalid_no_colon")
+
+        mock_cur = MagicMock()
+        mock_cur.description = [("val",)]
+        mock_cur.fetchone.return_value = (50,)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "OK" in result  # False → not triggered → OK
+
+    def test_ne_condition(self, patch_alerts_file):
+        """ne 조건: 값이 임계값과 다를 때 → TRIGGERED (line 47-48)."""
+        conn_id = "pg_ne01"
+        create_alert(conn_id=conn_id, name="ne알림", sql="SELECT 5", condition="ne:0")
+
+        mock_cur = MagicMock()
+        mock_cur.description = [("val",)]
+        mock_cur.fetchone.return_value = (5,)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "TRIGGERED" in result
+
+    def test_gte_condition(self, patch_alerts_file):
+        """gte 조건: 값이 임계값 이상 → TRIGGERED (lines 49-50)."""
+        conn_id = "pg_gte01"
+        create_alert(conn_id=conn_id, name="gte알림", sql="SELECT 100", condition="gte:100")
+
+        mock_cur = MagicMock()
+        mock_cur.description = [("val",)]
+        mock_cur.fetchone.return_value = (100,)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "TRIGGERED" in result
+
+    def test_lte_condition(self, patch_alerts_file):
+        """lte 조건: 값이 임계값 이하 → TRIGGERED (lines 51-52)."""
+        conn_id = "pg_lte01"
+        create_alert(conn_id=conn_id, name="lte알림", sql="SELECT 30", condition="lte:50")
+
+        mock_cur = MagicMock()
+        mock_cur.description = [("val",)]
+        mock_cur.fetchone.return_value = (30,)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "TRIGGERED" in result
+
+    def test_unknown_operator_returns_false(self, patch_alerts_file):
+        """알 수 없는 연산자 → False (line 53 return False)."""
+        conn_id = "pg_unk01"
+        create_alert(conn_id=conn_id, name="unk알림", sql="SELECT 50", condition="xyz:50")
+
+        mock_cur = MagicMock()
+        mock_cur.description = [("val",)]
+        mock_cur.fetchone.return_value = (50,)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "OK" in result
+
+
+class TestCheckAlertsErrorPaths:
+    """check_alerts 에러 경로 테스트."""
+
+    def test_unknown_alert_id_returns_error(self, patch_alerts_file):
+        """존재하지 않는 alert_id → [ERROR] (lines 107-108)."""
+        create_alert(conn_id="pg1", name="존재알림", sql="SELECT 1", condition="gt:0")
+        result = check_alerts(alert_id="non-existent-uuid")
+        assert "[ERROR]" in result
+
+    def test_invalid_sql_validation_error(self, patch_alerts_file):
+        """SELECT가 아닌 SQL → 검증 오류 (lines 122-123)."""
+        create_alert(conn_id="pg1", name="DROP알림", sql="DROP TABLE orders", condition="gt:0")
+        result = check_alerts()
+        assert "[ERROR]" in result
+
+    def test_conn_id_not_found_in_connections(self, patch_alerts_file):
+        """연결 ID 없음 → 오류 행 (lines 127-128)."""
+        create_alert(conn_id="nonexistent_conn", name="없는연결", sql="SELECT 1", condition="gt:0")
+        with patch("bi_agent_mcp.tools.db._connections", {}):
+            result = check_alerts()
+        assert "없음" in result or "[ERROR]" in result
+
+    def test_db_execution_exception(self, patch_alerts_file):
+        """DB 실행 예외 → 오류 행 (lines 138-140)."""
+        conn_id = "pg_exec_err"
+        create_alert(conn_id=conn_id, name="실행오류", sql="SELECT 1", condition="gt:0")
+
+        mock_conn = MagicMock()
+        mock_conn.cursor.side_effect = Exception("쿼리 실패")
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "[ERROR]" in result
+
+    def test_fetchone_returns_none(self, patch_alerts_file):
+        """fetchone 결과 없음 → 오류 행 (lines 143-144)."""
+        conn_id = "pg_none_row"
+        create_alert(conn_id=conn_id, name="빈결과", sql="SELECT 1", condition="gt:0")
+
+        mock_cur = MagicMock()
+        mock_cur.fetchone.return_value = None
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        fake_connections = {conn_id: _make_conn_info(conn_id)}
+        with patch("bi_agent_mcp.tools.db._connections", fake_connections), \
+             patch("bi_agent_mcp.tools.db._get_conn", return_value=mock_conn):
+            result = check_alerts()
+        assert "결과 없음" in result or "[ERROR]" in result

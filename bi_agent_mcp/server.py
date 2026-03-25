@@ -112,6 +112,11 @@ from bi_agent_mcp.tools.compare import compare_queries
 
 mcp.tool()(compare_queries)
 
+# text-to-sql tools — 자연어 → SQL 자동 생성
+from bi_agent_mcp.tools.text_to_sql import generate_sql
+
+mcp.tool()(generate_sql)
+
 # analytics tools — BI 심층 분석
 from bi_agent_mcp.tools.analytics import (
     trend_analysis,

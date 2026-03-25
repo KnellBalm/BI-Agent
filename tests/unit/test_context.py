@@ -230,3 +230,221 @@ class TestGetTableRelationships:
             assert "erDiagram" not in result
         finally:
             del _connections[conn_id]
+
+    def test_snowflake_fk_mock(self):
+        """Snowflake FK 조회 mock 테스트 (lines 305-334)."""
+        conn_id = "conn_rel_sf01"
+        _connections[conn_id] = ConnectionInfo(
+            conn_id=conn_id,
+            db_type="snowflake",
+            host="account.snowflakecomputing.com",
+            port=443,
+            database="testdb",
+            user="user",
+            password="pass",
+        )
+        try:
+            mock_cur = MagicMock()
+            mock_cur.fetchall.return_value = [
+                ("fk_name", "orders", "user_id", "users", "id")
+            ]
+            mock_conn = MagicMock()
+            mock_conn.cursor.return_value = mock_cur
+
+            with patch("bi_agent_mcp.tools.context._get_conn", return_value=mock_conn):
+                result = get_table_relationships(conn_id)
+            assert "erDiagram" in result
+            assert "orders" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_relationship_fetch_exception(self):
+        """get_table_relationships에서 예외 발생 → [ERROR] 반환 (lines 349-350)."""
+        conn_id = "conn_rel_exc"
+        _connections[conn_id] = ConnectionInfo(
+            conn_id=conn_id,
+            db_type="postgresql",
+            host="localhost",
+            port=5432,
+            database="testdb",
+            user="user",
+            password="pass",
+        )
+        try:
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=Exception("연결 실패")):
+                result = get_table_relationships(conn_id)
+            assert "[ERROR]" in result
+        finally:
+            del _connections[conn_id]
+
+
+class TestGetContextPostgreSQLMySQL:
+    """PostgreSQL/MySQL/Snowflake 브랜치 커버리지 테스트."""
+
+    def _pg_info(self, conn_id: str) -> "ConnectionInfo":
+        from bi_agent_mcp.tools.db import ConnectionInfo
+        return ConnectionInfo(
+            conn_id=conn_id, db_type="postgresql",
+            host="localhost", port=5432, database="db", user="u", password="p",
+        )
+
+    def _mysql_info(self, conn_id: str) -> "ConnectionInfo":
+        from bi_agent_mcp.tools.db import ConnectionInfo
+        return ConnectionInfo(
+            conn_id=conn_id, db_type="mysql",
+            host="localhost", port=3306, database="db", user="u", password="p",
+        )
+
+    def _sf_info(self, conn_id: str) -> "ConnectionInfo":
+        from bi_agent_mcp.tools.db import ConnectionInfo
+        return ConnectionInfo(
+            conn_id=conn_id, db_type="snowflake",
+            host="acct.snowflakecomputing.com", port=443,
+            database="db", user="u", password="p",
+        )
+
+    def test_postgresql_list_and_schema(self):
+        """PostgreSQL _list_tables + _get_table_schema_and_sample (lines 26-35, 84-98)."""
+        conn_id = "conn_ctx_pg_ls"
+        _connections[conn_id] = self._pg_info(conn_id)
+        try:
+            list_cur = MagicMock()
+            list_cur.fetchall.return_value = [("orders",)]
+            list_conn = MagicMock()
+            list_conn.cursor.return_value = list_cur
+
+            schema_cur = MagicMock()
+            schema_cur.fetchall.side_effect = [
+                [("id", "integer"), ("amount", "numeric")],
+                [(1, 100.0)],
+            ]
+            schema_conn = MagicMock()
+            schema_conn.cursor.return_value = schema_cur
+
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=[list_conn, schema_conn]):
+                result = get_context_for_question(conn_id, "orders 알려줘")
+            assert "orders" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_mysql_list_and_schema(self):
+        """MySQL _list_tables + _get_table_schema_and_sample (lines 38-47, 101-120)."""
+        conn_id = "conn_ctx_mysql_ls"
+        _connections[conn_id] = self._mysql_info(conn_id)
+        try:
+            list_cur = MagicMock()
+            list_cur.fetchall.return_value = [("sales",)]
+            list_conn = MagicMock()
+            list_conn.cursor.return_value = list_cur
+
+            schema_cur = MagicMock()
+            schema_cur.fetchall.side_effect = [
+                [("id", "int"), ("name", "varchar")],
+                [(1, "test")],
+            ]
+            schema_conn = MagicMock()
+            schema_conn.cursor.return_value = schema_cur
+
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=[list_conn, schema_conn]):
+                result = get_context_for_question(conn_id, "sales 알려줘")
+            assert "sales" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_snowflake_list_and_schema(self):
+        """Snowflake _list_tables + _get_table_schema_and_sample (lines 54-63, 131-143)."""
+        conn_id = "conn_ctx_sf_ls"
+        _connections[conn_id] = self._sf_info(conn_id)
+        try:
+            list_cur = MagicMock()
+            list_cur.fetchall.return_value = [("row0", "products")]
+            list_conn = MagicMock()
+            list_conn.cursor.return_value = list_cur
+
+            schema_cur = MagicMock()
+            schema_cur.fetchall.side_effect = [
+                [("id", "NUMBER"), ("title", "VARCHAR")],
+                [(1, "item")],
+            ]
+            schema_conn = MagicMock()
+            schema_conn.cursor.return_value = schema_cur
+
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=[list_conn, schema_conn]):
+                result = get_context_for_question(conn_id, "products 알려줘")
+            assert "products" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_list_tables_exception_returns_error(self, tmp_path):
+        """_list_tables 예외 → [ERROR] 반환 (lines 207-208)."""
+        conn_id = "conn_ctx_exc_list"
+        _connections[conn_id] = self._pg_info(conn_id)
+        try:
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=RuntimeError("timeout")):
+                result = get_context_for_question(conn_id, "주문 알려줘")
+            assert "[ERROR]" in result
+            assert "테이블 목록" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_schema_fetch_exception_appends_error(self):
+        """_get_table_schema_and_sample 예외 → 오류 행 추가 (lines 220-221)."""
+        conn_id = "conn_ctx_exc_schema"
+        _connections[conn_id] = self._pg_info(conn_id)
+        try:
+            list_cur = MagicMock()
+            list_cur.fetchall.return_value = [("orders",)]
+            list_conn = MagicMock()
+            list_conn.cursor.return_value = list_cur
+
+            # 두 번째 _get_conn 호출에서 예외 발생
+            schema_conn = MagicMock()
+            schema_conn.cursor.side_effect = Exception("schema 오류")
+
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=[list_conn, schema_conn]):
+                result = get_context_for_question(conn_id, "orders 알려줘")
+            assert "orders" in result
+            assert "오류" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_short_word_skipped_in_matching(self, tmp_path):
+        """1글자 단어는 매칭 제외 (line 154 continue)."""
+        db_file = str(tmp_path / "short_word.db")
+        conn = sqlite3.connect(db_file)
+        conn.execute("CREATE TABLE orders (id INTEGER)")
+        conn.commit()
+        conn.close()
+
+        conn_id = "conn_ctx_short_word"
+        _connections[conn_id] = _sqlite_info(conn_id, db_file)
+        try:
+            # "a"는 1글자라 skip, "orders"는 매칭
+            result = get_context_for_question(conn_id, "a orders 알려줘")
+            assert "orders" in result
+        finally:
+            del _connections[conn_id]
+
+    def test_mysql_dict_rows_in_schema(self):
+        """MySQL dict 형태 row 처리 (lines 101-120 dict branch)."""
+        conn_id = "conn_ctx_mysql_dict"
+        _connections[conn_id] = self._mysql_info(conn_id)
+        try:
+            list_cur = MagicMock()
+            list_cur.fetchall.return_value = [{"table_name": "users"}]
+            list_conn = MagicMock()
+            list_conn.cursor.return_value = list_cur
+
+            schema_cur = MagicMock()
+            schema_cur.fetchall.side_effect = [
+                [{"column_name": "id", "data_type": "int"}],
+                [{"id": 1}],
+            ]
+            schema_conn = MagicMock()
+            schema_conn.cursor.return_value = schema_cur
+
+            with patch("bi_agent_mcp.tools.context._get_conn", side_effect=[list_conn, schema_conn]):
+                result = get_context_for_question(conn_id, "users 알려줘")
+            assert "users" in result
+        finally:
+            del _connections[conn_id]
