@@ -10,7 +10,7 @@ def compare_queries(
     sql_b: str,
     key_columns: Optional[List[str]] = None,
 ) -> str:
-    """두 쿼리 결과를 비교하여 추가/삭제/변경된 행을 분석합니다.
+    """[Compare] 두 쿼리 결과를 비교하여 추가/삭제/변경된 행을 분석합니다.
 
     Args:
         conn_id: 연결 ID

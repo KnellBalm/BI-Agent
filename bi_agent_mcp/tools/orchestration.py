@@ -94,8 +94,7 @@ def create_analysis_plan(
     steps: list = None,
     tags: list = None,
 ) -> str:
-    """
-    분석 플랜을 생성하고 plan_id를 발급합니다.
+    """[Orchestration] 분석 플랜을 생성하고 plan_id를 발급합니다.
 
     Args:
         goal: 분석 목표 (예: "이번 달 매출 하락 원인 파악")
@@ -155,7 +154,7 @@ def create_analysis_plan(
 
 
 def get_analysis_plan(plan_id: str) -> str:
-    """
+    """[Orchestration]
     분석 플랜의 현재 상태를 Markdown으로 반환합니다.
 
     Args:
@@ -177,8 +176,7 @@ def update_analysis_step(
     findings: str = "",
     queries_used: list = None,
 ) -> str:
-    """
-    분석 단계의 상태와 발견사항을 업데이트합니다.
+    """[Orchestration] 분석 단계의 상태와 발견사항을 업데이트합니다.
 
     Args:
         plan_id: 플랜 ID
@@ -238,8 +236,7 @@ def add_analysis_step(
     tools_hint: list = None,
     insert_after: int = None,
 ) -> str:
-    """
-    분석 플랜에 새 단계를 동적으로 추가합니다.
+    """[Orchestration] 분석 플랜에 새 단계를 동적으로 추가합니다.
 
     Args:
         plan_id: 플랜 ID
@@ -297,8 +294,7 @@ def add_analysis_step(
 
 
 def synthesize_findings(plan_id: str, format: str = "summary") -> str:
-    """
-    플랜 내 모든 completed 단계의 발견사항을 구조화하여 반환합니다.
+    """[Orchestration] 플랜 내 모든 completed 단계의 발견사항을 구조화하여 반환합니다.
     (이 도구는 발견사항을 수집·구조화만 하며, 결론 도출은 Claude가 담당합니다.)
 
     Args:
@@ -371,7 +367,7 @@ def list_analysis_plans(
     tags: list = None,
 ) -> str:
     """
-    저장된 분석 플랜 목록을 반환합니다.
+    [Orchestration] 저장된 분석 플랜 목록을 반환합니다.
 
     Args:
         status: 필터 ("all" | "in_progress" | "completed" | "abandoned")
@@ -415,7 +411,7 @@ def list_analysis_plans(
 
 def complete_analysis_plan(plan_id: str, final_status: str = "completed") -> str:
     """
-    분석 플랜을 종료합니다.
+    [Orchestration] 분석 플랜을 종료합니다.
 
     Args:
         plan_id: 종료할 플랜 ID
@@ -451,8 +447,7 @@ def complete_analysis_plan(plan_id: str, final_status: str = "completed") -> str
 
 
 def delete_analysis_plan(plan_id: str) -> str:
-    """
-    분석 플랜을 삭제합니다.
+    """[Orchestration] 분석 플랜을 삭제합니다.
 
     Args:
         plan_id: 삭제할 플랜 ID

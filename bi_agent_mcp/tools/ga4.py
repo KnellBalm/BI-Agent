@@ -14,8 +14,7 @@ _ga4_connections: Dict[str, dict] = {}
 
 
 def connect_ga4(property_id: str) -> str:
-    """
-    GA4 속성에 연결 시도. (OAuth 2.0 PKCE 인증 활용)
+    """[GA4] GA4 속성에 연결 시도. (OAuth 2.0 PKCE 인증 활용)
     미인증 상태면 브라우저를 열어 Google 로그인 수행.
     
     Args:
@@ -67,15 +66,15 @@ def get_ga4_report(
     end_date: str = "today"
 ) -> str:
     """
-    GA4 리포트 조회 및 마크다운 테이블 반환.
-    
+    [GA4] GA4 리포트 조회 및 마크다운 테이블 반환.
+
     Args:
         property_id: 연결된 GA4 Property ID
         metrics: 조회할 측정항목 리스트 (예: ["sessions", "totalUsers"])
         dimensions: 조회할 측정기준 리스트 (예: ["date", "deviceCategory"])
         start_date: 시작일 (YYYY-MM-DD 또는 '30daysAgo', 기본값: '30daysAgo')
         end_date: 종료일 (YYYY-MM-DD 또는 'today', 기본값: 'today')
-        
+
     Returns:
         마크다운 형식의 테이블 문자열
     """

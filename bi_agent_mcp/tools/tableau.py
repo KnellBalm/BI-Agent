@@ -83,8 +83,7 @@ def generate_twbx(
     title: str = "TWBX Report",
     data: str = "",
 ) -> str:
-    """
-    마크다운 포맷의 데이터를 CSV와 연동된 Tableau Workbook 패키지(.twbx)로 자동 생성합니다.
+    """[Export] 마크다운 포맷의 데이터를 CSV와 연동된 Tableau Workbook 패키지(.twbx)로 자동 생성합니다.
     생성된 파일은 홈 디렉토리의 Downloads 폴더에 저장됩니다.
 
     Args:

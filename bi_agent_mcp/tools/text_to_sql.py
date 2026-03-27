@@ -24,7 +24,7 @@ SELECT ...
 
 
 def generate_sql(conn_id: str, question: str) -> str:
-    """자연어 질문에 맞는 SQL 생성을 위한 스키마 컨텍스트와 지시문을 반환합니다.
+    """[SQL] 자연어 질문에 맞는 SQL 생성을 위한 스키마 컨텍스트와 지시문을 반환합니다.
 
     DB 스키마를 자동으로 수집하여 SQL 생성에 필요한 컨텍스트를 구성합니다.
     이 도구의 결과를 받은 LLM이 직접 SQL을 생성하며, 어떤 LLM provider에서도 동작합니다.

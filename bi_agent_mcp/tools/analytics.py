@@ -17,16 +17,17 @@ def _fetch_df(conn_id: str, sql: str):
         return None, f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
     try:
         conn = _get_conn(_connections[conn_id])
-        df = pd.read_sql(sql, conn)
-        conn.close()
-        return df, ""
+        try:
+            df = pd.read_sql(sql, conn)
+            return df, ""
+        finally:
+            conn.close()
     except Exception as e:
         return None, f"[ERROR] 쿼리 실행 실패: {e}"
 
 
 def trend_analysis(conn_id: str, sql: str, time_col: str, metric_cols: list, period: str = "month") -> str:
-    """
-    시계열 트렌드 분석. time_col 기준으로 period 단위 집계 후 전기 대비 증감률 계산.
+    """[Analytics] 시계열 트렌드 분석. time_col 기준으로 period 단위 집계 후 전기 대비 증감률 계산.
     Args:
         conn_id: DB 연결 ID
         sql: 데이터 조회 SQL
@@ -80,8 +81,7 @@ def trend_analysis(conn_id: str, sql: str, time_col: str, metric_cols: list, per
 
 
 def correlation_analysis(conn_id: str, sql: str, columns: list = None) -> str:
-    """
-    수치형 컬럼 간 Pearson 상관계수 분석.
+    """[Analytics] 수치형 컬럼 간 Pearson 상관계수 분석.
     Args:
         conn_id: DB 연결 ID
         sql: 데이터 조회 SQL
@@ -134,8 +134,7 @@ def correlation_analysis(conn_id: str, sql: str, columns: list = None) -> str:
 
 
 def distribution_analysis(conn_id: str, sql: str, column: str, bins: int = 10) -> str:
-    """
-    수치형 컬럼의 분포 분석.
+    """[Analytics] 수치형 컬럼의 분포 분석.
     Args:
         conn_id: DB 연결 ID
         sql: 데이터 조회 SQL
@@ -182,8 +181,7 @@ def distribution_analysis(conn_id: str, sql: str, column: str, bins: int = 10) -
 
 
 def segment_analysis(conn_id: str, sql: str, group_col: str, metric_col: str, agg: str = "sum") -> str:
-    """
-    세그먼트별 집계 분석.
+    """[Analytics] 세그먼트별 집계 분석.
     Args:
         conn_id: DB 연결 ID
         sql: 데이터 조회 SQL
@@ -222,8 +220,7 @@ def segment_analysis(conn_id: str, sql: str, group_col: str, metric_col: str, ag
 
 
 def funnel_analysis(conn_id: str, steps: list) -> str:
-    """
-    단계별 퍼널 전환율 분석.
+    """[Analytics] 단계별 퍼널 전환율 분석.
     Args:
         conn_id: DB 연결 ID
         steps: [{"name": str, "sql": str}, ...] 각 SQL이 단계별 사용자/이벤트 수를 반환
@@ -266,8 +263,7 @@ def funnel_analysis(conn_id: str, steps: list) -> str:
 
 
 def cohort_analysis(conn_id: str, sql: str, user_col: str, cohort_date_col: str, activity_date_col: str) -> str:
-    """
-    월별 코호트 리텐션 분석.
+    """[Analytics] 월별 코호트 리텐션 분석.
     Args:
         conn_id: DB 연결 ID
         sql: user_col, cohort_date_col, activity_date_col 포함 SQL
@@ -317,8 +313,7 @@ def cohort_analysis(conn_id: str, sql: str, user_col: str, cohort_date_col: str,
 
 
 def pivot_table(conn_id: str, sql: str, index_col: str, columns_col: str, values_col: str, aggfunc: str = "sum") -> str:
-    """
-    피벗 테이블 생성.
+    """[Analytics] 피벗 테이블 생성.
     Args:
         conn_id: DB 연결 ID
         sql: 데이터 조회 SQL
@@ -356,8 +351,7 @@ def pivot_table(conn_id: str, sql: str, index_col: str, columns_col: str, values
 
 
 def top_n_analysis(conn_id: str, sql: str, metric_col: str, n: int = 10, group_col: str = None) -> str:
-    """
-    Top-N 랭킹 분석.
+    """[Analytics] Top-N 랭킹 분석.
     Args:
         conn_id: DB 연결 ID
         sql: 데이터 조회 SQL

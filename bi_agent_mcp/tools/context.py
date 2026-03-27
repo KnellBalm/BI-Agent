@@ -192,7 +192,7 @@ def _render_markdown(question: str, table_data: list[tuple[str, str, list[tuple[
 # ──────────────────────────────────────────────
 
 def get_context_for_question(conn_id: str, question: str) -> str:
-    """자연어 질문에 관련된 테이블/컬럼 컨텍스트를 Markdown으로 반환합니다.
+    """[Context]자연어 질문에 관련된 테이블/컬럼 컨텍스트를 Markdown으로 반환합니다.
 
     Args:
         conn_id: connect_db로 등록한 연결 ID
@@ -224,7 +224,7 @@ def get_context_for_question(conn_id: str, question: str) -> str:
 
 
 def get_table_relationships(conn_id: str) -> str:
-    """DB의 외래 키 관계를 Mermaid ERD 형식으로 반환합니다.
+    """[Context]DB의 외래 키 관계를 Mermaid ERD 형식으로 반환합니다.
 
     Args:
         conn_id: connect_db로 등록한 연결 ID

@@ -8,7 +8,7 @@ VALID_SOURCE_TYPES = ["postgresql", "mysql", "bigquery", "ga4", "amplitude"]
 
 
 def check_setup_status() -> str:
-    """현재 bi-agent 설정 상태를 확인합니다. 어떤 데이터 소스가 설정되어 있는지, 무엇이 필요한지 알려줍니다."""
+    """[Setup] 현재 bi-agent 설정 상태를 확인합니다. 어떤 데이터 소스가 설정되어 있는지, 무엇이 필요한지 알려줍니다."""
     try:
         from bi_agent_mcp.config_manager import ConfigManager
 
@@ -72,7 +72,7 @@ def check_setup_status() -> str:
 def configure_datasource(
     source_type: str, params: dict, secrets: dict | None = None
 ) -> str:
-    """데이터 소스를 설정합니다. 비밀 값(패스워드, API 키)은 OS keyring에 안전하게 저장됩니다.
+    """[Setup] 데이터 소스를 설정합니다. 비밀 값(패스워드, API 키)은 OS keyring에 안전하게 저장됩니다.
 
     Args:
         source_type: 데이터 소스 타입 ("postgresql", "mysql", "bigquery", "ga4", "amplitude")
@@ -117,7 +117,7 @@ def configure_datasource(
 
 
 def test_datasource(source_type: str) -> str:
-    """설정된 데이터 소스의 연결을 테스트합니다.
+    """[Setup]설정된 데이터 소스의 연결을 테스트합니다.
 
     Args:
         source_type: 테스트할 데이터 소스 타입

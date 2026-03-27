@@ -7,7 +7,7 @@ from bi_agent_mcp.config import QUERY_LIMIT
 
 
 def cross_query(sources: list, sql: str) -> str:
-    """여러 데이터 소스(DB, 파일)를 DuckDB로 조인 쿼리합니다.
+    """[CrossSource] 여러 데이터 소스(DB, 파일)를 DuckDB로 조인 쿼리합니다.
 
     Args:
         sources: 데이터 소스 목록. 각 항목 형식:

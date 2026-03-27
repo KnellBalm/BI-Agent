@@ -143,7 +143,7 @@ def _apply_rules(columns: List[str], rows: List[tuple], rules: List[Dict[str, An
 
 
 def validate_data(conn_id: str, table_name: str, rules: list) -> str:
-    """테이블 전체 데이터에 품질 규칙을 적용하고 결과를 반환합니다.
+    """[Quality]테이블 전체 데이터에 품질 규칙을 적용하고 결과를 반환합니다.
 
     Args:
         conn_id: 연결 ID (connect_db로 등록된 ID)
@@ -157,23 +157,23 @@ def validate_data(conn_id: str, table_name: str, rules: list) -> str:
             {"column": "id", "check": "unique"}
     """
     if conn_id not in _connections:
-        return f"오류: 연결을 찾을 수 없습니다 — {conn_id}"
+        return f"[ERROR] 연결을 찾을 수 없습니다 — {conn_id}"
 
     # SQL Injection 방어: 테이블명을 알파벳/숫자/_로만 허용
     if not re.match(r'^[A-Za-z0-9_.]+$', table_name):
-        return f"오류: 유효하지 않은 테이블명 — {table_name}"
+        return f"[ERROR] 유효하지 않은 테이블명 — {table_name}"
 
     sql = f"SELECT * FROM {table_name} LIMIT {QUERY_LIMIT}"
     error, columns, rows = _fetch_rows(conn_id, sql)
     if error:
-        return f"오류: {error}"
+        return f"[ERROR] {error}"
 
     header = f"## 데이터 품질 검증 결과: {table_name} 테이블\n\n"
     return header + _apply_rules(columns, rows, rules)
 
 
 def validate_query_result(conn_id: str, sql: str, rules: list) -> str:
-    """SQL 실행 결과에 품질 규칙을 적용하고 결과를 반환합니다.
+    """[Quality]SQL 실행 결과에 품질 규칙을 적용하고 결과를 반환합니다.
 
     Args:
         conn_id: 연결 ID (connect_db로 등록된 ID)
@@ -181,11 +181,11 @@ def validate_query_result(conn_id: str, sql: str, rules: list) -> str:
         rules: 검증 규칙 목록 (validate_data와 동일한 형식)
     """
     if conn_id not in _connections:
-        return f"오류: 연결을 찾을 수 없습니다 — {conn_id}"
+        return f"[ERROR] 연결을 찾을 수 없습니다 — {conn_id}"
 
     error, columns, rows = _fetch_rows(conn_id, sql)
     if error:
-        return f"오류: {error}"
+        return f"[ERROR] {error}"
 
     header = "## 데이터 품질 검증 결과: 쿼리 결과\n\n"
     return header + _apply_rules(columns, rows, rules)

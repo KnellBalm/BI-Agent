@@ -54,7 +54,7 @@ def _evaluate_condition(value, condition: str) -> bool:
 
 
 def create_alert(conn_id: str, name: str, sql: str, condition: str, message: str = "") -> str:
-    """
+    """[Alert]
     SQL 쿼리 결과에 대한 알림을 등록합니다.
 
     Args:
@@ -86,7 +86,7 @@ def create_alert(conn_id: str, name: str, sql: str, condition: str, message: str
 
 
 def check_alerts(alert_id: str = "") -> str:
-    """
+    """[Alert]
     알림 조건을 평가하고 결과를 반환합니다.
 
     Args:
@@ -152,7 +152,7 @@ def check_alerts(alert_id: str = "") -> str:
 
 
 def list_alerts() -> str:
-    """
+    """[Alert]
     등록된 알림 목록을 Markdown 테이블로 반환합니다.
     """
     alerts = _load_alerts()
@@ -172,7 +172,7 @@ def list_alerts() -> str:
 
 
 def delete_alert(alert_id: str) -> str:
-    """
+    """[Alert]
     알림을 삭제합니다.
 
     Args:

@@ -15,8 +15,7 @@ QUERIES_FILE = CONFIG_DIR / "saved_queries.json"
 
 
 def generate_report(sections: list) -> str:
-    """
-    sections 목록으로 마크다운 BI 리포트 파일을 생성합니다.
+    """[Report] sections 목록으로 마크다운 BI 리포트 파일을 생성합니다.
 
     Args:
         sections: [{"title": str, "content": str}, ...] 형식의 섹션 목록
@@ -82,8 +81,7 @@ def save_query(
     description: str = "",
     parameters: dict = None,
 ) -> str:
-    """
-    나중에 재사용할 수 있도록 SQL 쿼리를 JSON 파일에 저장합니다.
+    """[Report] 나중에 재사용할 수 있도록 SQL 쿼리를 JSON 파일에 저장합니다.
 
     Args:
         name: 쿼리 이름 (예: "월별 매출 추이")
@@ -117,7 +115,7 @@ def save_query(
 
 
 def search_saved_queries(keyword: str = "", tags: list = None) -> str:
-    """
+    """[Report]
     저장된 쿼리를 키워드 또는 태그로 검색합니다.
 
     Args:
@@ -160,7 +158,7 @@ def search_saved_queries(keyword: str = "", tags: list = None) -> str:
 
 
 def run_saved_query(query_id: str, conn_id: str, params: dict = None) -> str:
-    """
+    """[Report]
     저장된 쿼리를 로드하여 실행합니다.
 
     Args:
@@ -187,7 +185,7 @@ def run_saved_query(query_id: str, conn_id: str, params: dict = None) -> str:
 
 
 def delete_saved_query(query_id: str) -> str:
-    """
+    """[Report]
     저장된 쿼리를 삭제합니다.
 
     Args:
@@ -210,7 +208,7 @@ def delete_saved_query(query_id: str) -> str:
 
 
 def list_saved_queries() -> str:
-    """
+    """[Report]
     현재까지 저장된 쿼리 목록을 마크다운 테이블 형식으로 반환합니다.
     """
     if not QUERIES_FILE.exists():
@@ -243,7 +241,7 @@ _QUERY_HISTORY_FILE = Path("~/.config/bi-agent/query_history.json").expanduser()
 
 
 def load_domain_context(sections: str = "all") -> str:
-    """비즈니스 도메인 컨텍스트를 로드합니다. context/ 디렉토리의 마크다운 파일을 읽어 분석에 활용할 수 있습니다.
+    """[Report]비즈니스 도메인 컨텍스트를 로드합니다. context/ 디렉토리의 마크다운 파일을 읽어 분석에 활용할 수 있습니다.
 
     Args:
         sections: 로드할 섹션. "all"(전체), "business"(비즈니스 개요),
@@ -291,7 +289,7 @@ def load_domain_context(sections: str = "all") -> str:
 
 
 def list_query_history(limit: int = 20) -> str:
-    """최근 실행한 쿼리 이력을 조회합니다.
+    """[Report]최근 실행한 쿼리 이력을 조회합니다.
 
     Args:
         limit: 반환할 최근 쿼리 수 (기본 20, 최대 100)
@@ -326,7 +324,7 @@ def list_query_history(limit: int = 20) -> str:
 
 
 def suggest_analysis(data_context: str, question: str = "") -> str:
-    """
+    """[Report]
     제공된 스키마/데이터 컨텍스트와 사용자의 질문을 바탕으로 분석 방향을 제안합니다.
 
     Args:

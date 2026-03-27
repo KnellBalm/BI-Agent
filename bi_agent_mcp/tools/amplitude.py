@@ -17,8 +17,7 @@ AMPLITUDE_DASHBOARD_API = "https://amplitude.com/api/2"
 
 
 def connect_amplitude(api_key: Optional[str] = None, secret_key: Optional[str] = None) -> str:
-    """
-    Amplitude API 키 등록 및 연결 확인.
+    """[Amplitude] Amplitude API 키 등록 및 연결 확인.
     키를 전달하지 않으면 환경변수 또는 키체인에 저장된 키를 사용.
 
     Args:
@@ -72,7 +71,7 @@ def get_amplitude_events(
     group_by: Optional[str] = None
 ) -> str:
     """
-    Amplitude Event Segmentation API 호출을 통해 지표 조회.
+    [Amplitude] Amplitude Event Segmentation API 호출을 통해 지표 조회.
 
     Args:
         event_name: 분석할 이벤트 이름 (예: "Purchase")

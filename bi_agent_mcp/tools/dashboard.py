@@ -235,7 +235,7 @@ def generate_dashboard(
     title: str = "BI 대시보드",
     output_path: str = "",
 ) -> str:
-    """쿼리 결과를 인터랙티브 HTML 대시보드로 생성합니다.
+    """[Dashboard] 쿼리 결과를 인터랙티브 HTML 대시보드로 생성합니다.
 
     Args:
         conn_id: connect_db로 얻은 연결 ID
@@ -278,7 +278,7 @@ def chart_from_file(
     title: str = "파일 분석 대시보드",
     output_path: str = "",
 ) -> str:
-    """로드된 파일 데이터로 HTML 대시보드를 생성합니다.
+    """[Dashboard] 로드된 파일 데이터로 HTML 대시보드를 생성합니다.
 
     Args:
         file_id: connect_file로 얻은 파일 ID

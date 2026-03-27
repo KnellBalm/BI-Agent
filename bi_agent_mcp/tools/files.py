@@ -22,7 +22,7 @@ def _validate_path(path: str) -> Optional[str]:
 
 
 def connect_file(path: str, sheet: str = "") -> str:
-    """CSV 또는 Excel 파일을 로드하고 파일 ID를 반환합니다.
+    """[File] CSV 또는 Excel 파일을 로드하고 파일 ID를 반환합니다.
 
     Args:
         path: CSV(.csv) 또는 Excel(.xlsx/.xls) 파일 경로
@@ -59,7 +59,7 @@ def connect_file(path: str, sheet: str = "") -> str:
 
 
 def list_files() -> str:
-    """로드된 파일 목록을 반환합니다."""
+    """[File] 로드된 파일 목록을 반환합니다."""
     if not _files:
         return "로드된 파일이 없습니다. connect_file을 먼저 호출하세요."
     lines = ["로드된 파일 목록:\n"]
@@ -72,7 +72,7 @@ def list_files() -> str:
 
 
 def query_file(file_id: str, sql: str) -> str:
-    """로드된 파일에 SQL 쿼리를 실행합니다. SELECT만 허용됩니다.
+    """[File] 로드된 파일에 SQL 쿼리를 실행합니다. SELECT만 허용됩니다.
 
     Args:
         file_id: connect_file로 얻은 파일 ID
@@ -132,7 +132,7 @@ def query_file(file_id: str, sql: str) -> str:
 
 
 def get_file_schema(file_id: str) -> str:
-    """로드된 파일의 컬럼 정보를 반환합니다.
+    """[File] 로드된 파일의 컬럼 정보를 반환합니다.
 
     Args:
         file_id: connect_file로 얻은 파일 ID
