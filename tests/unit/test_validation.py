@@ -40,7 +40,7 @@ class TestValidateDataConnId:
     def test_unknown_conn_id_returns_error(self):
         with patch.object(_vmod, "_connections", {}):
             result = validate_data("unknown_conn", "some_table", [])
-        assert "오류" in result
+        assert "[ERROR]" in result
         assert "unknown_conn" in result
 
     def test_invalid_table_name_blocked(self):
@@ -48,7 +48,7 @@ class TestValidateDataConnId:
         fake_connections = {conn_id: _fake_conn_info(conn_id)}
         with patch.object(_vmod, "_connections", fake_connections):
             result = validate_data(conn_id, "t; DROP TABLE t--", [])
-        assert "오류" in result
+        assert "[ERROR]" in result
 
 
 # ─── not_null ────────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ class TestValidateQueryResult:
     def test_unknown_conn_id_returns_error(self):
         with patch.object(_vmod, "_connections", {}):
             result = validate_query_result("no_conn", "SELECT 1", [])
-        assert "오류" in result
+        assert "[ERROR]" in result
 
     def test_sql_result_rules_applied_fail(self):
         conn_id = "conn_qr"
@@ -227,7 +227,7 @@ class TestValidateQueryResult:
         with patch.object(_vmod, "_connections", fake_connections), \
              patch.object(_vmod, "_fetch_rows", return_value=("DB 오류 발생", None, None)):
             result = validate_query_result(conn_id, "SELECT 1", [])
-        assert "오류" in result
+        assert "[ERROR]" in result
 
 
 # ─── _fetch_rows 직접 테스트 ─────────────────────────────────────────────────
@@ -388,4 +388,4 @@ class TestApplyRulesEdgeCases:
         with patch.object(_vmod, "_connections", fake_connections), \
              patch.object(_vmod, "_get_conn", return_value=mock_conn):
             result = validate_data(conn_id, "orders", [{"column": "id", "check": "not_null"}])
-        assert "오류" in result
+        assert "[ERROR]" in result

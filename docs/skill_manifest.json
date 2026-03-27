@@ -1,0 +1,466 @@
+{
+  "version": "1.0",
+  "description": "bi-agent MCP 도구 메타데이터 - 사용자 맞춤 스킬 생성용",
+  "total_tools": 98,
+  "categories": [
+    {
+      "name": "데이터 연결",
+      "tag": "연결/설정",
+      "tool_count": 10,
+      "tools": [
+        {
+          "name": "connect_db",
+          "triggers": ["DB 연결", "데이터베이스 연결", "PostgreSQL", "MySQL", "BigQuery", "Snowflake"],
+          "example_prompts": [
+            "prod DB에 연결해줘",
+            "BigQuery에 연결하고 싶어",
+            "analytics PostgreSQL DB 연결해줘"
+          ]
+        },
+        {
+          "name": "connect_file",
+          "triggers": ["CSV 분석", "엑셀 파일", "파일 불러오기", "Excel"],
+          "example_prompts": [
+            "sales.csv 파일 불러와서 분석해줘",
+            "reports/q1.xlsx 엑셀 파일 로드해줘"
+          ]
+        },
+        {
+          "name": "run_query",
+          "triggers": ["SQL 실행", "쿼리 실행", "데이터 조회"],
+          "example_prompts": [
+            "SELECT * FROM orders WHERE date > '2026-01-01' 실행해줘",
+            "지난 달 주문 데이터 쿼리해줘"
+          ]
+        },
+        {
+          "name": "get_schema",
+          "triggers": ["테이블 구조", "컬럼 목록", "스키마 확인"],
+          "example_prompts": [
+            "orders 테이블 컬럼 구조 보여줘",
+            "어떤 테이블이 있어?"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "외부 데이터 소스",
+      "tag": "GA4/Amplitude",
+      "tool_count": 4,
+      "tools": [
+        {
+          "name": "connect_ga4",
+          "triggers": ["GA4 연결", "Google Analytics", "구글 애널리틱스"],
+          "example_prompts": [
+            "GA4에 연결해줘",
+            "Google Analytics 데이터 가져오고 싶어"
+          ]
+        },
+        {
+          "name": "connect_amplitude",
+          "triggers": ["Amplitude 연결", "이벤트 데이터", "앰플리튜드"],
+          "example_prompts": [
+            "Amplitude에 연결해줘",
+            "앰플리튜드 이벤트 데이터 조회해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "비즈니스 분석",
+      "tag": "[Business]",
+      "tool_count": 6,
+      "tools": [
+        {
+          "name": "revenue_analysis",
+          "triggers": ["매출 분석", "매출 추이", "수익 분석"],
+          "example_prompts": [
+            "지난 분기 매출 상위 10개 상품 분석해줘",
+            "월별 매출 트렌드 분석해줘"
+          ]
+        },
+        {
+          "name": "rfm_analysis",
+          "triggers": ["RFM 분석", "고객 세그먼트", "고객 분류"],
+          "example_prompts": [
+            "사용자를 RFM 기준으로 세그먼트 나눠줘",
+            "고객 RFM 분석 해줘"
+          ]
+        },
+        {
+          "name": "ltv_analysis",
+          "triggers": ["LTV", "고객 생애 가치", "CLV"],
+          "example_prompts": [
+            "고객별 LTV 계산해줘",
+            "세그먼트별 고객 생애 가치 분석해줘"
+          ]
+        },
+        {
+          "name": "churn_analysis",
+          "triggers": ["이탈 분석", "이탈률", "고객 이탈"],
+          "example_prompts": [
+            "최근 3개월간 이탈한 사용자 특성 분석해줘",
+            "이탈 위험 사용자 목록 뽑아줘"
+          ]
+        },
+        {
+          "name": "pareto_analysis",
+          "triggers": ["파레토", "80/20 법칙", "핵심 고객"],
+          "example_prompts": [
+            "파레토 법칙 기준으로 핵심 상품 구분해줘",
+            "매출 80% 차지하는 상위 고객 찾아줘"
+          ]
+        },
+        {
+          "name": "growth_analysis",
+          "triggers": ["성장률", "전월 대비", "YoY", "MoM"],
+          "example_prompts": [
+            "전분기 대비 성장률 계산해줘",
+            "월별 성장률 트렌드 분석해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "프로덕트 분석",
+      "tag": "[Product]",
+      "tool_count": 5,
+      "tools": [
+        {
+          "name": "active_users",
+          "triggers": ["DAU", "WAU", "MAU", "활성 사용자"],
+          "example_prompts": [
+            "지난 30일 DAU/WAU/MAU 계산해줘",
+            "일별 활성 사용자 추이 보여줘"
+          ]
+        },
+        {
+          "name": "retention_curve",
+          "triggers": ["리텐션", "재방문율", "코호트 리텐션"],
+          "example_prompts": [
+            "지난달 신규 가입자 7일 리텐션 분석해줘",
+            "코호트별 리텐션 곡선 그려줘"
+          ]
+        },
+        {
+          "name": "feature_adoption",
+          "triggers": ["기능 채택", "피처 사용률", "기능 활성화"],
+          "example_prompts": [
+            "신규 기능 채택률 분석해줘",
+            "어떤 기능이 가장 많이 사용되는지 알려줘"
+          ]
+        },
+        {
+          "name": "user_journey",
+          "triggers": ["사용자 여정", "이벤트 경로", "행동 흐름"],
+          "example_prompts": [
+            "가입 후 첫 구매까지 사용자 여정 분석해줘",
+            "이탈 전 사용자 행동 패턴 파악해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "마케팅 분석",
+      "tag": "[Marketing]",
+      "tool_count": 4,
+      "tools": [
+        {
+          "name": "campaign_performance",
+          "triggers": ["캠페인 성과", "광고 효과", "마케팅 효율"],
+          "example_prompts": [
+            "이번 달 캠페인별 성과 비교해줘",
+            "광고 클릭률과 전환율 분석해줘"
+          ]
+        },
+        {
+          "name": "channel_attribution",
+          "triggers": ["채널 귀인", "기여도 분석", "first-touch", "last-touch", "multi-touch"],
+          "example_prompts": [
+            "채널별 구매 기여도 분석해줘 (multi-touch)",
+            "어떤 채널이 전환에 가장 기여하는지 알려줘"
+          ]
+        },
+        {
+          "name": "cac_roas",
+          "triggers": ["CAC", "ROAS", "광고 수익률", "고객 획득 비용"],
+          "example_prompts": [
+            "채널별 CAC와 ROAS 계산해줘",
+            "마케팅 비용 대비 수익률 분석해줘"
+          ]
+        },
+        {
+          "name": "conversion_funnel",
+          "triggers": ["전환 퍼널", "이탈 지점", "퍼널 분석"],
+          "example_prompts": [
+            "구매 퍼널 단계별 이탈률 분석해줘",
+            "전환율이 낮은 퍼널 단계 찾아줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "통계 분석",
+      "tag": "[Stats]",
+      "tool_count": 11,
+      "tools": [
+        {
+          "name": "descriptive_stats",
+          "triggers": ["기술통계", "평균 중앙값", "표준편차", "요약 통계"],
+          "example_prompts": [
+            "주문 금액 기술통계 뽑아줘",
+            "컬럼별 평균, 중앙값, 표준편차 계산해줘"
+          ]
+        },
+        {
+          "name": "ttest_independent",
+          "triggers": ["t-검정", "두 그룹 비교", "통계적 유의성"],
+          "example_prompts": [
+            "A그룹과 B그룹 평균 차이 t-검정해줘",
+            "두 그룹의 차이가 유의미한지 검정해줘"
+          ]
+        },
+        {
+          "name": "anova_one_way",
+          "triggers": ["ANOVA", "분산분석", "세 그룹 이상 비교"],
+          "example_prompts": [
+            "세 지역 매출 차이 ANOVA 검정해줘",
+            "그룹 간 평균 차이 분산분석 해줘"
+          ]
+        },
+        {
+          "name": "chi_square_test",
+          "triggers": ["카이제곱", "범주형 변수", "독립성 검정"],
+          "example_prompts": [
+            "A/B 테스트 전환율 카이제곱 검정해줘",
+            "성별과 구매 여부 독립성 검정해줘"
+          ]
+        },
+        {
+          "name": "confidence_interval",
+          "triggers": ["신뢰구간", "95% 신뢰구간", "오차 범위"],
+          "example_prompts": [
+            "전환율 95% 신뢰구간 계산해줘",
+            "실험 결과 신뢰구간 알려줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "A/B 테스트",
+      "tag": "[ABTest]",
+      "tool_count": 5,
+      "tools": [
+        {
+          "name": "ab_test_analysis",
+          "triggers": ["A/B 테스트 분석", "실험 결과 분석", "ab test"],
+          "example_prompts": [
+            "A/B 테스트 결과 분석해줘",
+            "실험군과 대조군 전환율 차이 검증해줘"
+          ]
+        },
+        {
+          "name": "ab_sample_size",
+          "triggers": ["샘플 크기", "표본 크기", "실험 설계"],
+          "example_prompts": [
+            "전환율 5% 개선 감지에 필요한 샘플 크기 계산해줘",
+            "A/B 테스트 표본 크기 얼마나 필요해?"
+          ]
+        },
+        {
+          "name": "ab_multivariate",
+          "triggers": ["다변형 테스트", "A/B/C 테스트", "MVT"],
+          "example_prompts": [
+            "A/B/C 세 가지 버전 다변형 테스트 분석해줘",
+            "여러 변형 버전 성과 비교해줘"
+          ]
+        },
+        {
+          "name": "ab_segment_breakdown",
+          "triggers": ["세그먼트 이질 효과", "HTE", "서브그룹 분석"],
+          "example_prompts": [
+            "연령대별 A/B 테스트 효과 차이 분석해줘",
+            "세그먼트별 실험 효과 이질성 검증해줘"
+          ]
+        },
+        {
+          "name": "ab_time_decay",
+          "triggers": ["Novelty Effect", "신기성 효과", "시간에 따른 효과"],
+          "example_prompts": [
+            "A/B 테스트 기간 중 Novelty Effect 있는지 확인해줘",
+            "실험 효과가 시간 지나도 유지되는지 검증해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "예측 및 이상치",
+      "tag": "[Forecast][Anomaly]",
+      "tool_count": 5,
+      "tools": [
+        {
+          "name": "moving_average_forecast",
+          "triggers": ["이동평균 예측", "MA 예측", "단기 예측"],
+          "example_prompts": [
+            "다음 달 매출 이동평균으로 예측해줘",
+            "7일 이동평균 기반 예측 해줘"
+          ]
+        },
+        {
+          "name": "linear_trend_forecast",
+          "triggers": ["트렌드 예측", "선형 예측", "성장 예측"],
+          "example_prompts": [
+            "선형 트렌드 기반으로 분기 예측해줘",
+            "현재 성장률로 연말 매출 예측해줘"
+          ]
+        },
+        {
+          "name": "iqr_anomaly_detection",
+          "triggers": ["이상치 탐지", "이상값", "outlier", "IQR"],
+          "example_prompts": [
+            "주문 금액 이상치 찾아줘",
+            "IQR 기반 이상값 탐지해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BI 심층 분석",
+      "tag": "[Analytics]",
+      "tool_count": 8,
+      "tools": [
+        {
+          "name": "trend_analysis",
+          "triggers": ["트렌드 분석", "시계열 분석", "추이 분석"],
+          "example_prompts": [
+            "일별 매출 트렌드 분석해줘",
+            "주요 지표 시계열 추이 보여줘"
+          ]
+        },
+        {
+          "name": "correlation_analysis",
+          "triggers": ["상관관계 분석", "상관계수", "관계 분석"],
+          "example_prompts": [
+            "매출과 마케팅 비용 상관관계 분석해줘",
+            "주요 지표 간 상관관계 매트릭스 만들어줘"
+          ]
+        },
+        {
+          "name": "funnel_analysis",
+          "triggers": ["퍼널 분석", "단계별 전환율", "이탈 분석"],
+          "example_prompts": [
+            "회원가입 → 첫구매 퍼널 분석해줘",
+            "퍼널 단계별 전환율 계산해줘"
+          ]
+        },
+        {
+          "name": "cohort_analysis",
+          "triggers": ["코호트 분석", "집단 분석", "가입 코호트"],
+          "example_prompts": [
+            "월별 가입 코호트 리텐션 분석해줘",
+            "코호트별 LTV 비교해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "아웃풋 생성",
+      "tag": "[Dashboard][Export]",
+      "tool_count": 3,
+      "tools": [
+        {
+          "name": "generate_dashboard",
+          "triggers": ["대시보드 생성", "Chart.js", "인터랙티브 차트", "HTML 차트"],
+          "example_prompts": [
+            "분석 결과를 Chart.js 대시보드로 만들어줘",
+            "인터랙티브 HTML 차트 생성해줘"
+          ]
+        },
+        {
+          "name": "generate_twbx",
+          "triggers": ["Tableau 내보내기", "TWBX", "타블로"],
+          "example_prompts": [
+            "Tableau에서 바로 열 수 있는 TWBX 파일 만들어줘",
+            "이 데이터를 Tableau용으로 내보내줘"
+          ]
+        },
+        {
+          "name": "generate_report",
+          "triggers": ["리포트 생성", "마크다운 리포트", "분석 보고서"],
+          "example_prompts": [
+            "이 분석 결과를 마크다운 리포트로 정리해줘",
+            "경영진용 분석 보고서 만들어줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "오케스트레이션",
+      "tag": "[Orchestration]",
+      "tool_count": 8,
+      "tools": [
+        {
+          "name": "create_analysis_plan",
+          "triggers": ["분석 플랜", "분석 계획", "단계별 분석"],
+          "example_prompts": [
+            "매출 감소 원인 분석 플랜 만들어줘",
+            "체계적인 분석 워크플로우 설계해줘"
+          ]
+        },
+        {
+          "name": "synthesize_findings",
+          "triggers": ["결과 종합", "인사이트 정리", "분석 요약"],
+          "example_prompts": [
+            "지금까지 분석 결과를 종합해서 핵심 인사이트 정리해줘",
+            "여러 분석 결과를 하나의 스토리로 연결해줘"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BI 헬퍼",
+      "tag": "[Helper]",
+      "tool_count": 7,
+      "tools": [
+        {
+          "name": "bi_tool_selector",
+          "triggers": ["어떤 분석 써야 해", "도구 추천", "분석 방법 모르겠어"],
+          "example_prompts": [
+            "매출 하락 원인 파악에 어떤 분석 도구 써야 해?",
+            "이 데이터로 뭘 분석할 수 있어?"
+          ]
+        },
+        {
+          "name": "analysis_method_recommender",
+          "triggers": ["분석 방법 추천", "어떤 통계 검정", "방법론 추천"],
+          "example_prompts": [
+            "두 그룹 비교에 어떤 통계 검정 써야 해?",
+            "이 데이터 특성에 맞는 분석 방법 추천해줘"
+          ]
+        },
+        {
+          "name": "visualize_advisor",
+          "triggers": ["시각화 추천", "어떤 차트", "그래프 선택"],
+          "example_prompts": [
+            "이 데이터에 어떤 차트가 적합해?",
+            "시계열 데이터 시각화 방법 추천해줘"
+          ]
+        }
+      ]
+    }
+  ],
+  "skill_creation_guide": "이 파일을 참고해서 사용자 도메인에 특화된 /bi-{domain} 스킬을 만드세요. triggers 배열의 키워드로 사용자 의도를 감지하고, example_prompts를 참고해서 도메인 맞춤 프롬프트를 작성할 수 있습니다.",
+  "custom_skill_template": {
+    "description": "도메인 특화 스킬 생성 예시 (e-commerce)",
+    "skill_name": "/bi-ecommerce",
+    "recommended_tools": ["revenue_analysis", "rfm_analysis", "conversion_funnel", "retention_curve", "cac_roas"],
+    "domain_context": "ecommerce DB의 orders, users, events 테이블 기반 분석",
+    "example_workflow": [
+      "1. connect_db로 ecommerce DB 연결",
+      "2. revenue_analysis로 매출 현황 파악",
+      "3. rfm_analysis로 고객 세그먼트 분류",
+      "4. retention_curve로 코호트별 리텐션 확인",
+      "5. generate_report로 종합 리포트 생성"
+    ]
+  }
+}

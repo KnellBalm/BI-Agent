@@ -23,16 +23,21 @@
 - **다중 DB 지원**: PostgreSQL, MySQL, BigQuery, Snowflake
 - **파일 분석**: CSV/Excel을 로드하여 SQL로 직접 쿼리
 - **외부 데이터**: Google Analytics 4, Amplitude 이벤트 조회
-- **자동 분석**: 트렌드, 상관관계, 분포, 세그먼트, 퍼널, 코호트 분석
+- **BI 분석**: 트렌드, 상관관계, 분포, 세그먼트, 퍼널, 코호트 분석
+- **통계 분석**: 기술통계, 추론통계, 가설검정 (t-test, ANOVA, 카이제곱)
+- **A/B 테스트**: 샘플 크기, 다변형, 세그먼트 이질 효과, Novelty Effect
+- **비즈니스 분석**: 매출, RFM, LTV, 이탈, 파레토, 성장 분석
+- **프로덕트 분석**: 활성 사용자, 리텐션, 기능 채택, 사용자 여정
+- **마케팅 분석**: 캠페인, 채널 귀인, CAC/ROAS, 전환 퍼널
+- **예측 및 이상치**: 시계열 예측, 이상치 탐지
+- **분석 오케스트레이션**: 플랜 기반 분석 워크플로우 자동화
+- **BI 헬퍼**: 가설검증, 방법론 추천, 결과 해석, 시각화 조언
 - **리포트 생성**: 마크다운 리포트, Tableau TWBX, Chart.js 대시보드(HTML)
-- **데이터 품질**: 규칙 기반 검증(NULL 체크, 범위, 정규식, 유니크)
-- **쿼리 관리**: 자주 쓰는 쿼리 저장/검색/실행
-- **안전성**: 읽기 전용(SELECT만), 결과 행 제한, 자격증명 보호
+- **데이터 품질**: 규칙 기반 검증, 알림, 쿼리 비교
 
 ### 도구 수
 
-총 **38개 도구**:
-- DB 도구 (5) + 파일 도구 (4) + 외부 데이터 (4) + 분석/리포트 (9) + 아웃풋 (3) + 품질/관리 (4) + 컨텍스트 (2) + 알림 (4) + 비교 (1) + 오케스트레이션 (8)
+**총 98개 도구** (2025년 3월 기준)
 
 ---
 
@@ -81,7 +86,7 @@ bi-agent-mcp-setup
 대화형 설치 마법사가 다음을 안내합니다:
 
 1. **MCP 클라이언트 선택** (Claude Desktop, Cursor, VSCode 등)
-2. **데이터베이스 설정** (PostgreSQL/MySQL/BigQuery)
+2. **데이터베이스 설정** (PostgreSQL/MySQL/BigQuery/Snowflake)
 3. **외부 데이터** (GA4, Amplitude)
 4. **자격증명 저장** (OS 키체인에 안전 저장)
 
@@ -101,6 +106,12 @@ LLM 클라이언트에서:
 
 ```
 "최근 30일 일별 매출을 조회해줄래?"
+```
+
+또는 BI 분석:
+
+```
+"고객 매출의 트렌드를 분석해줄래?"
 ```
 
 ---
@@ -332,1229 +343,726 @@ export BI_AGENT_AMPLITUDE_SECRET_KEY=your_secret_key
 
 ## 도구 레퍼런스
 
-### 데이터베이스 도구 (db.py)
+### DB/파일 연결 도구
 
-#### `connect_db()`
+#### `connect_db(db_type, host, port, database, user, password, ...)`
 
 데이터베이스 연결을 등록합니다.
 
-```python
-connect_db(
-    db_type: str,          # "postgresql" | "mysql" | "bigquery" | "snowflake"
-    host: str,
-    port: int,
-    database: str,
-    user: str,
-    password: str,
-    project_id: str = "",  # BigQuery 전용
-    dataset: str = "",     # BigQuery 전용
-    account: str = "",     # Snowflake 전용
-    warehouse: str = ""    # Snowflake 전용
-) -> str
+**파라미터:**
+- `db_type`: "postgresql" | "mysql" | "bigquery" | "snowflake"
+- `host`: 데이터베이스 호스트
+- `port`: 포트 (BigQuery 제외)
+- `database`: 데이터베이스 이름
+- `user`: 사용자명
+- `password`: 비밀번호
+- `project_id`: BigQuery 전용
+
+**예시:**
+```
+"PostgreSQL 연결: host=db.company.com, database=analytics"
 ```
 
-**예시** (LLM 클라이언트):
+#### `get_schema(conn_id, table_name)`
 
+테이블 스키마를 조회합니다. (컬럼명, 타입, NULL 가능 여부, 샘플 데이터)
+
+**예시:**
 ```
-"PostgreSQL 데이터베이스를 등록해줄래? 호스트는 localhost, 포트 5432, 데이터베이스는 analytics, 사용자는 postgres"
-```
-
-#### `list_connections()`
-
-등록된 모든 연결을 조회합니다 (비밀번호 마스킹).
-
-**예시**:
-
-```
-"어떤 데이터베이스를 등록했나?"
+"customers 테이블의 스키마를 보여줄래?"
 ```
 
-**응답**:
+#### `run_query(conn_id, sql, limit=500)`
 
+SELECT 쿼리를 실행합니다. (읽기 전용, 최대 500행)
+
+**예시:**
 ```
-✓ conn_1 — postgresql (localhost:5432/analytics)
-✓ conn_2 — bigquery (project: my-project, dataset: analytics)
-```
-
-#### `get_schema(conn_id, table_name="")`
-
-테이블 스키마와 샘플 데이터를 조회합니다.
-
-**예시**:
-
-```
-"customers 테이블 스키마 보여줄래?"
-```
-
-**응답**:
-
-```
-테이블: customers
-컬럼:
-  - customer_id (INTEGER) — PK
-  - name (VARCHAR) — NOT NULL
-  - email (VARCHAR)
-  - created_at (TIMESTAMP)
-
-샘플 데이터:
-| customer_id | name | email |
-|---|---|---|
-| 1 | Alice | alice@example.com |
-| 2 | Bob | bob@example.com |
-```
-
-#### `run_query(conn_id, sql)`
-
-SELECT 쿼리를 실행합니다 (최대 500행, 읽기 전용).
-
-**예시**:
-
-```
-"이 쿼리를 실행해줄래: SELECT * FROM orders LIMIT 10"
+"SELECT customer_id, COUNT(*) as order_count FROM orders GROUP BY customer_id LIMIT 10"
 ```
 
 #### `profile_table(conn_id, table_name)`
 
-테이블 프로파일링을 수행합니다 (NULL 비율, 유니크 값, 최댓값, 상위 5개).
+테이블을 프로파일링합니다. (NULL 비율, 유니크 값, 최댓값, 상위값, 분포)
 
-**예시**:
-
+**예시:**
 ```
-"orders 테이블의 데이터 프로필을 생성해줄래"
-```
-
----
-
-### 파일 도구 (files.py)
-
-#### `connect_file(path, sheet="")`
-
-CSV 또는 Excel 파일을 로드합니다.
-
-**예시**:
-
-```
-"/Users/alice/Downloads/sales_2024.csv 파일을 로드해줄래"
+"customers 테이블을 프로파일링해줄래?"
 ```
 
-**응답**:
+#### `connect_file(file_path)`
 
+CSV/Excel 파일을 로드합니다.
+
+**예시:**
 ```
-✓ file_id: abc123
-  경로: /Users/alice/Downloads/sales_2024.csv
-  행 수: 5,234
-  컬럼: 15개
-```
-
-#### `list_files()`
-
-로드된 모든 파일을 조회합니다.
-
-**예시**:
-
-```
-"지금 로드된 파일 목록을 보여줄래"
+"sales_data.csv 파일을 로드해줄래?"
 ```
 
 #### `query_file(file_id, sql)`
 
-파일 데이터에 SQL 쿼리를 실행합니다 (DuckDB 사용).
+로드된 파일에 SQL 쿼리를 실행합니다.
 
-**예시**:
-
+**예시:**
 ```
-"sales_2024.csv에서 카테고리별 합계를 구해줄래"
-```
-
-**쿼리 (내부)**:
-
-```sql
-SELECT category, SUM(amount) as total
-FROM file_abc123
-GROUP BY category
+"파일에서 지역별 매출 합계를 조회해줄래?"
 ```
 
----
+### 통계 분석 도구
 
-### 분석/리포트 도구 (analysis.py)
+#### 기술통계
 
-#### `save_query(name, sql, connection_id="", tags=[], description="")`
+`descriptive_stats(data, column)` - 평균, 중앙값, 표준편차, 사분위수
 
-자주 사용하는 SQL 쿼리를 저장합니다.
+`percentile_analysis(data, column, percentiles=[25, 50, 75, 95])` - 백분위수 분석
 
-**예시**:
+`boxplot_summary(data, column)` - 박스플롯 요약 (IQR, 수염, 이상치)
 
+**예시:**
 ```
-"이 쿼리를 '월별 매출'이라고 저장해줄래
-SELECT DATE_TRUNC('month', order_date) as month, SUM(amount) as revenue
-FROM orders
-GROUP BY month
-태그: ['매출', '월별']"
+"고객의 주문 금액 분포를 분석해줄래?"  → descriptive_stats
+"매출의 P95를 계산해줄래?"  → percentile_analysis
 ```
 
-#### `list_saved_queries()`
+#### 추론통계
 
-저장된 쿼리 목록을 조회합니다.
+`confidence_interval(data, column, confidence=0.95)` - 신뢰구간 (95%, 99%)
 
-**예시**:
+`sampling_error(population_size, sample_size, proportion)` - 표본 오차 계산
 
+**예시:**
 ```
-"저장한 쿼리 목록을 보여줄래"
-```
-
-#### `search_saved_queries(keyword="", tags=[])`
-
-쿼리를 키워드 또는 태그로 검색합니다.
-
-**예시**:
-
-```
-"'매출' 관련 쿼리를 찾아줄래"
+"고객 만족도의 95% 신뢰구간을 구해줄래?"
+"필요한 표본 크기는 얼마일까?"  → sampling_error
 ```
 
-#### `run_saved_query(query_id, conn_id, params={})`
+#### 가설검정
 
-저장된 쿼리를 실행합니다.
+**1표본 t-검정:**
+`ttest_one_sample(data, column, test_value)` - 모집단 평균과 비교
 
-**예시**:
-
+**예시:**
 ```
-"'월별 매출' 쿼리를 실행해줄래"
-```
-
-#### `delete_saved_query(query_id)`
-
-저장된 쿼리를 삭제합니다.
-
-#### `generate_report(sections)`
-
-마크다운 리포트를 생성합니다.
-
-**예시**:
-
-```
-마크다운 리포트 생성:
-- 제목: "2024년 판매 분석"
-- 섹션 1: "요약"
-  내용: "지난 해 매출은 전년 대비 15% 증가했습니다."
-- 섹션 2: "상위 고객"
-  내용: "상위 5명 고객의 매출: ..."
+"평균 주문액이 100을 초과하는지 검정해줄래?"
 ```
 
-**응답**:
+**2표본 t-검정:**
+`ttest_independent(data1, data2, column)` - 두 그룹 비교
 
+**예시:**
 ```
-✓ 리포트 생성됨: ~/Downloads/20240318_093000_bi_report.md
-```
-
-#### `load_domain_context(sections="all")`
-
-비즈니스 도메인 컨텍스트를 로드합니다 (`context/` 디렉토리).
-
-**예시**:
-
-```
-"도메인 컨텍스트를 로드해줄래"
+"A 그룹과 B 그룹의 전환율이 다른지 검정해줄래?"
 ```
 
----
+**대응 표본 t-검정:**
+`ttest_paired(data_before, data_after, column)` - 쌍을 이룬 데이터 비교
 
-### 외부 데이터 도구
-
-#### GA4: `connect_ga4(property_id="")`
-
-Google Analytics 4에 연결합니다 (OAuth).
-
-#### GA4: `get_ga4_report(property_id, metric, dimensions, date_range)`
-
-GA4 지표를 조회합니다.
-
-**예시**:
-
+**예시:**
 ```
-"GA4에서 최근 30일 일별 방문자 수와 세션 수를 조회해줄래"
+"캠페인 전후 평균 주문액이 달라졌는지 검정해줄래?"
 ```
 
-#### Amplitude: `connect_amplitude(api_key, secret_key)`
+**분산분석 (ANOVA):**
+`anova_one_way(data, group_column, value_column)` - 3개 이상 그룹 비교
 
-Amplitude에 연결합니다.
-
-#### Amplitude: `get_amplitude_events(user_id, event, group_by, limit)`
-
-Amplitude 이벤트를 조회합니다.
-
-**예시**:
-
+**예시:**
 ```
-"Amplitude에서 사용자 12345의 최근 로그인 이벤트 10개를 보여줄래"
+"지역별(A/B/C) 평균 매출이 다른지 검정해줄래?"
 ```
 
----
+**카이제곱 검정:**
+`chi_square_test(data, column1, column2)` - 범주형 변수 독립성 검정
 
-### BI 분석 도구 (analytics.py)
-
-#### `trend_analysis(conn_id, sql, time_col, metric_cols, period="month")`
-
-시계열 트렌드를 분석합니다 (기간별 집계 + 전기 대비 증감률).
-
-**예시**:
-
+**예시:**
 ```
-"orders 테이블에서 매월 매출과 주문 수의 트렌드를 분석해줄래"
+"구매여부와 성별이 독립인지 검정해줄래?"
 ```
 
-**내부 처리**:
+**정규성 검정:**
+`normality_test(data, column)` - Shapiro-Wilk, Kolmogorov-Smirnov 검정
 
-```python
-trend_analysis(
-    conn_id="conn_1",
-    sql="SELECT order_date, amount FROM orders",
-    time_col="order_date",
-    metric_cols=["amount"],
-    period="month"
-)
+**예시:**
+```
+"주문액이 정규분포를 따르는지 검정해줄래?"
 ```
 
-**응답**:
+### A/B 테스트 전문 도구
 
+#### `ab_sample_size(alpha=0.05, beta=0.20, baseline_rate, mde)`
+
+필요 표본 크기 계산
+
+**파라미터:**
+- `alpha`: 유의수준 (기본 0.05)
+- `beta`: 타입 II 오류 (기본 0.20, 검정력 80%)
+- `baseline_rate`: 기존 전환율 (0~1 사이)
+- `mde`: 최소 효과 크기 (실무적 의미 있는 개선율)
+
+**예시:**
 ```
-## 트렌드 분석 (month 단위)
-
-| 기간 | amount | amount 증감률(%) |
-|------|--------|-----------------|
-| 2024-01 | 100,000.00 | — |
-| 2024-02 | 112,000.00 | +12.0% |
-| 2024-03 | 108,500.00 | -3.1% |
-```
-
-#### `correlation_analysis(conn_id, sql, columns=None)`
-
-수치형 컬럼 간 Pearson 상관계수를 계산합니다.
-
-**예시**:
-
-```
-"고객 테이블에서 나이, 구매 횟수, 평균 구매액 간의 상관관계를 분석해줄래"
+"전환율이 2%에서 2.2%로 개선되는지 검정하려면 표본은 얼마나 필요할까?"
+→ ab_sample_size(baseline_rate=0.02, mde=0.1)  # 10% 상대개선
 ```
 
-**응답**:
+#### `ab_test_analysis(control_data, treatment_data, metric_column)`
 
+2 그룹 A/B 테스트 통계 분석
+
+**산출:**
+- 각 그룹의 평균/분산
+- 효과 크기 (Cohen's d)
+- t-검정 p-value 및 유의성
+- 신뢰도 95% 신뢰구간
+
+**예시:**
 ```
-## 상관계수 분석
-
-|  | age | purchase_count | avg_amount |
-|---|---|---|---|
-| age | 1.00 | 0.62 | 0.55 |
-| purchase_count | 0.62 | 1.00 | 0.89 |
-| avg_amount | 0.55 | 0.89 | 1.00 |
-
-주요 발견:
-- 구매 횟수와 평균 구매액이 강한 양의 상관 (0.89)
-```
-
-#### `distribution_analysis(conn_id, sql, column, bins=10)`
-
-컬럼의 분포를 히스토그램으로 분석합니다.
-
-**예시**:
-
-```
-"고객의 나이 분포를 분석해줄래 (10개 구간)"
+"A와 B의 전환율이 유의하게 다른가?"
+→ ab_test_analysis(control_data, treatment_data, metric_column='converted')
 ```
 
-#### `segment_analysis(conn_id, sql, group_col, metric_col, agg="sum")`
+#### `ab_multivariate(groups_data, metric_column)`
 
-세그먼트별 지표를 집계합니다.
+A/B/C/n 다변형 실험 분석
 
-**예시**:
+**특징:**
+- 다중 비교 보정 (Bonferroni)
+- ANOVA로 전체 효과 검정
+- 사후 검정(Post-hoc)으로 쌍별 비교
 
+**예시:**
 ```
-"제품 카테고리별 매출과 수량을 분석해줄래"
-```
-
-**응답**:
-
-```
-## 세그먼트 분석
-
-| category | sum(revenue) | sum(quantity) |
-|---|---|---|
-| Electronics | 580,000 | 1,200 |
-| Clothing | 320,000 | 2,100 |
-| Food | 180,000 | 5,500 |
+"A/B/C/D 4가지 변형 중 어느 것이 가장 좋은가?"
 ```
 
-#### `funnel_analysis(conn_id, steps)`
+#### `ab_segment_breakdown(data, metric_column, segment_column)`
 
-퍼널(단계별 전환율)을 분석합니다.
+세그먼트별 이질 효과(HTE, Heterogeneous Treatment Effect) 분석
 
-**예시**:
+**산출:**
+- 전체 효과
+- 각 세그먼트별 효과 크기
+- 세그먼트 간 상호작용 여부
 
+**예시:**
 ```
-"회원가입 퍼널: 방문 → 가입 → 결제 → 재구매"
-```
-
-**내부 처리**:
-
-```python
-funnel_analysis(
-    conn_id="conn_1",
-    steps=[
-        {"name": "방문", "sql": "SELECT COUNT(DISTINCT user_id) FROM page_views"},
-        {"name": "가입", "sql": "SELECT COUNT(*) FROM users"},
-        {"name": "결제", "sql": "SELECT COUNT(DISTINCT user_id) FROM orders"},
-        {"name": "재구매", "sql": "SELECT COUNT(DISTINCT user_id) FROM orders WHERE purchase_count > 1"}
-    ]
-)
+"신규고객 vs 기존고객에서 처치 효과가 다른가?"
 ```
 
-**응답**:
+#### `ab_time_decay(time_series_data, metric_column, date_column, treatment_start_date)`
 
+시간에 따른 효과 변화 및 Novelty Effect 분석
+
+**특징:**
+- 일별/주별 효과 크기 변화 추적
+- Novelty Effect 감지 (초반 높은 효과 후 감소)
+- 안정화 시점 판단
+
+**예시:**
 ```
-## 퍼널 분석
-
-| 단계 | 수 | 전환율 |
-|---|---|---|
-| 방문 | 100,000 | 100% |
-| 가입 | 25,000 | 25.0% |
-| 결제 | 10,000 | 40.0% |
-| 재구매 | 3,000 | 30.0% |
-```
-
-#### `cohort_analysis(conn_id, sql, user_col, cohort_date_col, activity_date_col)`
-
-코호트별 리텐션을 분석합니다.
-
-**예시**:
-
-```
-"2024년 월별 신규 고객의 재구매율 추이를 분석해줄래"
+"이 기능 출시 후 효과가 지속되나, 아니면 초반에만 좋은가?"
 ```
 
-#### `pivot_table(conn_id, sql, index_col, columns_col, values_col, aggfunc="sum")`
+### BI 심층 분석 도구
 
-피벗 테이블을 생성합니다.
+#### `trend_analysis(data, date_column, value_column, period="day")`
 
-**예시**:
+시계열 트렌드 분석 (증감, 변동률, 전기비 등)
 
+**예시:**
 ```
-"제품 카테고리 × 월별 매출 피벗 테이블을 만들어줄래"
-```
-
-#### `top_n_analysis(conn_id, sql, metric_col, n=10, group_col=None)`
-
-상위 N개 항목을 분석합니다.
-
-**예시**:
-
-```
-"상위 10개 제품을 매출 기준으로 보여줄래"
+"매출의 월별 트렌드를 분석해줄래?"
 ```
 
----
+#### `correlation_analysis(data, columns)`
 
-### 분석 오케스트레이션 도구 (orchestration.py)
+변수 간 상관관계 분석 (Pearson, Spearman)
 
-LLM이 막연한 분석 요구를 구조화된 단계별 워크플로우로 관리합니다.
-
-#### `create_analysis_plan(goal, context="", steps=None, tags=None)`
-
-분석 계획을 생성합니다.
-
-**예시**:
-
+**예시:**
 ```
-"2024년 판매 성과 분석이라는 주제로 분석 계획을 세워줄래"
+"광고비와 매출의 상관관계는?"
 ```
 
-**응답**:
+#### `distribution_analysis(data, column)`
 
+데이터 분포 분석 (정규/왜도/첨도)
+
+**예시:**
 ```
-✓ 분석 플랜 생성됨
-  ID: plan_abc123
-  상태: in_progress
-  진행률: 0/5 단계
+"고객 주문액의 분포 특성을 분석해줄래?"
+```
+
+#### `segment_analysis(data, segment_column, metric_column)`
+
+세그먼트별 비교 분석
+
+**예시:**
+```
+"지역별 평균 주문액을 비교해줄래?"
+```
+
+#### `funnel_analysis(data, step_column, value_column)`
+
+퍼널 단계별 이탈률 분석
+
+**예시:**
+```
+"가입 → 첫구매 → 재구매 퍼널을 분석해줄래?"
+```
+
+#### `cohort_analysis(data, cohort_column, date_column, metric_column, interval="month")`
+
+코호트별 행동 패턴 분석
+
+**예시:**
+```
+"월별 신규 고객의 리텐션을 분석해줄래?"
+```
+
+#### `pivot_table(data, index, columns, values, aggfunc="sum")`
+
+피벗테이블 생성 (집계, 교차분석)
+
+#### `top_n_analysis(data, group_column, metric_column, n=10)`
+
+상위 N개 항목 추출 및 순위 분석
+
+### 분석 오케스트레이션 도구
+
+복잡한 분석을 여러 단계로 나누어 자동화합니다.
+
+#### `create_analysis_plan(title, objective, steps)`
+
+분석 플랜 생성
+
+**파라미터:**
+- `title`: 분석 제목
+- `objective`: 분석 목표
+- `steps`: 단계별 분석 방법 (배열)
+
+**예시:**
+```
+"고객 이탈 분석" 플랜 생성:
+1. 이탈 고객 정의 및 분류
+2. 이탈 고객의 특성 분석 (세그먼트)
+3. 이탈 사유 분석 (상관관계, 분포)
+4. 리스크 스코어링 (RFM)
 ```
 
 #### `get_analysis_plan(plan_id)`
 
-분석 계획을 조회합니다.
+저장된 분석 플랜 조회
 
-#### `add_analysis_step(plan_id, title, description, tools_hint=[])`
+#### `add_analysis_step(plan_id, step_name, description)`
 
-분석 단계를 추가합니다.
+플랜에 단계 추가
 
-**예시**:
+#### `update_analysis_step(plan_id, step_id, status, result, interpretation)`
 
+단계 업데이트 (상태, 결과, 해석)
+
+**상태:** pending, in_progress, completed, failed
+
+#### `synthesize_findings(plan_id)`
+
+모든 단계 결과를 통합 정리
+
+#### `list_analysis_plans()`
+
+저장된 분석 플랜 목록
+
+#### `complete_analysis_plan(plan_id)`
+
+분석 플랜 완료 처리
+
+### BI/분석 헬퍼 도구
+
+#### `hypothesis_helper(business_context, metric)`
+
+가설 검증 프레임워크 가이드
+
+**산출:**
+- 귀무 가설(H0) 및 대립 가설(H1) 수립
+- 검정 방법 추천
+- 필요 표본 크기 및 기간 추정
+
+**예시:**
 ```
-"분석 플랜 plan_abc123에 '지역별 매출 비교' 단계를 추가해줄래.
-권장 도구: segment_analysis, correlation_analysis"
-```
-
-#### `update_analysis_step(plan_id, step_idx, status, findings="")`
-
-단계를 완료하고 발견사항을 기록합니다.
-
-**예시**:
-
-```
-"단계 1을 완료했어. 발견사항: 아시아 지역이 전체 매출의 45%를 차지함"
-```
-
-#### `synthesize_findings(plan_id, format="summary")`
-
-모든 단계의 발견사항을 종합합니다.
-
-**예시**:
-
-```
-"분석 계획 plan_abc123의 결과를 최종 요약해줄래"
-```
-
----
-
-### 아웃풋 도구
-
-#### `generate_dashboard(title, queries, output_path)`
-
-Chart.js 기반 인터랙티브 대시보드(HTML)를 생성합니다.
-
-**예시**:
-
-```
-"2024년 매출 대시보드를 생성해줄래
-쿼리 1: SELECT DATE_TRUNC('month', order_date), SUM(amount) FROM orders GROUP BY 1
-쿼리 2: SELECT category, SUM(amount) FROM orders GROUP BY 1
-저장 위치: ~/Downloads/sales_dashboard.html"
+"고객 만족도 개선 효과를 검증하려면 어떻게 해야 할까?"
 ```
 
-**응답**:
+#### `analysis_method_recommender(data_type, research_question)`
 
+데이터 특성에 맞는 분석 방법론 추천
+
+**고려 요소:**
+- 데이터 타입 (수치/범주)
+- 표본 크기
+- 정규성 여부
+- 변수 개수
+
+**예시:**
 ```
-✓ 대시보드 생성됨: ~/Downloads/sales_dashboard.html
-  - 선 그래프: 월별 매출 추이
-  - 원형 그래프: 카테고리별 매출 비율
-```
-
-#### `chart_from_file(file_id, title, x_col, y_col, chart_type)`
-
-CSV/Excel 파일로 차트를 생성합니다.
-
-**예시**:
-
-```
-"sales_2024.csv에서 '월별 매출 추이' 선 그래프를 생성해줄래
-X축: month, Y축: revenue"
+"비정규 분포 데이터를 비교하려면?"
+→ Mann-Whitney U 검정, Kruskal-Wallis 검정 추천
 ```
 
-#### `generate_twbx(title, sql, conn_id, sheet_name, chart_type="auto")`
+#### `query_result_interpreter(query_result, context)`
 
-Tableau 워크북 (.twbx)을 생성합니다.
+쿼리 결과 해석 및 인사이트 도출
 
-**예시**:
+**산출:**
+- 주요 수치와 패턴 요약
+- 비즈니스 의미 해석
+- 후속 분석 제안
 
+**예시:**
 ```
-"orders 테이블의 매출 데이터로 Tableau 워크북을 만들어줄래"
-```
-
----
-
-### 데이터 품질 도구 (validation.py)
-
-#### `validate_data(conn_id, table_name, rules)`
-
-테이블에 데이터 품질 규칙을 적용합니다.
-
-**예시**:
-
-```
-"orders 테이블 검증:
-- order_date는 NULL이 아니어야 함
-- amount는 0보다 커야 함
-- status는 ['pending', 'completed', 'failed'] 중 하나여야 함"
+"이 매출 쿼리 결과를 해석해줄래?"
 ```
 
-**지원 규칙**:
+#### `tableau_viz_guide(metric_type, data_volume)`
 
-| 규칙 | 설명 | 예시 |
-|------|------|------|
-| `not_null` | NULL 값 없음 | `{"col": "order_date", "rule": "not_null"}` |
-| `range` | 값의 범위 | `{"col": "amount", "rule": "range", "min": 0, "max": 100000}` |
-| `regex` | 정규식 매치 | `{"col": "email", "rule": "regex", "pattern": "^[\\w.-]+@[\\w.-]+\\.[a-z]{2,}$"}` |
-| `enum` | 허용된 값 목록 | `{"col": "status", "rule": "enum", "values": ["pending", "completed"]}` |
-| `unique` | 중복 없음 | `{"col": "order_id", "rule": "unique"}` |
-| `freshness` | 최근 데이터 | `{"col": "created_at", "rule": "freshness", "max_age_days": 7}` |
+Tableau 시각화 모범 사례 및 사용 가이드
 
-**응답**:
+**산출:**
+- 권장 차트 타입
+- 색상 팔레트
+- 대시보드 레이아웃
 
+#### `visualize_advisor(data, columns)`
+
+데이터 특성에 맞는 시각화 방법 추천
+
+**고려 요소:**
+- 데이터 차원 (1D/2D/3D+)
+- 데이터 분포
+- 비교 vs 추이 vs 구성
+
+#### `dashboard_design_guide(kpis, audience)`
+
+대시보드 레이아웃, 색상, 상호작용 설계 가이드
+
+#### `bi_tool_selector(business_goal, data_characteristics)`
+
+분석 목표별 98개 도구 중 추천 도구 선택
+
+**예시:**
 ```
-## 데이터 검증 결과
-
-테이블: orders
-
-✓ order_date (NOT NULL): PASS (0 nulls found)
-✓ amount (RANGE 0-100000): PASS (all values in range)
-✗ status (ENUM): FAIL (2 invalid values found: 'unknown')
-
-전체: 3/4 규칙 통과 (75%)
+"고객 이탈을 분석하려면 어떤 도구를 써야 할까?"
+→ churn_analysis, cohort_analysis, rfm_analysis 등 추천
 ```
-
-#### `validate_query_result(conn_id, sql, rules)`
-
-쿼리 결과에 검증을 적용합니다.
-
----
-
-### 비교 도구 (compare.py)
-
-#### `compare_queries(conn_id, sql_a, sql_b, key_columns=[])`
-
-두 쿼리 결과를 비교합니다.
-
-**예시**:
-
-```
-"지난달 매출과 이번달 매출을 비교해줄래
-쿼리 A: SELECT * FROM monthly_sales WHERE month = '2024-02'
-쿼리 B: SELECT * FROM monthly_sales WHERE month = '2024-03'
-비교 키: category"
-```
-
-**응답**:
-
-```
-## 쿼리 비교 분석
-
-추가된 행 (B에만 있음): 2개
-삭제된 행 (A에만 있음): 1개
-변경된 행: 5개
-
-주요 변화:
-- electronics: 100,000 → 112,000 (+12.0%)
-- clothing: 80,000 → 75,000 (-6.3%)
-```
-
----
-
-### 컨텍스트 도구 (context.py)
-
-#### `get_context_for_question(conn_id, question)`
-
-자연어 질문에 관련된 테이블과 컬럼을 추천합니다.
-
-**예시**:
-
-```
-"지난 30일 일별 매출 트렌드"를 분석하려면 어떤 테이블을 사용해야 할까?"
-```
-
-**응답**:
-
-```
-## 권장 테이블
-
-1. orders (신뢰도: 95%)
-   - order_id (INTEGER, PK)
-   - order_date (DATE) ← 날짜 필터 추천
-   - amount (DECIMAL) ← 매출 집계 추천
-   - status (VARCHAR)
-
-2. transactions (신뢰도: 80%)
-   - transaction_date (TIMESTAMP)
-   - revenue (DECIMAL)
-
-권장 SQL:
-SELECT DATE(order_date) as date, SUM(amount) as revenue
-FROM orders
-WHERE order_date >= CURRENT_DATE - INTERVAL '30 days'
-GROUP BY date
-```
-
-#### `get_table_relationships(conn_id)`
-
-테이블 간 관계(외래키 등)를 조회합니다.
-
-**예시**:
-
-```
-"테이블 관계도를 보여줄래"
-```
-
----
-
-### 알림 도구 (alerts.py)
-
-#### `create_alert(conn_id, name, sql, condition, message="")`
-
-SQL 기반 알림을 등록합니다.
-
-**예시**:
-
-```
-"이름: '일일 매출 하락 알림'
-조건: SELECT SUM(amount) FROM orders WHERE order_date = CURRENT_DATE
-평가: < 50000 (매출이 5만 미만이면 알림)
-메시지: '주의! 오늘 매출이 목표치 이하입니다.'"
-```
-
-**지원 조건**:
-
-| 조건 | 설명 | 예시 |
-|------|------|------|
-| `gt` | 초과 | `gt:10000` |
-| `gte` | 이상 | `gte:5000` |
-| `lt` | 미만 | `lt:50000` |
-| `lte` | 이하 | `lte:5000` |
-| `eq` | 같음 | `eq:0` |
-| `ne` | 다름 | `ne:pending` |
-
-#### `check_alerts(alert_id="")`
-
-알림 조건을 평가합니다.
-
-**예시**:
-
-```
-"모든 알림을 확인해줄래"
-```
-
-**응답**:
-
-```
-## 알림 상태
-
-✓ 일일 매출 하락 알림: OK (매출: 75,000)
-✗ 고객 이탈 알림: TRIGGERED (이탈자: 5명, 임계값: 3명)
-```
-
-#### `list_alerts()`
-
-등록된 모든 알림을 조회합니다.
-
-#### `delete_alert(alert_id)`
-
-알림을 삭제합니다.
-
----
-
-### 설정 도구 (setup.py)
-
-#### `check_setup_status()`
-
-현재 설정 상태를 확인합니다.
-
-**예시**:
-
-```
-"설정 상태를 확인해줄래"
-```
-
-**응답**:
-
-```
-## 설정 상태
-
-📊 데이터베이스
-  ✓ PostgreSQL: conn_1 (localhost:5432/analytics)
-  ✗ BigQuery: 미설정
-
-📈 외부 데이터
-  ✓ Google Analytics 4: property_id = 123456
-  ✗ Amplitude: 미설정
-
-💾 파일
-  ✓ 로드된 파일: 2개 (sales_2024.csv, customers.xlsx)
-```
-
-#### `configure_datasource(source_type, config, sensitive={})`
-
-데이터 소스 자격증명을 등록합니다.
-
-#### `test_datasource(source_type)`
-
-연결을 테스트합니다.
 
 ---
 
 ## 실전 시나리오
 
-### 시나리오 1: 월별 매출 분석
+### 시나리오 1: A/B 테스트 워크플로우
 
+목표: 새 UI의 전환율 개선 효과 검정
+
+**1단계: 필요 표본 크기 계산**
 ```
-"지난 12개월 월별 매출과 전기 대비 증감률을 보여줄래"
-```
-
-**LLM의 내부 처리**:
-
-1. 테이블 추천 → `get_context_for_question`
-2. 데이터 조회 → `run_query` ("SELECT DATE_TRUNC('month', order_date), SUM(amount) FROM orders GROUP BY 1")
-3. 트렌드 분석 → `trend_analysis` (period="month")
-4. 리포트 생성 → `generate_report` (트렌드 테이블 + 분석 의견)
-
----
-
-### 시나리오 2: 고객 세그먼트 분석
-
-```
-"고객을 연령대별로 분석해줄래. 각 세그먼트의 평균 구매액과 구매 횟수를 보고 싶어"
+"현재 전환율이 5%인데, 5.5%로 개선되는지 검정하려면 표본은 얼마나 필요할까?"
+→ ab_sample_size(baseline_rate=0.05, mde=0.1)  # 10% 상대개선
+결과: ~21,550명 필요 (그룹당)
 ```
 
-**LLM의 내부 처리**:
-
-1. 스키마 조회 → `get_schema` (customers)
-2. 세그먼트 분석 → `segment_analysis` (group_col="age_group", metric_col=["avg_amount", "purchase_count"])
-3. 상관관계 분석 → `correlation_analysis` (연령과 구매액 상관성)
-4. 리포트 생성 → `generate_report`
-
----
-
-### 시나리오 3: 퍼널 분석 (전환율)
-
+**2단계: 기본 A/B 테스트 분석**
 ```
-"사용자 가입부터 결제까지의 전환율을 보여줄래"
+"A 그룹(기존 UI)과 B 그룹(신 UI)의 전환율을 비교해줄래?"
+→ ab_test_analysis(control_data, treatment_data, metric_column='converted')
 ```
 
-**LLM의 내부 처리**:
-
-1. 각 단계별 쿼리 작성 (방문 → 가입 → 결제)
-2. `funnel_analysis` 실행
-3. 각 단계의 드롭 원인 분석
-4. 마크다운 리포트 생성
-
----
-
-### 시나리오 4: 데이터 품질 검증
-
+**3단계: 세그먼트별 효과 분석**
 ```
-"orders 테이블의 데이터 품질을 검증해줄래. order_id는 중복 없고, amount는 0보다 커야 하며, status는 valid 값만 있어야 해"
+"신규고객 vs 기존고객에서 효과가 다른가?"
+→ ab_segment_breakdown(data, 'converted', 'customer_type')
 ```
 
-**LLM의 내부 처리**:
-
-1. `validate_data` 실행 (not_null, unique, range, enum 규칙)
-2. 위반 사항 조회
-3. 문제 데이터 샘플 표시
-4. 정정 SQL 제안
-
----
-
-### 시나리오 5: 두 기간 비교
-
+**4단계: 시간에 따른 효과 변화**
 ```
-"작년 같은 기간과 올해를 비교해줄래. 제품별 매출 추이를 보고 싶어"
+"출시 후 1개월간 효과가 지속되나?"
+→ ab_time_decay(daily_data, 'converted', 'date', '2025-03-01')
 ```
 
-**LLM의 내부 처리**:
+### 시나리오 2: 통계 분석 워크플로우
 
-1. 작년 쿼리: `SELECT category, SUM(amount) FROM orders WHERE year(order_date) = 2023 GROUP BY 1`
-2. 올해 쿼리: `SELECT category, SUM(amount) FROM orders WHERE year(order_date) = 2024 GROUP BY 1`
-3. `compare_queries` (key_columns=["category"])
-4. 각 카테고리별 성장률 표시
+목표: 상품 A와 B의 평균 가격 차이 검정
 
----
-
-### 시나리오 6: 다중 소스 분석
-
+**1단계: 기술통계로 기본 패턴 파악**
 ```
-"GA4의 방문자 데이터와 우리 주문 데이터를 비교해줄래"
+"상품 A와 B의 가격 분포를 분석해줄래?"
+→ descriptive_stats(data, 'price')
+→ boxplot_summary(data, 'price')
 ```
 
-**LLM의 내부 처리**:
+**2단계: 정규성 검정 (어떤 검정을 할지 판단)**
+```
+"가격이 정규분포를 따르나?"
+→ normality_test(data, 'price')
+→ 정규: t-검정 / 비정규: Mann-Whitney U 검정
+```
 
-1. GA4에서 일별 방문자 조회 → `get_ga4_report`
-2. DB에서 일별 주문 수 조회 → `run_query`
-3. 두 데이터를 연결 (날짜 기준) → `cross_query`
-4. 상관관계 분석 → 방문 증가 → 주문 증가?
+**3단계: 가설검정**
+```
+"상품 A의 평균 가격이 10000을 초과하는가?"
+→ ttest_one_sample(data, 'price', test_value=10000)
+
+"상품 A와 B의 평균 가격이 다른가?"
+→ ttest_independent(data_a, data_b, 'price')
+```
+
+**4단계: 신뢰도 제시**
+```
+"상품 A 평균 가격의 95% 신뢰구간은?"
+→ confidence_interval(data_a, 'price', confidence=0.95)
+```
+
+### 시나리오 3: 고객 이탈 분석 (오케스트레이션)
+
+목표: 고객 이탈 원인 파악 및 위험도 점수화
+
+**1단계: 분석 플랜 생성**
+```
+create_analysis_plan(
+  title="고객 이탈 분석",
+  objective="이탈 고객의 특성 파악 및 위험도 판단",
+  steps=[
+    "이탈 고객 정의 (마지막 구매 후 180일 이상 미구매)",
+    "이탈 고객의 인구통계/행동 특성 분석",
+    "RFM 분석으로 위험도 점수화",
+    "코호트 분석으로 연령대별 이탈 추이 추적",
+    "이탈 사유 상관관계 분석"
+  ]
+)
+```
+
+**2단계: 각 단계 실행**
+```
+# 단계 1: 고객 이탈 정의
+add_analysis_step(..., "이탈 고객 정의", "...")
+update_analysis_step(..., status="completed", result="5,234명 이탈 확인")
+
+# 단계 2: 특성 분석
+add_analysis_step(..., "특성 분석", "...")
+→ segment_analysis(data, 'region', 'churn_rate')
+→ correlation_analysis(data, ['age', 'avg_order_value', 'churn'])
+
+# 단계 3: RFM 분석
+add_analysis_step(..., "RFM 분석", "...")
+→ rfm_analysis(data)
+
+# 단계 4: 코호트 분석
+add_analysis_step(..., "코호트 분석", "...")
+→ cohort_analysis(data, 'signup_month', 'date', 'is_active')
+```
+
+**3단계: 결과 통합**
+```
+synthesize_findings(plan_id)
+→ 주요 발견: 3개월 이상 미활성 고객의 80%가 이탈
+→ 액션: 3개월 타겟 재참여 캠페인 필요
+```
+
+### 시나리오 4: 매출 분석
+
+목표: 월별 매출 추이 분석 및 예측
+
+**1단계: 트렌드 분석**
+```
+"월별 매출 추이를 분석해줄래?"
+→ trend_analysis(data, 'date', 'revenue', period='month')
+```
+
+**2단계: 시계열 예측**
+```
+"앞으로 3개월 매출을 예측해줄래?"
+→ moving_average_forecast(historical_data, periods=3)
+→ exponential_smoothing_forecast(historical_data, periods=3)
+```
+
+**3단계: 아웃풋 생성**
+```
+"분석 결과를 대시보드로 만들어줄래?"
+→ generate_dashboard(data, queries=[revenue_by_month, forecast])
+
+"리포트로 정리해줄래?"
+→ generate_report(findings, output_format='markdown')
+```
 
 ---
 
 ## 비즈니스 컨텍스트 설정
 
-LLM이 더 정확한 분석 방향을 제안하도록 비즈니스 도메인 지식을 등록할 수 있습니다.
+비즈니스 도메인 지식을 제공하면 AI의 분석 제안이 더 정확해집니다.
 
 ### context/ 디렉토리 구조
 
 ```
-~/.bi-agent-mcp/context/
-├── business.md          # 회사 및 비즈니스 개요
-├── metrics.md           # KPI, 지표 정의
-├── glossary.md          # 용어 사전
-├── rules.md             # 비즈니스 규칙
-└── recent_events.md     # 최근 중요 이벤트
+context/
+├── README.md
+├── business.md          # 비즈니스 목표, KPI, 우선순위
+├── products.md          # 제품 정보, 기능, 버전
+├── customers.md         # 고객 세그먼트, 페르소나
+├── data_catalog.md      # 데이터베이스, 테이블, 의미
+├── metrics.md           # 정의된 메트릭, 계산식
+└── events.md            # 추적 이벤트, 정의
 ```
 
 ### business.md 예시
 
 ```markdown
-# 비즈니스 개요
+# 비즈니스 컨텍스트
 
-## 회사
-- 이름: ABC 전자상거래
-- 산업: 온라인 소매
-- 주력 제품: 전자제품, 의류, 식품
+## 회사 소개
+- 이름: Acme Inc.
+- 산업: SaaS (프로젝트 관리)
+- 주요 고객: 중소 기업 (직원 10~1,000명)
 
-## 비즈니스 모델
-- B2C 직판
-- 2024년 목표 매출: 100억원
-- 주요 마케팅 채널: Google, Facebook, Email
+## 비즈니스 목표
+- 2025년 ARR 100M 달성
+- 고객 이탈률 5% 이하 유지
+- 고객 만족도 NPS 50+ 달성
+
+## 주요 KPI
+- MRR (Monthly Recurring Revenue)
+- Churn Rate (월 고객 이탈률)
+- CAC (Customer Acquisition Cost)
+- LTV (Lifetime Value)
+- NPS (Net Promoter Score)
+
+## 최근 이슈
+- Q1: 신규 고객 확보 둔화
+- Q2: 기존 고객 이탈 증가 추세
 ```
 
 ### metrics.md 예시
 
 ```markdown
-# KPI 및 지표
+# 메트릭 정의
 
-## 매출 지표
-- **GMV (상품 거래액)**: 주문 × 평균 주문액
-- **매출 (Revenue)**: GMV - 환불액 - 할인
-- **월별 성장률**: (이번달 - 지난달) / 지난달 × 100%
-- **카테고리 집중도**: 상위 3개 카테고리 매출 비중
+## 활성 사용자 (Active Users)
+- DAU: 일일 활성 사용자 (로그인 또는 API 호출)
+- WAU: 주간 활성 사용자
+- MAU: 월간 활성 사용자
 
-## 고객 지표
-- **신규 고객**: 첫 구매 고객
-- **기존 고객**: 2회 이상 구매
-- **이탈**: 30일 이상 구매 없음
-- **LTV (생애가치)**: 고객당 누적 매출
-```
+## 이탈 (Churn)
+- 정의: 마지막 구독료 납부 후 30일 이상 미갱신
+- 계산: churn_user / prev_month_user
+- 목표: < 5%
 
-### glossary.md 예시
-
-```markdown
-# 용어 사전
-
-| 용어 | 설명 |
-|------|------|
-| SKU | 상품 코드 (product_id) |
-| CSR | 고객 반품률 (refund / order 비율) |
-| AOV | 평균 주문액 (revenue / order 수) |
-| CAC | 고객 획득 비용 (마케팅비 / 신규 고객) |
-```
-
-### rules.md 예시
-
-```markdown
-# 비즈니스 규칙
-
-- 무료배송 임계값: 3만원 이상
-- 환불 기간: 구매 후 7일 이내
-- 적립금 환산율: 1% (1만원 구매 = 100포인트)
-- VIP 기준: 월 구매액 50만원 이상
-```
-
-### context 로드
-
-LLM에게 다음과 같이 요청:
-
-```
-"비즈니스 컨텍스트를 로드해줄래"
-```
-
-이후 LLM은:
-
-```
-지난 분기 매출이 목표의 80%에 불과하네요.
-주요 원인 분석:
-1. 신규 고객 유입 부족 (CAC 상승으로 마케팅 효율 악화)
-2. 기존 고객 이탈 증가 (LTV 하락)
-3. 상품 집중도 증가 (상위 3개 카테고리 비중 75% → 82%)
-
-권장 액션:
-- 마케팅 효율 개선 필요
-- 고객 리텐션 프로그램 강화
-- 신규 카테고리 상품 강화
+## LTV
+- 정의: 신규 고객의 평생 순이익
+- 계산: average_monthly_profit * (1 / monthly_churn_rate)
 ```
 
 ---
 
 ## 보안
 
-### 핵심 원칙
+### 핵심 보안 원칙
 
-1. **SELECT 전용**: INSERT, UPDATE, DELETE, DROP 등 쓰기 쿼리 자동 차단
-2. **결과 행 제한**: 기본 500행 (환경 변수로 조정 가능)
-3. **로컬 처리**: 모든 데이터는 사용자 로컬 또는 사내 네트워크에서만 처리
-4. **자격증명 보호**: 평문 로그 없음, 민감한 정보 마스킹
+- **SELECT 전용**: DML 쿼리(INSERT, UPDATE, DELETE, DROP 등) 자동 차단
+- **결과 행 제한**: 기본 500행 제한 (환경 변수로 조정 가능)
+- **로컬 처리 보장**: 모든 데이터는 사용자 로컬 머신 또는 사내 네트워크에서만 처리
+- **자격증명 보호**: 평문 로그 기록 없음, 민감한 정보는 마스킹됨
 
 ### 자격증명 저장
 
-#### 환경 변수 (권장)
-
-```bash
-# .env 파일 (`.gitignore`에 포함)
-BI_AGENT_PG_PASSWORD=your_password
-BI_AGENT_BQ_CREDENTIALS_PATH=/path/to/key.json
-```
-
-#### OS 키체인 (권장)
-
-설정 마법사 실행 시 자동으로 OS 키체인에 저장:
-
-```bash
-bi-agent-mcp-setup
-```
-
-- **macOS**: Keychain
-- **Linux**: libsecret
-- **Windows**: Credential Manager
-
-#### 설정 파일
-
-절대 설정 파일에 비밀번호를 저장하지 마세요.
-
-```json
-// ❌ 나쁜 예
-{
-  "mcpServers": {
-    "bi-agent": {
-      "env": {
-        "BI_AGENT_PG_PASSWORD": "your_password"  // 위험!
-      }
-    }
-  }
-}
-
-// ✅ 좋은 예
-{
-  "mcpServers": {
-    "bi-agent": {
-      "env": {
-        "BI_AGENT_PG_HOST": "localhost",
-        "BI_AGENT_PG_DBNAME": "analytics"
-      }
-    }
-  }
-}
-// 비밀번호는 환경 변수 또는 OS 키체인에서 읽음
-```
+- **환경 변수**: 권장 방식 (`.env` 파일 사용 가능)
+- **OS 키체인**: OAuth 토큰 저장 (macOS Keychain, Linux libsecret, Windows Credential Manager)
+- **설정 파일**: 민감한 정보는 절대 설정 파일에 저장하지 마세요
 
 ### 데이터 개인정보보호
 
-- 쿼리 결과는 로컬 메모리에서만 처리
-- LLM API로 전송되는 것은 텍스트 표현만 (원본 데이터 아님)
-- 저장된 쿼리는 SQL만 저장 (결과 데이터 제외)
-- 로그에 민감한 데이터 없음
+- 쿼리 결과는 로컬 메모리에서만 처리되며 디스크에 저장되지 않음
+- LLM API로는 텍스트 표현만 전송되고 원본 데이터는 전송되지 않음
+- 저장된 쿼리는 SQL 텍스트만 저장하며 결과 데이터는 저장하지 않음
 
 ---
 
 ## 문제 해결
 
-### Q: "연결할 수 없습니다" 오류가 나요
+### 연결 문제
 
-**A: 다음을 확인하세요:**
+**증상**: "데이터베이스에 연결할 수 없습니다"
 
-1. 환경 변수 설정 확인:
-   ```bash
-   echo $BI_AGENT_PG_HOST
-   ```
-
-2. 데이터베이스 연결성 테스트:
-   ```bash
-   psql -h $BI_AGENT_PG_HOST -U $BI_AGENT_PG_USER -d $BI_AGENT_PG_DBNAME
-   ```
-
-3. 클라이언트 재시작
-
-4. `check_setup_status` 도구 실행:
-   ```
-   "설정 상태를 확인해줄래"
-   ```
-
----
-
-### Q: 쿼리 실행이 너무 느려요
-
-**A:**
-
-1. 행 제한 확인:
-   ```bash
-   export BI_AGENT_QUERY_LIMIT=1000  # 기본값: 500
-   ```
-
-2. 인덱스 확인 (DB 관리자):
-   ```sql
-   -- PostgreSQL
-   CREATE INDEX idx_orders_order_date ON orders(order_date);
-   ```
-
-3. 데이터 프로파일링 대신 샘플 조회:
-   ```
-   "orders 테이블의 처음 100행만 보여줄래"
-   ```
-
----
-
-### Q: 특정 테이블에 액세스할 수 없어요
-
-**A:**
-
-1. DB 권한 확인:
-   ```sql
-   -- PostgreSQL
-   GRANT SELECT ON all tables in schema public TO bi_user;
-   ```
-
-2. 스키마 조회:
-   ```
-   "어떤 테이블들이 있는지 보여줄래?"
-   ```
-
-3. 특정 테이블 스키마:
-   ```
-   "customers 테이블이 존재하는지 확인해줄래"
-   ```
-
----
-
-### Q: 대시보드 생성이 실패했어요
-
-**A:**
-
-1. 출력 경로 확인:
-   ```bash
-   # 디렉토리 생성
-   mkdir -p ~/Downloads
-   ```
-
-2. 쿼리 검증 (SELECT만 포함?):
-   ```
-   "이 쿼리를 실행해봐줄래: SELECT * FROM orders LIMIT 5"
-   ```
-
-3. 파일 권한:
-   ```bash
-   chmod 755 ~/Downloads
-   ```
-
----
-
-### Q: GA4 또는 Amplitude 연결이 안 되요
-
-**A:**
-
-1. API 키 확인:
-   ```bash
-   echo $BI_AGENT_AMPLITUDE_API_KEY
-   ```
-
-2. 권한 확인 (각 서비스 콘솔):
-   - GA4: 보기 권한 필요
-   - Amplitude: 데이터 내보내기 권한 필요
-
-3. 테스트:
-   ```
-   "Amplitude 연결을 테스트해줄래"
-   ```
-
----
-
-### Q: 저장된 쿼리를 찾을 수 없어요
-
-**A:**
-
-1. 저장 위치 확인:
-   ```bash
-   cat ~/.bi-agent-mcp/saved_queries.json
-   ```
-
-2. 쿼리 검색:
-   ```
-   "저장된 쿼리 중에 '매출' 관련된 것들을 보여줄래"
-   ```
-
-3. 쿼리 목록:
-   ```
-   "모든 저장된 쿼리를 보여줄래"
-   ```
-
----
-
-### Q: 오케스트레이션 플랜이 꼬였어요
-
-**A:**
-
-1. 플랜 목록:
-   ```
-   "진행 중인 분석 플랜을 모두 보여줄래"
-   ```
-
-2. 플랜 상태 확인:
-   ```
-   "플랜 plan_abc123의 현재 진행 상황을 보여줄래"
-   ```
-
-3. 플랜 취소:
-   ```
-   "플랜 plan_abc123을 완료 처리해줄래"
-   ```
-
-4. 수동 삭제:
-   ```bash
-   rm ~/.bi-agent-mcp/analysis_plans/plan_abc123.json
-   ```
-
----
-
-### Q: Python 버전 호환성 문제
-
-**A:**
+**해결책**:
+1. 환경 변수 확인: `echo $BI_AGENT_PG_HOST`
+2. 데이터베이스 접근성 테스트: `nc -zv db.company.com 5432`
+3. 자격증명 확인: 사용자명, 비밀번호, 포트
+4. 방화벽 규칙 확인
 
 ```bash
-python --version          # 3.11 이상 필수
-python -m pip --version   # pip 최신 버전
+# 데이터베이스 도구로 테스트
+test_datasource(db_type='postgresql', host='...', ...)
+```
 
-# 가상환경 재생성
-python -m venv .venv --upgrade-deps
-source .venv/bin/activate
-pip install bi-agent-mcp
+### 쿼리 실행 오류
+
+**증상**: "쿼리 실행 실패: Syntax Error"
+
+**해결책**:
+1. SQL 문법 검증: 공백, 따옴표, 테이블/컬럼명 확인
+2. 테이블 존재 여부: `get_schema(conn_id, table_name)`
+3. 컬럼명 확인: `SELECT * FROM table_name LIMIT 1`
+
+```bash
+# AI에 쿼리 생성 요청
+"SELECT 지난 30일 일별 매출을 구해줄래?"
+→ generate_sql()로 자동 생성 가능
+```
+
+### 통계 분석 결과 해석
+
+**증상**: "p-value가 0.05보다 크다고 나왔는데 뭐라는 거예요?"
+
+**해결책**:
+```
+p-value > 0.05 → 귀무 가설 채택 (두 그룹 간 유의한 차이 없음)
+p-value < 0.05 → 귀무 가설 기각 (두 그룹 간 유의한 차이 있음)
+
+예시:
+"A와 B의 전환율 t-검정 결과: p-value=0.15"
+→ 해석: 두 그룹 간 전환율 차이는 통계적으로 유의하지 않음 (표본 부족 가능)
+→ 조치: 표본 크기 증가, 기간 연장
+```
+
+### 성능 문제
+
+**증상**: "대용량 데이터 쿼리가 느립니다"
+
+**해결책**:
+1. 행 제한 사용: `LIMIT 500` (기본값)
+2. 필터 추가: `WHERE created_date > '2025-01-01'`
+3. 캐시 활용: 자주 쓰는 쿼리 저장 → `run_saved_query()`
+4. 캐시 초기화: `clear_cache(conn_id)`
+
+```bash
+# 대용량 데이터는 샘플링
+"고객 1,000만 명 중 임의로 10,000명을 뽑아서 분석해줄래?"
+→ stratified sampling 권장
+```
+
+### 라이센스/버전 문제
+
+**증상**: "모듈을 찾을 수 없다" 또는 "버전 호환 오류"
+
+**해결책**:
+```bash
+# 설치 확인
+python -c "import bi_agent_mcp; print(bi_agent_mcp.__version__)"
+
+# 의존성 재설치
+pip install --upgrade bi-agent-mcp
+
+# 개발 모드 재설치
+cd /path/to/bi-agent
+pip install -e . --force-reinstall
 ```
 
 ---
 
-### Q: 도구를 찾을 수 없습니다
-
-**A:**
-
-1. MCP 서버 상태 확인 (클라이언트 로그):
-   ```
-   "사용 가능한 도구들을 보여줄래"
-   ```
-
-2. 클라이언트 재시작:
-   - Claude Desktop: 완전히 종료 후 재시작
-   - Cursor: 재시작
-   - VSCode: 창 재로드 (Cmd/Ctrl+Shift+P > Reload Window)
-
-3. 설정 파일 검증:
-   ```bash
-   # Claude Desktop
-   cat ~/.claude/claude_desktop_config.json | python -m json.tool
-   ```
-
----
-
-## 문의 및 피드백
-
-문제가 발생하면:
-
-1. [공식 문서](../DESIGN.md)를 확인
-2. GitHub Issues에서 유사한 이슈 검색
-3. 새로운 이슈 생성 시 다음 정보 포함:
-   - Python 버전 (`python --version`)
-   - 설치 방식 (pip vs git clone)
-   - 클라이언트 (Claude Desktop, Cursor 등)
-   - 오류 메시지
-   - 재현 단계
-
----
-
-## 라이센스
-
-MIT License
-
-## 기여
-
-버그 리포트, 기능 요청, 풀 리퀘스트를 환영합니다!
-
----
-
-마지막 업데이트: 2026-03-25
+**문서 버전**: 2025-03-26
+**도구 수**: 98개
+**최근 업데이트**: A/B 테스트 워크플로우, 통계 분석 도구 추가
