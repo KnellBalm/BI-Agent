@@ -266,7 +266,7 @@ def connect_db(
     warehouse: str = "",
     schema_: str = "",
 ) -> str:
-    """PostgreSQL, MySQL, BigQuery, 또는 Snowflake 데이터베이스에 연결하고 연결 ID를 반환합니다.
+    """[DB] PostgreSQL, MySQL, BigQuery, 또는 Snowflake 데이터베이스에 연결하고 연결 ID를 반환합니다.
 
     Args:
         db_type: 데이터베이스 종류 ("postgresql", "mysql", "bigquery", 또는 "snowflake")
@@ -342,7 +342,7 @@ def connect_db(
 
 
 def list_connections() -> str:
-    """현재 등록된 데이터베이스 연결 목록을 반환합니다."""
+    """[DB] 현재 등록된 데이터베이스 연결 목록을 반환합니다."""
     if not _connections:
         return "등록된 연결이 없습니다. connect_db를 먼저 호출하세요."
 
@@ -359,7 +359,7 @@ def list_connections() -> str:
 
 
 def get_schema(conn_id: str, table_name: str = "") -> str:
-    """데이터베이스 스키마를 조회합니다. table_name을 지정하면 해당 테이블의 컬럼과 샘플을 반환합니다.
+    """[DB] 데이터베이스 스키마를 조회합니다. table_name을 지정하면 해당 테이블의 컬럼과 샘플을 반환합니다.
 
     Args:
         conn_id: connect_db로 얻은 연결 ID
@@ -574,14 +574,21 @@ def get_schema(conn_id: str, table_name: str = "") -> str:
         conn.close()
 
 
-def run_query(conn_id: str, sql: str) -> str:
-    """SELECT SQL 쿼리를 실행하고 결과를 마크다운 테이블로 반환합니다. SELECT만 허용됩니다.
+def run_query(conn_id: str = "", sql: str = "") -> str:
+    """[DB] SELECT SQL 쿼리를 실행하고 결과를 마크다운 테이블로 반환합니다. SELECT만 허용됩니다.
 
     Args:
-        conn_id: connect_db로 얻은 연결 ID
+        conn_id: 연결 ID. 미지정 시 connections.json의 첫 번째 연결 사용
         sql: 실행할 SELECT SQL 쿼리
     """
     global _cache_hits, _cache_misses
+
+    # conn_id 미지정 시 첫 번째 연결 자동 선택
+    if not conn_id:
+        if _connections:
+            conn_id = next(iter(_connections))
+        else:
+            return "[ERROR] 등록된 연결이 없습니다. connect_db를 먼저 호출하세요."
 
     info = _connections.get(conn_id)
     if not info:
@@ -694,7 +701,7 @@ def run_query(conn_id: str, sql: str) -> str:
 
 
 def profile_table(conn_id: str, table_name: str) -> str:
-    """테이블의 컬럼별 NULL 비율, 유니크 값 수, min/max를 분석합니다.
+    """[DB] 테이블의 컬럼별 NULL 비율, 유니크 값 수, min/max를 분석합니다.
 
     Args:
         conn_id: connect_db로 얻은 연결 ID
@@ -914,7 +921,7 @@ def profile_table(conn_id: str, table_name: str) -> str:
 
 
 def clear_cache(conn_id: str = "") -> str:
-    """쿼리 결과 캐시를 무효화합니다.
+    """[DB] 쿼리 결과 캐시를 무효화합니다.
 
     Args:
         conn_id: 특정 연결의 캐시만 삭제. 비워두면 전체 삭제.
@@ -943,3 +950,38 @@ def clear_cache(conn_id: str = "") -> str:
 
 # 모듈 로드 시 저장된 연결 복원
 _load_connections()
+
+
+def _load_connections_from_file() -> None:
+    """connections.json에서 연결 정보를 _connections에 로드.
+
+    기존 _load_connections()는 db.py 내부 형식(비밀번호 제외)을 읽는다.
+    이 함수는 외부 connections.py API를 통해 동일 파일을 읽되,
+    기존 연결을 덮어쓰지 않는다 (이미 _load_connections()가 처리했으므로).
+    외부 도구(setup_cli 등)가 {"connections": {...}} 형식으로 저장한 경우를 지원한다.
+    """
+    try:
+        from bi_agent_mcp.connections import load_connections
+        saved = load_connections()
+        for conn_id, conn_info in saved.items():
+            if conn_id not in _connections:
+                _connections[conn_id] = ConnectionInfo(
+                    conn_id=conn_id,
+                    db_type=conn_info.get("db_type", ""),
+                    host=conn_info.get("host", ""),
+                    port=conn_info.get("port", 0),
+                    database=conn_info.get("database", ""),
+                    user=conn_info.get("user", ""),
+                    password="",
+                    project_id=conn_info.get("project_id", ""),
+                    dataset=conn_info.get("dataset", ""),
+                    account=conn_info.get("account", ""),
+                    warehouse=conn_info.get("warehouse", ""),
+                    schema_=conn_info.get("schema_", ""),
+                    persisted=True,
+                )
+    except Exception:
+        pass
+
+
+_load_connections_from_file()

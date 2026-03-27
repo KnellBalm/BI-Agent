@@ -45,6 +45,8 @@ Repository = "https://github.com/zokr/bi-agent"
 [project.scripts]
 bi-agent-mcp = "bi_agent_mcp.server:mcp.run"
 bi-agent-mcp-setup = "bi_agent_mcp.setup_cli:setup"
+bi-agent = "bi_agent_mcp.__main__:main"
+bi-agent-setup = "bi_agent_mcp.setup_cli:setup"
 
 [project.optional-dependencies]
 test = [

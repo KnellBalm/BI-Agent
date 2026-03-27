@@ -159,5 +159,134 @@ mcp.tool()(list_analysis_plans)
 mcp.tool()(complete_analysis_plan)
 mcp.tool()(delete_analysis_plan)
 
+# business tools — 비즈니스 분석
+from bi_agent_mcp.tools.business import (
+    revenue_analysis,
+    rfm_analysis,
+    ltv_analysis,
+    churn_analysis,
+    pareto_analysis,
+    growth_analysis,
+)
+
+mcp.tool()(revenue_analysis)
+mcp.tool()(rfm_analysis)
+mcp.tool()(ltv_analysis)
+mcp.tool()(churn_analysis)
+mcp.tool()(pareto_analysis)
+mcp.tool()(growth_analysis)
+
+# product tools — 프로덕트 분석
+from bi_agent_mcp.tools.product import (
+    active_users,
+    retention_curve,
+    feature_adoption,
+    ab_test_analysis,
+    user_journey,
+)
+
+mcp.tool()(active_users)
+mcp.tool()(retention_curve)
+mcp.tool()(feature_adoption)
+mcp.tool()(ab_test_analysis)
+mcp.tool()(user_journey)
+
+# marketing tools — 마케팅 분석
+from bi_agent_mcp.tools.marketing import (
+    campaign_performance,
+    channel_attribution,
+    cac_roas,
+    conversion_funnel,
+)
+
+mcp.tool()(campaign_performance)
+mcp.tool()(channel_attribution)
+mcp.tool()(cac_roas)
+mcp.tool()(conversion_funnel)
+
+# forecast tools — 시계열 예측
+from bi_agent_mcp.tools.forecast import (
+    moving_average_forecast,
+    exponential_smoothing_forecast,
+    linear_trend_forecast,
+)
+
+mcp.tool()(moving_average_forecast)
+mcp.tool()(exponential_smoothing_forecast)
+mcp.tool()(linear_trend_forecast)
+
+# anomaly tools — 이상치 탐지
+from bi_agent_mcp.tools.anomaly import (
+    iqr_anomaly_detection,
+    zscore_anomaly_detection,
+)
+
+mcp.tool()(iqr_anomaly_detection)
+mcp.tool()(zscore_anomaly_detection)
+
+# stats tools — 통계 분석 (기술통계, 추론통계, 가설검정)
+from bi_agent_mcp.tools.stats import (
+    descriptive_stats,
+    percentile_analysis,
+    boxplot_summary,
+    confidence_interval,
+    sampling_error,
+    ttest_one_sample,
+    ttest_independent,
+    ttest_paired,
+    anova_one_way,
+    chi_square_test,
+    normality_test,
+)
+
+mcp.tool()(descriptive_stats)
+mcp.tool()(percentile_analysis)
+mcp.tool()(boxplot_summary)
+mcp.tool()(confidence_interval)
+mcp.tool()(sampling_error)
+mcp.tool()(ttest_one_sample)
+mcp.tool()(ttest_independent)
+mcp.tool()(ttest_paired)
+mcp.tool()(anova_one_way)
+mcp.tool()(chi_square_test)
+mcp.tool()(normality_test)
+
+# helper tools — 분석/BI 헬퍼 (가설검증 가이드, 방법론 추천, 결과 해석, Tableau 안내)
+from bi_agent_mcp.tools.helper import (
+    hypothesis_helper,
+    analysis_method_recommender,
+    query_result_interpreter,
+    tableau_viz_guide,
+)
+
+mcp.tool()(hypothesis_helper)
+mcp.tool()(analysis_method_recommender)
+mcp.tool()(query_result_interpreter)
+mcp.tool()(tableau_viz_guide)
+
+# viz_helper tools — 시각화 어드바이저
+from bi_agent_mcp.tools.viz_helper import visualize_advisor, dashboard_design_guide
+
+mcp.tool()(visualize_advisor)
+mcp.tool()(dashboard_design_guide)
+
+# bi_helper tools — BI 도구 선택 가이드
+from bi_agent_mcp.tools.bi_helper import bi_tool_selector
+
+mcp.tool()(bi_tool_selector)
+
+# ab_test tools — A/B 테스트 전문 분석
+from bi_agent_mcp.tools.ab_test import (
+    ab_sample_size,
+    ab_multivariate,
+    ab_segment_breakdown,
+    ab_time_decay,
+)
+
+mcp.tool()(ab_sample_size)
+mcp.tool()(ab_multivariate)
+mcp.tool()(ab_segment_breakdown)
+mcp.tool()(ab_time_decay)
+
 if __name__ == "__main__":
     mcp.run()
