@@ -146,3 +146,252 @@ def get_amplitude_events(
     except Exception as e:
         logger.error("Amplitude 연동 예외 발생: %s", e)
         return f"[ERROR] Amplitude 데이터 조회 중 예외 발생: {e}"
+
+
+def get_amplitude_funnel(
+    conn_id: str,
+    events: str,
+    start_date: str,
+    end_date: str,
+) -> str:
+    """[Amplitude] 퍼널 분석 — 이벤트 시퀀스별 전환율 계산.
+
+    Args:
+        conn_id: Amplitude 연결 ID
+        events: JSON 문자열 (예: '[{"event_type": "signup"}, {"event_type": "purchase"}]')
+        start_date: YYYYMMDD 형태의 시작일
+        end_date: YYYYMMDD 형태의 종료일
+
+    Returns:
+        퍼널 단계별 전환율 마크다운
+    """
+    if conn_id not in _amplitude_connections:
+        return f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
+
+    creds = _amplitude_connections[conn_id]
+
+    try:
+        events_list = json.loads(events)
+    except (json.JSONDecodeError, ValueError) as e:
+        return f"[ERROR] events 파라미터가 유효한 JSON이 아닙니다: {e}"
+
+    try:
+        resp = httpx.get(
+            f"{AMPLITUDE_DASHBOARD_API}/funnels",
+            params={
+                "e": json.dumps(events_list),
+                "start": start_date,
+                "end": end_date,
+            },
+            auth=(creds["api_key"], creds["secret_key"]),
+            timeout=15.0,
+        )
+        if resp.status_code != 200:
+            return f"[ERROR] Amplitude API 오류: {resp.status_code}"
+
+        data = resp.json()
+        steps = data.get("data", {}).get("steps", [])
+        if not steps:
+            return "퍼널 데이터가 없습니다."
+
+        lines = ["| 단계 | 이벤트 | 사용자 수 | 전환율 |", "| --- | --- | --- | --- |"]
+        for i, step in enumerate(steps):
+            event_name = step.get("event", {}).get("event_type", f"Step {i+1}")
+            users = step.get("users", 0)
+            rate = step.get("conversionRate", 0)
+            lines.append(f"| {i+1} | {event_name} | {users} | {rate:.1%} |")
+
+        return "\n".join(lines)
+
+    except httpx.RequestError as e:
+        return f"[ERROR] Amplitude 네트워크 오류: {e}"
+    except Exception as e:
+        return f"[ERROR] 퍼널 분석 중 예외 발생: {e}"
+
+
+def get_amplitude_retention(
+    conn_id: str,
+    start_event: str,
+    return_event: str,
+    start_date: str,
+    end_date: str,
+) -> str:
+    """[Amplitude] 리텐션 분석 — 첫 이벤트 후 재방문율.
+
+    Args:
+        conn_id: Amplitude 연결 ID
+        start_event: 첫 이벤트 이름
+        return_event: 재방문 이벤트 이름
+        start_date: YYYYMMDD 형태의 시작일
+        end_date: YYYYMMDD 형태의 종료일
+
+    Returns:
+        일자별 리텐션율 마크다운
+    """
+    if conn_id not in _amplitude_connections:
+        return f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
+
+    creds = _amplitude_connections[conn_id]
+
+    try:
+        resp = httpx.get(
+            f"{AMPLITUDE_DASHBOARD_API}/retention",
+            params={
+                "se": json.dumps({"event_type": start_event}),
+                "re": json.dumps({"event_type": return_event}),
+                "start": start_date,
+                "end": end_date,
+            },
+            auth=(creds["api_key"], creds["secret_key"]),
+            timeout=15.0,
+        )
+        if resp.status_code != 200:
+            return f"[ERROR] Amplitude API 오류: {resp.status_code}"
+
+        data = resp.json()
+        retention_data = data.get("data", {})
+        if not retention_data:
+            return "리텐션 데이터가 없습니다."
+
+        lines = [f"## 리텐션 분석: {start_event} → {return_event}", ""]
+        for date_key, values in retention_data.items():
+            if isinstance(values, list):
+                rates = [f"Day {i}: {v:.1%}" for i, v in enumerate(values) if v is not None]
+                lines.append(f"**{date_key}**: " + ", ".join(rates))
+
+        return "\n".join(lines) if len(lines) > 2 else "리텐션 데이터가 없습니다."
+
+    except httpx.RequestError as e:
+        return f"[ERROR] Amplitude 네트워크 오류: {e}"
+    except Exception as e:
+        return f"[ERROR] 리텐션 분석 중 예외 발생: {e}"
+
+
+def get_amplitude_cohort(conn_id: str, cohort_id: str) -> str:
+    """[Amplitude] 코호트 사용자 목록 조회.
+
+    Args:
+        conn_id: Amplitude 연결 ID
+        cohort_id: Amplitude 코호트 ID
+
+    Returns:
+        코호트 사용자 정보 마크다운
+    """
+    if conn_id not in _amplitude_connections:
+        return f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
+
+    creds = _amplitude_connections[conn_id]
+
+    try:
+        resp = httpx.get(
+            f"{AMPLITUDE_DASHBOARD_API}/cohorts/request/{cohort_id}",
+            auth=(creds["api_key"], creds["secret_key"]),
+            timeout=15.0,
+        )
+        if resp.status_code != 200:
+            return f"[ERROR] Amplitude API 오류: {resp.status_code}"
+
+        data = resp.json()
+        cohort = data.get("cohort", data)
+        name = cohort.get("name", cohort_id)
+        size = cohort.get("size", "알 수 없음")
+        definition = cohort.get("definition", {})
+
+        lines = [
+            f"## 코호트: {name}",
+            f"- ID: {cohort_id}",
+            f"- 사용자 수: {size}",
+        ]
+        if definition:
+            lines.append(f"- 정의: {json.dumps(definition, ensure_ascii=False)}")
+
+        return "\n".join(lines)
+
+    except httpx.RequestError as e:
+        return f"[ERROR] Amplitude 네트워크 오류: {e}"
+    except Exception as e:
+        return f"[ERROR] 코호트 조회 중 예외 발생: {e}"
+
+
+def get_amplitude_user_properties(conn_id: str, user_id: str) -> str:
+    """[Amplitude] 사용자 속성 조회.
+
+    Args:
+        conn_id: Amplitude 연결 ID
+        user_id: 조회할 사용자 ID
+
+    Returns:
+        사용자 속성 마크다운
+    """
+    if conn_id not in _amplitude_connections:
+        return f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
+
+    creds = _amplitude_connections[conn_id]
+
+    try:
+        resp = httpx.get(
+            f"{AMPLITUDE_DASHBOARD_API}/useractivity",
+            params={"user": user_id},
+            auth=(creds["api_key"], creds["secret_key"]),
+            timeout=15.0,
+        )
+        if resp.status_code != 200:
+            return f"[ERROR] Amplitude API 오류: {resp.status_code}"
+
+        data = resp.json()
+        user_data = data.get("userData", {})
+        user_props = user_data.get("user_properties", {})
+
+        if not user_props:
+            return f"사용자 '{user_id}'의 속성 데이터가 없습니다."
+
+        lines = [f"## 사용자 속성: {user_id}", ""]
+        for key, value in user_props.items():
+            lines.append(f"- **{key}**: {value}")
+
+        return "\n".join(lines)
+
+    except httpx.RequestError as e:
+        return f"[ERROR] Amplitude 네트워크 오류: {e}"
+    except Exception as e:
+        return f"[ERROR] 사용자 속성 조회 중 예외 발생: {e}"
+
+
+def get_amplitude_event_types(conn_id: str) -> str:
+    """[Amplitude] Lexicon — 등록된 이벤트 타입 목록.
+
+    Args:
+        conn_id: Amplitude 연결 ID
+
+    Returns:
+        이벤트 타입 목록 마크다운
+    """
+    if conn_id not in _amplitude_connections:
+        return f"[ERROR] 연결 ID '{conn_id}'를 찾을 수 없습니다."
+
+    creds = _amplitude_connections[conn_id]
+
+    try:
+        resp = httpx.get(
+            f"{AMPLITUDE_DASHBOARD_API}/taxonomy/event",
+            auth=(creds["api_key"], creds["secret_key"]),
+            timeout=15.0,
+        )
+        if resp.status_code != 200:
+            return f"[ERROR] Amplitude API 오류: {resp.status_code}"
+
+        data = resp.json()
+        event_types = data.get("data", [])
+
+        if not event_types:
+            return "등록된 이벤트 타입이 없습니다."
+
+        lines = [f"## Amplitude 이벤트 타입 ({len(event_types)}개)", ""]
+        lines += [f"- {et.get('event_type', str(et))}" for et in event_types]
+
+        return "\n".join(lines)
+
+    except httpx.RequestError as e:
+        return f"[ERROR] Amplitude 네트워크 오류: {e}"
+    except Exception as e:
+        return f"[ERROR] 이벤트 타입 조회 중 예외 발생: {e}"

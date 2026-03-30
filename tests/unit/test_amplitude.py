@@ -238,3 +238,239 @@ class TestGetAmplitudeEventsHttpErrors:
             from bi_agent_mcp.tools.amplitude import get_amplitude_events
             result = get_amplitude_events("Purchase", "20260301", "20260315")
         assert "[ERROR]" in result and "503" in result
+
+
+class TestGetAmplitudeFunnel:
+    def setup_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections["test"] = {
+            "api_key": "test_key",
+            "secret_key": "test_secret",
+        }
+
+    def teardown_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections.clear()
+
+    def test_conn_id_not_found_returns_error(self):
+        from bi_agent_mcp.tools.amplitude import get_amplitude_funnel
+        result = get_amplitude_funnel("nonexistent", '[{"event_type": "signup"}]', "20260301", "20260315")
+        assert "[ERROR]" in result
+        assert "nonexistent" in result
+
+    def test_returns_funnel_markdown(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "data": {
+                "steps": [
+                    {"event": {"event_type": "signup"}, "users": 1000, "conversionRate": 1.0},
+                    {"event": {"event_type": "purchase"}, "users": 200, "conversionRate": 0.2},
+                ]
+            }
+        }
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_funnel
+            result = get_amplitude_funnel("test", '[{"event_type": "signup"}, {"event_type": "purchase"}]', "20260301", "20260315")
+        assert "|" in result
+        assert "signup" in result
+        assert "purchase" in result
+
+    def test_invalid_json_events_returns_error(self):
+        from bi_agent_mcp.tools.amplitude import get_amplitude_funnel
+        result = get_amplitude_funnel("test", "not_json", "20260301", "20260315")
+        assert "[ERROR]" in result
+
+    def test_api_error_returns_error(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_funnel
+            result = get_amplitude_funnel("test", '[{"event_type": "signup"}]', "20260301", "20260315")
+        assert "[ERROR]" in result
+        assert "500" in result
+
+
+class TestGetAmplitudeRetention:
+    def setup_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections["test"] = {
+            "api_key": "test_key",
+            "secret_key": "test_secret",
+        }
+
+    def teardown_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections.clear()
+
+    def test_conn_id_not_found_returns_error(self):
+        from bi_agent_mcp.tools.amplitude import get_amplitude_retention
+        result = get_amplitude_retention("nonexistent", "signup", "purchase", "20260301", "20260315")
+        assert "[ERROR]" in result
+        assert "nonexistent" in result
+
+    def test_returns_retention_markdown(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "data": {
+                "2026-03-01": [1.0, 0.5, 0.3],
+            }
+        }
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_retention
+            result = get_amplitude_retention("test", "signup", "purchase", "20260301", "20260315")
+        assert "2026-03-01" in result
+
+    def test_api_error_returns_error(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_retention
+            result = get_amplitude_retention("test", "signup", "purchase", "20260301", "20260315")
+        assert "[ERROR]" in result
+        assert "403" in result
+
+
+class TestGetAmplitudeCohort:
+    def setup_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections["test"] = {
+            "api_key": "test_key",
+            "secret_key": "test_secret",
+        }
+
+    def teardown_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections.clear()
+
+    def test_conn_id_not_found_returns_error(self):
+        from bi_agent_mcp.tools.amplitude import get_amplitude_cohort
+        result = get_amplitude_cohort("nonexistent", "cohort_abc")
+        assert "[ERROR]" in result
+        assert "nonexistent" in result
+
+    def test_returns_cohort_info(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "cohort": {
+                "name": "Active Users",
+                "size": 5000,
+                "definition": {"type": "property"},
+            }
+        }
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_cohort
+            result = get_amplitude_cohort("test", "cohort_abc")
+        assert "Active Users" in result
+        assert "5000" in result
+
+    def test_api_error_returns_error(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_cohort
+            result = get_amplitude_cohort("test", "cohort_abc")
+        assert "[ERROR]" in result
+        assert "404" in result
+
+
+class TestGetAmplitudeUserProperties:
+    def setup_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections["test"] = {
+            "api_key": "test_key",
+            "secret_key": "test_secret",
+        }
+
+    def teardown_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections.clear()
+
+    def test_conn_id_not_found_returns_error(self):
+        from bi_agent_mcp.tools.amplitude import get_amplitude_user_properties
+        result = get_amplitude_user_properties("nonexistent", "user_123")
+        assert "[ERROR]" in result
+        assert "nonexistent" in result
+
+    def test_returns_user_properties(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "userData": {
+                "user_properties": {
+                    "plan": "premium",
+                    "country": "KR",
+                }
+            }
+        }
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_user_properties
+            result = get_amplitude_user_properties("test", "user_123")
+        assert "plan" in result
+        assert "premium" in result
+
+    def test_api_error_returns_error(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 400
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_user_properties
+            result = get_amplitude_user_properties("test", "user_123")
+        assert "[ERROR]" in result
+        assert "400" in result
+
+
+class TestGetAmplitudeEventTypes:
+    def setup_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections["test"] = {
+            "api_key": "test_key",
+            "secret_key": "test_secret",
+        }
+
+    def teardown_method(self):
+        from bi_agent_mcp.tools import amplitude
+        amplitude._amplitude_connections.clear()
+
+    def test_conn_id_not_found_returns_error(self):
+        from bi_agent_mcp.tools.amplitude import get_amplitude_event_types
+        result = get_amplitude_event_types("nonexistent")
+        assert "[ERROR]" in result
+        assert "nonexistent" in result
+
+    def test_returns_event_type_list(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "data": [
+                {"event_type": "signup"},
+                {"event_type": "purchase"},
+                {"event_type": "page_view"},
+            ]
+        }
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_event_types
+            result = get_amplitude_event_types("test")
+        assert "signup" in result
+        assert "purchase" in result
+        assert "3" in result
+
+    def test_api_error_returns_error(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+
+        with patch("bi_agent_mcp.tools.amplitude.httpx.get", return_value=mock_resp):
+            from bi_agent_mcp.tools.amplitude import get_amplitude_event_types
+            result = get_amplitude_event_types("test")
+        assert "[ERROR]" in result
+        assert "500" in result

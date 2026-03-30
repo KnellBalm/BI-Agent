@@ -288,5 +288,76 @@ mcp.tool()(ab_multivariate)
 mcp.tool()(ab_segment_breakdown)
 mcp.tool()(ab_time_decay)
 
+# amplitude tools — 강화 (퍼널/리텐션/코호트/사용자속성/Lexicon)
+from bi_agent_mcp.tools.amplitude import (
+    get_amplitude_funnel,
+    get_amplitude_retention,
+    get_amplitude_cohort,
+    get_amplitude_user_properties,
+    get_amplitude_event_types,
+)
+
+mcp.tool()(get_amplitude_funnel)
+mcp.tool()(get_amplitude_retention)
+mcp.tool()(get_amplitude_cohort)
+mcp.tool()(get_amplitude_user_properties)
+mcp.tool()(get_amplitude_event_types)
+
+# mixpanel tools — 이벤트/퍼널/리텐션/코호트
+from bi_agent_mcp.tools.mixpanel import (
+    connect_mixpanel,
+    get_mixpanel_events,
+    get_mixpanel_funnel,
+    get_mixpanel_retention,
+    get_mixpanel_cohort_count,
+)
+
+mcp.tool()(connect_mixpanel)
+mcp.tool()(get_mixpanel_events)
+mcp.tool()(get_mixpanel_funnel)
+mcp.tool()(get_mixpanel_retention)
+mcp.tool()(get_mixpanel_cohort_count)
+
+# metabase tools — 카드/대시보드/쿼리 실행
+from bi_agent_mcp.tools.metabase import (
+    connect_metabase,
+    list_metabase_questions,
+    run_metabase_question,
+    list_metabase_dashboards,
+)
+
+mcp.tool()(connect_metabase)
+mcp.tool()(list_metabase_questions)
+mcp.tool()(run_metabase_question)
+mcp.tool()(list_metabase_dashboards)
+
+# superset tools — 차트/대시보드/SQL 실행
+from bi_agent_mcp.tools.superset import (
+    connect_superset,
+    list_superset_charts,
+    run_superset_sql,
+    list_superset_dashboards,
+)
+
+mcp.tool()(connect_superset)
+mcp.tool()(list_superset_charts)
+mcp.tool()(run_superset_sql)
+mcp.tool()(list_superset_dashboards)
+
+# posthog tools — 이벤트/인사이트/피처플래그/실험
+from bi_agent_mcp.tools.posthog import (
+    connect_posthog,
+    get_posthog_events,
+    get_posthog_insights,
+    get_posthog_feature_flags,
+    get_posthog_experiments,
+)
+
+mcp.tool()(connect_posthog)
+mcp.tool()(get_posthog_events)
+mcp.tool()(get_posthog_insights)
+mcp.tool()(get_posthog_feature_flags)
+mcp.tool()(get_posthog_experiments)
+
 if __name__ == "__main__":
     mcp.run()
