@@ -359,5 +359,65 @@ mcp.tool()(get_posthog_insights)
 mcp.tool()(get_posthog_feature_flags)
 mcp.tool()(get_posthog_experiments)
 
+# tableau_server tools — Tableau Server/Cloud REST API
+from bi_agent_mcp.tools.tableau_server import (
+    connect_tableau_server,
+    list_tableau_workbooks,
+    list_tableau_views,
+    get_tableau_view_data,
+    refresh_tableau_datasource,
+)
+
+mcp.tool()(connect_tableau_server)
+mcp.tool()(list_tableau_workbooks)
+mcp.tool()(list_tableau_views)
+mcp.tool()(get_tableau_view_data)
+mcp.tool()(refresh_tableau_datasource)
+
+# powerbi tools — Power BI REST API
+from bi_agent_mcp.tools.powerbi import (
+    connect_powerbi,
+    list_powerbi_workspaces,
+    list_powerbi_reports,
+    get_powerbi_dataset_tables,
+    push_powerbi_rows,
+)
+
+mcp.tool()(connect_powerbi)
+mcp.tool()(list_powerbi_workspaces)
+mcp.tool()(list_powerbi_reports)
+mcp.tool()(get_powerbi_dataset_tables)
+mcp.tool()(push_powerbi_rows)
+
+# quicksight tools — AWS QuickSight boto3 연동
+from bi_agent_mcp.tools.quicksight import (
+    connect_quicksight,
+    list_quicksight_datasets,
+    list_quicksight_analyses,
+    list_quicksight_dashboards,
+    get_quicksight_embed_url,
+)
+
+mcp.tool()(connect_quicksight)
+mcp.tool()(list_quicksight_datasets)
+mcp.tool()(list_quicksight_analyses)
+mcp.tool()(list_quicksight_dashboards)
+mcp.tool()(get_quicksight_embed_url)
+
+# looker_studio tools — Google Sheets API 연동
+from bi_agent_mcp.tools.looker_studio import (
+    connect_looker_studio,
+    get_sheet_data,
+    list_sheets,
+    append_sheet_data,
+    get_spreadsheet_metadata,
+)
+
+mcp.tool()(connect_looker_studio)
+mcp.tool()(get_sheet_data)
+mcp.tool()(list_sheets)
+mcp.tool()(append_sheet_data)
+mcp.tool()(get_spreadsheet_metadata)
+
 if __name__ == "__main__":
     mcp.run()
