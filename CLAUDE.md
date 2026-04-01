@@ -5,7 +5,7 @@
 BI 분석가를 위한 MCP(Model Context Protocol) 서버. Claude Desktop, Cursor, VSCode 등 MCP 클라이언트에서 자연어로 데이터를 분석한다.
 
 - **진입점**: `bi_agent_mcp/server.py` — FastMCP 인스턴스, 전체 도구 등록
-- **총 도구 수**: 98개 (2026-03 기준)
+- **총 도구 수**: 171개 (2026-04 기준)
 - **테스트**: `tests/unit/` — 834+ 단위 테스트, 커버리지 게이트 80%
 
 ---
@@ -42,12 +42,16 @@ bi_agent_mcp/
     ├── context.py      # 2개
     ├── setup.py        # 3개
     ├── ga4.py          # 2개
-    └── amplitude.py    # 2개
+    ├── amplitude.py    # 2개
+    ├── redash.py       # [Redash] 4개
+    ├── grafana.py      # [Grafana] 4개
+    ├── segment.py      # [Segment] 4개
+    └── dbt_cloud.py    # [dbtCloud] 4개
 ```
 
 ---
 
-## 도구 카테고리 (98개)
+## 도구 카테고리 (157개)
 
 | 카테고리 | 파일 | 개수 | 태그 |
 |---------|------|------|------|
@@ -67,6 +71,7 @@ bi_agent_mcp/
 | 헬퍼 | helper.py + viz_helper.py + bi_helper.py | 7 | [Helper] |
 | 품질/비교 | validation.py + compare.py + cross_source.py | 4 | [Quality][Compare][CrossSource] |
 | 알림/설정/컨텍스트 | alerts.py + setup.py + context.py | 9 | [Alert] |
+| 외부 연동 (신규) | redash.py, grafana.py, segment.py, dbt_cloud.py | 16 | [Redash][Grafana][Segment][dbtCloud] |
 
 ---
 
@@ -160,6 +165,60 @@ python3 -c "from bi_agent_mcp.server import mcp; print(len(mcp._tool_manager._to
 
 ---
 
+## 분석 흐름 가이드 (어떤 도구를 언제 쓸까?)
+
+### 진입점 (항상 여기서 시작)
+
+| 상황 | 사용할 도구 |
+|------|------------|
+| 처음 분석 요청 (방법 모름) | `bi_start(query)` |
+| 연결 있고 바로 분석 원함 | `bi_start(query, conn_id="...")` |
+| 복잡한 분석 직접 제어 | `bi_orchestrate(query, conn_id)` |
+
+### 전체 흐름
+
+```
+자연어 요청
+    │
+bi_start(query, conn_id?)
+    │
+    ├─ 방법 질문 ("어떻게", "뭐부터") → 가이드 모드
+    │   └─ bi_tool_selector() + hypothesis_helper() 반환
+    │
+    └─ 실행 요청 ("분석해", "왜", "원인") → 오케스트레이터 모드
+        └─ bi_orchestrate() 호출
+            └─ 스키마 → SQL 컨텍스트 → 도구 안내 → 가설 → 분석 방향 반환
+                └─ Claude가 run_query → 분석 도구 → generate_report 순 실행
+```
+
+### 데이터 소스별 연결 방법
+
+| 소스 | 도구 |
+|------|------|
+| PostgreSQL / MySQL / BigQuery | `connect_db` |
+| CSV / Excel | `connect_file` |
+| Databricks | `connect_databricks` |
+| Redash | `connect_redash` |
+| Grafana | `connect_grafana` |
+| Segment | `connect_segment` |
+| dbt Cloud | `connect_dbt_cloud` |
+| Airbyte | `connect_airbyte` |
+| Mixpanel | `connect_mixpanel` |
+| Amplitude | `connect_amplitude` |
+| Heap | `connect_heap` |
+
+### BI 출력별 도구
+
+| 출력 형태 | 도구 |
+|-----------|------|
+| 마크다운 보고서 | `generate_report(sections=[...])` |
+| Chart.js HTML 대시보드 | `generate_dashboard(data, charts)` |
+| Tableau TWBX | `generate_twbx(data, chart_type, title)` |
+| Power BI | `connect_powerbi` → `list_powerbi_reports` |
+| QuickSight | `connect_quicksight` → `list_quicksight_dashboards` |
+
+---
+
 ## 스킬 (Claude Code 슬래시 명령어)
 
 `.claude/commands/` 에 위치:
@@ -174,7 +233,7 @@ python3 -c "from bi_agent_mcp.server import mcp; print(len(mcp._tool_manager._to
 | `/bi-stats` | 통계 분석 워크플로우 (기술통계→가설검정) |
 | `/bi-ab` | A/B 테스트 전문 (설계→분석→세그먼트→시간효과) |
 | `/bi-viz` | 시각화 생성 (Chart.js HTML / Tableau TWBX) |
-| `/bi-help` | 도구 선택 가이드 (98개 도구 중 목표별 추천) |
+| `/bi-help` | 도구 선택 가이드 (157개 도구 중 목표별 추천) |
 
 ---
 
