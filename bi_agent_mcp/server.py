@@ -470,5 +470,11 @@ mcp.tool()(get_heap_events)
 mcp.tool()(get_heap_funnels)
 mcp.tool()(get_heap_user_properties)
 
+# orchestrator tools — BI 분석 진입점 (bi_start, bi_orchestrate)
+from bi_agent_mcp.tools.orchestrator import bi_start, bi_orchestrate
+
+mcp.tool()(bi_start)
+mcp.tool()(bi_orchestrate)
+
 if __name__ == "__main__":
     mcp.run()
