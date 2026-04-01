@@ -14,24 +14,21 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 QUERIES_FILE = CONFIG_DIR / "saved_queries.json"
 
 
-def generate_report(sections: list) -> str:
-    """[Report] sections 목록으로 마크다운 BI 리포트 파일을 생성합니다.
+def generate_report(sections: list, save_to_file: bool = False, output_path: str = "") -> str:
+    """[Report] sections 목록으로 마크다운 BI 리포트를 생성합니다.
 
     Args:
         sections: [{"title": str, "content": str}, ...] 형식의 섹션 목록
+        save_to_file: True이면 파일로 저장, False이면 마크다운 내용만 반환 (기본값: False)
+        output_path: 저장 경로 (비우면 ~/Downloads/ 자동 저장, save_to_file=True일 때만 적용)
 
     Returns:
-        생성된 파일의 절대 경로 (문자열)
+        save_to_file=False: 마크다운 리포트 내용 (문자열)
+        save_to_file=True: 생성된 파일의 절대 경로 (문자열)
     """
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
     datetime_str = now.strftime("%Y-%m-%d %H:%M:%S")
-
-    download_dir = Path.home().expanduser() / "Downloads"
-    if not download_dir.exists():
-        download_dir = Path.home().expanduser()
-
-    file_path = download_dir / f"{timestamp}_bi_report.md"
 
     lines = [f"# BI 리포트", f"생성 시각: {datetime_str}", ""]
 
@@ -46,10 +43,22 @@ def generate_report(sections: list) -> str:
 
     full_content = "\n".join(lines)
 
+    if not save_to_file:
+        return full_content
+
+    if output_path:
+        file_path = Path(output_path)
+    else:
+        download_dir = Path.home() / "Downloads"
+        if not download_dir.exists():
+            download_dir = Path.home()
+        file_path = download_dir / f"{timestamp}_bi_report.md"
+
     try:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(full_content)
-        return str(file_path)
+        return f"[SAVED] 리포트 저장 완료: {file_path}\n\n{full_content}"
     except Exception as e:
         logger.error(f"리포트 생성 오류: {e}")
         return f"[ERROR] 리포트 파일 생성 실패: {e}"

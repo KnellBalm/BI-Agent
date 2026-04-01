@@ -217,6 +217,7 @@ def _build_html(title: str, cards_html: str) -> str:
 
 
 def _save_dashboard(html: str, output_path: str, title: str) -> str:
+    """대시보드 HTML을 파일로 저장하고 경로를 반환합니다."""
     if output_path:
         path = Path(output_path)
     else:
@@ -233,6 +234,7 @@ def generate_dashboard(
     conn_id: str,
     queries: str,
     title: str = "BI 대시보드",
+    save_to_file: bool = False,
     output_path: str = "",
 ) -> str:
     """[Dashboard] 쿼리 결과를 인터랙티브 HTML 대시보드로 생성합니다.
@@ -243,7 +245,8 @@ def generate_dashboard(
             예: '[{"sql":"SELECT category,SUM(amount) FROM orders GROUP BY 1","title":"카테고리별 매출","type":"bar"}]'
             type 옵션: "bar"(막대), "line"(선), "pie"(파이), "table"(표), "kpi"(카드)
         title: 대시보드 제목
-        output_path: 저장 경로 (비우면 ~/Downloads/ 자동 저장)
+        save_to_file: True이면 파일로 저장, False이면 HTML 내용만 반환 (기본값: False)
+        output_path: 저장 경로 (비우면 ~/Downloads/ 자동 저장, save_to_file=True일 때만 적용)
     """
     try:
         query_list = json.loads(queries)
@@ -268,14 +271,19 @@ def generate_dashboard(
         return "[ERROR] 생성된 차트가 없습니다. queries 파라미터를 확인하세요."
 
     html = _build_html(title, "\n".join(cards))
+
+    if not save_to_file:
+        return f"대시보드 생성 완료 (미리보기)\n차트 수: {len(cards)}개\n\n파일로 저장하려면 save_to_file=True로 다시 호출하세요.\n\n{html}"
+
     path = _save_dashboard(html, output_path, title)
-    return f"대시보드 생성 완료: {path}\n차트 수: {len(cards)}개\n브라우저에서 파일을 열어 확인하세요."
+    return f"[SAVED] 대시보드 저장 완료: {path}\n차트 수: {len(cards)}개\n브라우저에서 파일을 열어 확인하세요."
 
 
 def chart_from_file(
     file_id: str,
     queries: str,
     title: str = "파일 분석 대시보드",
+    save_to_file: bool = False,
     output_path: str = "",
 ) -> str:
     """[Dashboard] 로드된 파일 데이터로 HTML 대시보드를 생성합니다.
@@ -284,7 +292,8 @@ def chart_from_file(
         file_id: connect_file로 얻은 파일 ID
         queries: JSON 배열 형식의 쿼리 목록 (테이블명으로 'df' 사용 가능)
         title: 대시보드 제목
-        output_path: 저장 경로
+        save_to_file: True이면 파일로 저장, False이면 HTML 내용만 반환 (기본값: False)
+        output_path: 저장 경로 (save_to_file=True일 때만 적용)
     """
     try:
         query_list = json.loads(queries)
@@ -309,5 +318,9 @@ def chart_from_file(
         return "[ERROR] 생성된 차트가 없습니다."
 
     html = _build_html(title, "\n".join(cards))
+
+    if not save_to_file:
+        return f"대시보드 생성 완료 (미리보기)\n차트 수: {len(cards)}개\n\n파일로 저장하려면 save_to_file=True로 다시 호출하세요.\n\n{html}"
+
     path = _save_dashboard(html, output_path, title)
-    return f"대시보드 생성 완료: {path}\n차트 수: {len(cards)}개"
+    return f"[SAVED] 대시보드 저장 완료: {path}\n차트 수: {len(cards)}개"
