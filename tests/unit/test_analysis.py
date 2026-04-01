@@ -119,7 +119,7 @@ class TestGenerateReport:
 
         with patch("builtins.open", mock_open()) as mo:
             mo.return_value.__enter__.return_value.write.side_effect = OSError("disk full")
-            result = generate_report([{"title": "T", "content": "C"}])
+            result = generate_report([{"title": "T", "content": "C"}], save_to_file=True)
         assert "[ERROR]" in result
 
 

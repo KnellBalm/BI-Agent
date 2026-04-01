@@ -138,10 +138,10 @@ class TestGenerateDashboard:
         out_path = str(tmp_path / "dash.html")
 
         with patch("bi_agent_mcp.tools.dashboard._execute_query", side_effect=ValueError("연결 없음")):
-            result = generate_dashboard("conn_bad", queries, output_path=out_path)
+            result = generate_dashboard("conn_bad", queries, save_to_file=True, output_path=out_path)
 
         # 에러 카드가 포함된 대시보드가 생성됨
-        assert "대시보드 생성 완료" in result
+        assert "대시보드 저장 완료" in result
         assert Path(out_path).exists()
 
     def test_successful_dashboard_generation(self, tmp_path):
@@ -149,9 +149,9 @@ class TestGenerateDashboard:
         out_path = str(tmp_path / "dash.html")
 
         with patch("bi_agent_mcp.tools.dashboard._execute_query", return_value=(["category", "sales"], [["A", 100]])):
-            result = generate_dashboard("conn_1", queries, title="테스트대시보드", output_path=out_path)
+            result = generate_dashboard("conn_1", queries, title="테스트대시보드", save_to_file=True, output_path=out_path)
 
-        assert "대시보드 생성 완료" in result
+        assert "대시보드 저장 완료" in result
         assert "1개" in result
         assert Path(out_path).exists()
 
@@ -190,9 +190,9 @@ class TestChartFromFile:
 
         with patch("bi_agent_mcp.tools.dashboard._execute_file_query",
                    return_value=(["id", "name"], [[1, "Alice"], [2, "Bob"]])):
-            result = chart_from_file("file_1", queries, output_path=out_path)
+            result = chart_from_file("file_1", queries, save_to_file=True, output_path=out_path)
 
-        assert "대시보드 생성 완료" in result
+        assert "대시보드 저장 완료" in result
         assert Path(out_path).exists()
 
 

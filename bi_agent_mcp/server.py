@@ -419,5 +419,56 @@ mcp.tool()(list_sheets)
 mcp.tool()(append_sheet_data)
 mcp.tool()(get_spreadsheet_metadata)
 
+# redash — Redash REST API 연동
+from bi_agent_mcp.tools.redash import connect_redash, list_redash_queries, run_redash_query, list_redash_dashboards
+mcp.tool()(connect_redash)
+mcp.tool()(list_redash_queries)
+mcp.tool()(run_redash_query)
+mcp.tool()(list_redash_dashboards)
+
+# dbt_cloud — dbt Cloud Admin API 연동
+from bi_agent_mcp.tools.dbt_cloud import connect_dbt_cloud, list_dbt_jobs, get_dbt_run_results, list_dbt_models
+mcp.tool()(connect_dbt_cloud)
+mcp.tool()(list_dbt_jobs)
+mcp.tool()(get_dbt_run_results)
+mcp.tool()(list_dbt_models)
+
+# grafana — Grafana HTTP API 연동
+from bi_agent_mcp.tools.grafana import connect_grafana, list_grafana_dashboards, get_grafana_dashboard, query_grafana_datasource
+mcp.tool()(connect_grafana)
+mcp.tool()(list_grafana_dashboards)
+mcp.tool()(get_grafana_dashboard)
+mcp.tool()(query_grafana_datasource)
+
+
+# segment — Segment Public API 연동
+from bi_agent_mcp.tools.segment import connect_segment, get_segment_sources, get_segment_events, get_segment_traits
+
+mcp.tool()(connect_segment)
+mcp.tool()(get_segment_sources)
+mcp.tool()(get_segment_events)
+mcp.tool()(get_segment_traits)
+
+# databricks — Databricks REST API 연동
+from bi_agent_mcp.tools.databricks import connect_databricks, run_databricks_sql, list_databricks_clusters, list_databricks_jobs
+mcp.tool()(connect_databricks)
+mcp.tool()(run_databricks_sql)
+mcp.tool()(list_databricks_clusters)
+mcp.tool()(list_databricks_jobs)
+
+# airbyte — Airbyte Config API 연동
+from bi_agent_mcp.tools.airbyte import connect_airbyte, list_airbyte_sources, list_airbyte_connections, get_airbyte_sync_status
+mcp.tool()(connect_airbyte)
+mcp.tool()(list_airbyte_sources)
+mcp.tool()(list_airbyte_connections)
+mcp.tool()(get_airbyte_sync_status)
+
+# heap — Heap Analytics 연동
+from bi_agent_mcp.tools.heap import connect_heap, get_heap_events, get_heap_funnels, get_heap_user_properties
+mcp.tool()(connect_heap)
+mcp.tool()(get_heap_events)
+mcp.tool()(get_heap_funnels)
+mcp.tool()(get_heap_user_properties)
+
 if __name__ == "__main__":
     mcp.run()

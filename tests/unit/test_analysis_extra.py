@@ -59,7 +59,7 @@ class TestGenerateReport:
     def test_ioerror_returns_error_string(self, tmp_path):
         sections = [{"title": "T", "content": "C"}]
         with patch("builtins.open", side_effect=OSError("permission denied")):
-            result = generate_report(sections)
+            result = generate_report(sections, save_to_file=True)
         assert "[ERROR]" in result
 
 
