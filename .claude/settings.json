@@ -1,4 +1,8 @@
 {
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
+  },
   "mcpServers": {
     "bi-agent": {
       "command": "/Users/zokr/python_workspace/BI-Agent/venv/bin/python",
@@ -20,8 +24,5 @@
         "PG_PORT": "5432"
       }
     }
-  },
-  "enabledPlugins": {
-    "skill-creator@claude-plugins-official": true
   }
 }
