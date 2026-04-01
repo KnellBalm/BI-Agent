@@ -114,8 +114,8 @@ def get_ga4_report(
             return "해당 기간에 데이터가 없습니다."
             
         for row in response.rows:
-            dim_vals = [dm.value for dm in row.dimension_values]
-            met_vals = [mt.value for mt in row.metric_values]
+            dim_vals = [str(dm.value) for dm in row.dimension_values]
+            met_vals = [str(mt.value) for mt in row.metric_values]
             line = dim_vals + met_vals
             md_table.append(f"| {' | '.join(line)} |")
             
