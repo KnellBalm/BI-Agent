@@ -107,20 +107,31 @@ intent="월별 매출 추이", columns="date, revenue", tool="tableau"
 | Amazon QuickSight | `quicksight` |
 | Looker Studio (구 Data Studio) | `looker` |
 
-### 4-2. 지원 차트 타입 (intent 키워드 → 차트 매핑)
+### 4-2. 차트 타입 매핑 — 퍼지 매칭 + 폴백
 
-| 의도 키워드 | 추천 차트 |
-|------------|----------|
-| 추이, 변화, 트렌드, 시계열 | 라인 차트 |
-| 비교, 순위, 분포 | 바 차트 |
-| 비율, 구성 | 파이 / 도넛 차트 |
-| 상관관계, 분포 | 산점도 |
-| 지역, 지도 | 지도 차트 |
-| 퍼널, 전환, 이탈 | 퍼널 차트 |
-| 코호트, 리텐션 | 히트맵 / 코호트 테이블 |
-| KPI, 요약 | 스코어카드 / 텍스트 테이블 |
+알려진 키워드는 구체적인 차트 가이드로 매핑하고, **매핑 안 되면 툴별 범용 차트 생성 워크플로우로 폴백**한다. `[ERROR]`는 반환하지 않는다.
 
-### 4-3. 지원 상황 (situation 키워드 → 트러블슈팅)
+| 의도 키워드 | 매핑 차트 | 폴백 여부 |
+|------------|----------|----------|
+| 추이, 변화, 트렌드, 시계열 | 라인 차트 | — |
+| 비교, 순위 | 바 차트 | — |
+| 비율, 구성 | 파이 / 도넛 차트 | — |
+| 상관관계 | 산점도 | — |
+| 지역, 지도 | 지도 차트 | — |
+| 퍼널, 전환, 이탈 | 퍼널 차트 | — |
+| 코호트, 리텐션 | 히트맵 / 코호트 테이블 | — |
+| KPI, 요약 | 스코어카드 | — |
+| **매핑 안 됨** | **범용 차트 생성 워크플로우** | **폴백** |
+
+폴백 반환 예시:
+```
+"워터폴 차트"에 대한 정확한 가이드는 없지만, Tableau에서 새 시각화를 만드는 일반적인 흐름을 안내합니다.
+1단계: ...
+```
+
+### 4-3. 상황 매핑 — 퍼지 매칭 + 폴백
+
+situation 키워드도 동일하게 퍼지 매칭 후 매핑 안 되면 해당 툴의 **범용 문제 해결 흐름** 반환.
 
 | 상황 | 키워드 예시 |
 |------|-----------|
@@ -130,6 +141,7 @@ intent="월별 매출 추이", columns="date, revenue", tool="tableau"
 | 날짜 집계 | "월별", "주별", "날짜 그룹" |
 | 계산 필드 | "MoM", "성장률", "계산 컬럼", "누적합" |
 | 퍼블리시/공유 | "배포", "공유", "publish" |
+| **매핑 안 됨** | **범용 문제 해결 흐름** (공식 문서 링크 포함) |
 
 ---
 
@@ -147,13 +159,16 @@ tests/unit/test_bi_tool_guide.py      # 신규 생성
 
 ```python
 # 상수 딕셔너리
-_CHART_KEYWORDS: dict[str, str]       # 키워드 → 차트 타입 매핑
+_CHART_KEYWORDS: dict[str, str]       # 키워드 → 차트 타입 매핑 (퍼지용)
+_CHART_GUIDE_FALLBACK: dict[str, list] # tool → 범용 차트 생성 단계 (폴백)
 _TOOL_DESCRIPTIONS: dict[str, str]    # 툴 → 1줄 설명
 _CHART_GUIDE: dict[str, dict]         # tool → chart_type → 단계 리스트
 _SITUATION_GUIDE: dict[str, dict]     # tool → situation → 단계 리스트
+_SITUATION_FALLBACK: dict[str, list]  # tool → 범용 트러블슈팅 단계 (폴백)
 
 # 헬퍼
-def _detect_chart_type(intent: str) -> str
+def _detect_chart_type(intent: str) -> str | None  # None이면 폴백 사용
+def _detect_situation(situation: str) -> str | None
 def _format_steps(steps: list[str], columns_map: dict) -> str
 def _recommend_mode(intent: str, columns: str) -> str
 def _guide_mode(intent: str, columns: str, tool: str, situation: str) -> str
@@ -164,12 +179,16 @@ def bi_tool_guide(intent, columns, tool, situation) -> str
 
 ### 에러 처리
 
+차트/상황 미매핑은 에러가 아닌 폴백. 에러는 진짜 잘못된 입력만 해당.
+
 ```python
-# 알 수 없는 툴
+# 알 수 없는 툴 (tool이 지정됐지만 지원 목록 밖)
 return "[ERROR] 지원하지 않는 툴입니다. tool은 tableau / powerbi / quicksight / looker 중 하나여야 합니다."
 
 # intent 비어있음
 return "[ERROR] intent는 필수 파라미터입니다."
+
+# 차트/상황 매핑 안 됨 → 에러 아님, 폴백 반환
 ```
 
 ---
