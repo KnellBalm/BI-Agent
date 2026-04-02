@@ -1,17 +1,17 @@
-# bi_tool_guide() — 디자인 스펙 (v2)
+# bi_tool_guide() — 디자인 스펙 (v3)
 
 **작성일:** 2026-04-02  
 **상태:** 확정 (사용자 승인)  
-**목표:** BI 툴을 모르는 사용자도 원하는 시각화를 만들 수 있도록, 의도 + 데이터 구조 기반의 단계별 가이드를 제공한다.  
-**핵심 변경:** A안 채택 — 단일 함수 내부에서 그래프/워크플로우 분기 처리 (토큰 최소화 + 비전문가 대응)
+**목표:** BI 툴을 모르는 사용자도 차트 생성, 계산 수식, 기능 사용, 트러블슈팅 전 영역을 AI 가이드로 해결할 수 있도록 한다.  
+**아키텍처:** A안 — 단일 함수 내부에서 5개 모드로 분기 (토큰 최소화 + 비전문가 대응)
 
 ---
 
 ## 1. 비전
 
-> "BI 툴 사용법을 몰라도, 내가 원하는 차트가 무엇인지만 말하면 된다."
+> "BI 툴 사용법을 몰라도, 내가 원하는 것만 말하면 된다."
 
-사용자가 "월별 매출 추이를 보고 싶다"처럼 의도를 말하면, 어떤 차트 타입이 적합한지 추천하고, 선택한 BI 툴에서 실제로 만드는 방법을 컬럼명까지 포함해 단계별로 안내한다.
+차트 만들기부터 LOD 수식 작성, 매개변수·집합·필터 생성, 함수 오류 디버깅, 연결 오류 해결까지 — BI 툴 사용의 전 영역을 커버한다.
 
 Claude 1번 호출 → 완전한 가이드 반환. 내부 분기는 Python 코드가 처리.
 
@@ -36,31 +36,57 @@ def bi_tool_guide(
 
 ---
 
-## 3. 내부 분기 구조 (A안: 내부 그래프)
+## 3. 내부 분기 구조 (A안: 5개 모드)
 
 ```
 bi_tool_guide(intent, columns, tool, situation)
          │
          ├─ intent 비어있음 → [ERROR] 반환
          │
-         ├─ tool 비어있음 → 추천 모드
-         │    └─ _detect_chart_type(intent) → 차트 추천
-         │         + 4개 툴 1줄 비교 + 다음 호출 안내
+         ├─ tool 비어있음 → [모드 0] 추천 모드
+         │    └─ 차트 타입 추천 + 4개 툴 비교 + 다음 호출 안내
          │
-         └─ tool 지정됨 → 가이드 모드
+         └─ tool 지정됨
               │
               ├─ tool 지원 목록 밖 → [ERROR] 반환
               │
-              ├─ situation 지정됨 → 트러블슈팅 노드
-              │    └─ _detect_situation(situation)
-              │         ├─ 매핑됨 → 툴별 상황 가이드 반환
-              │         └─ 매핑 안 됨 → 범용 트러블슈팅 + 공식 문서 링크
-              │
-              └─ situation 없음 → 차트 생성 노드
-                   └─ _detect_chart_type(intent)
-                        ├─ 매핑됨 → 툴별 차트 단계 가이드 반환
-                        └─ 매핑 안 됨 → 범용 차트 생성 워크플로우 폴백
+              └─ _classify_intent(intent, situation) → 모드 결정
+                   │
+                   ├─ [모드 1] 차트 생성
+                   │    └─ 의도: "라인 차트", "바 차트", "KPI 만들기" 등
+                   │         ├─ 차트 타입 매핑됨 → 툴별 단계 가이드
+                   │         └─ 매핑 안 됨 → 범용 차트 워크플로우 폴백
+                   │
+                   ├─ [모드 2] 계산/수식
+                   │    └─ 의도: "최초구매일", "MoM 성장률", "누적합", "LOD"
+                   │         계산 타입 매핑됨 → 툴별 수식 가이드
+                   │         (Tableau: Calc Field/LOD, Power BI: DAX,
+                   │          QuickSight: Calc Field, Looker: Calc Field)
+                   │         매핑 안 됨 → 범용 계산 필드 생성 폴백
+                   │
+                   ├─ [모드 3] 기능 사용
+                   │    └─ 의도: "매개변수", "집합", "드릴다운", "액션", "북마크"
+                   │         기능 타입 매핑됨 → 툴별 기능 설정 가이드
+                   │         매핑 안 됨 → 해당 툴 기능 목록 안내 폴백
+                   │
+                   └─ [모드 4] 트러블슈팅
+                        ├─ 시스템 오류: "연결 오류", "인증 실패", "차트 안 나옴"
+                        │    → 툴별 시스템 트러블슈팅 가이드
+                        ├─ 계산 디버깅: "함수 오류", "잘못된 결과값", "집계 이상"
+                        │    → 툴별 수식 오류 해결 가이드
+                        └─ 매핑 안 됨 → 범용 트러블슈팅 + 공식 문서 링크
 ```
+
+### 모드 분류 기준 (`_classify_intent`)
+
+| 신호 | 모드 |
+|------|------|
+| situation 지정됨 | 모드 4 (트러블슈팅) 우선 |
+| intent에 차트 타입 키워드 | 모드 1 |
+| intent에 함수/수식/계산 키워드 | 모드 2 |
+| intent에 기능 키워드 (매개변수, 집합 등) | 모드 3 |
+| intent에 오류/안됨/이상 키워드 | 모드 4 |
+| 기타 (특정 모드 감지 안 됨) | 모드 1 폴백 |
 
 ---
 
@@ -101,18 +127,58 @@ bi_tool_guide(intent, columns, tool, situation)
 | 워드클라우드, 텍스트 빈도 | `wordcloud` | Tableau: Word Cloud / Power BI: Word Cloud(AppSource) / QS: Word Cloud / Looker: 없음 |
 | **매핑 안 됨** | `general` | **폴백: 범용 차트 생성 워크플로우** |
 
-### 4-3. 상황(situation) 키워드 매핑
+### 4-3. 계산/수식 키워드 매핑 (모드 2)
+
+| 의도 키워드 | 매핑 calc_type | 툴별 구현 방식 |
+|------------|--------------|--------------|
+| 최초, 첫번째, MIN, 최솟값 | `min_per_dim` | Tableau: `{FIXED [dim] : MIN([col])}` / Power BI: `MINX(FILTER(...))` / QS: `min()` / Looker: MIN metric |
+| 마지막, 최근, MAX, 최댓값 | `max_per_dim` | 위와 동일하되 MAX 적용 |
+| 전월 대비, MoM, 전기 대비, 증감률 | `mom_growth` | Tableau: `LOOKUP` / Power BI: `DATEADD + DIVIDE` / QS: `periodOverPeriodDifference` / Looker: 날짜 오프셋 |
+| 누적합, 러닝합, running sum | `running_total` | Tableau: `RUNNING_SUM` / Power BI: `CALCULATE + FILTER` / QS: `runningSum` / Looker: running_total |
+| 비율, 전체 대비, % | `ratio_to_total` | Tableau: `SUM([x]) / TOTAL(SUM([x]))` / Power BI: `DIVIDE + ALL` / QS: `percentOfTotal` / Looker: 비율 metric |
+| 이동 평균, 7일 평균 | `moving_avg` | Tableau: `WINDOW_AVG` / Power BI: `AVERAGEX + DATESINPERIOD` / QS: `windowAvg` / Looker: `mean` with window |
+| 순위, 랭킹, rank | `rank` | Tableau: `RANK()` / Power BI: `RANKX` / QS: `rank` / Looker: `rank` measure |
+| 조건부 집계, IF 계산, CASE | `conditional_calc` | Tableau: `IF/CASE` / Power BI: `IF/SWITCH` / QS: `ifelse` / Looker: `case when` |
+| LOD, 세부 수준, 고정 | `lod` | Tableau 전용: `{FIXED}`, `{INCLUDE}`, `{EXCLUDE}` |
+| DAX, 측정값, measure | `dax_measure` | Power BI 전용: DAX 수식 작성 가이드 |
+| **매핑 안 됨** | `general_calc` | 각 툴의 계산 필드 생성 범용 가이드 |
+
+### 4-4. 기능 사용 키워드 매핑 (모드 3)
+
+| 의도 키워드 | 매핑 feature_type | 설명 |
+|------------|-----------------|------|
+| 매개변수, parameter | `parameter` | Tableau Parameter / Power BI What-if parameter / QS Parameter / Looker Parameter |
+| 집합, set | `set` | Tableau Set (조건부 또는 수동) |
+| 그룹, group, 묶기 | `group` | Tableau Group / Power BI Group / QS Group / Looker |
+| 필터, filter, 인터랙티브 필터 | `interactive_filter` | Tableau Quick Filter / Power BI Slicer / QS Filter Control / Looker Date Range Control |
+| 드릴다운, drill, 계층 | `drill` | Tableau Hierarchy / Power BI Date Hierarchy + Drill / QS 드릴다운 / Looker |
+| 액션, action, 클릭 연결 | `action` | Tableau Action (Filter/URL/Highlight) / Power BI Drillthrough + Bookmarks |
+| 북마크, bookmark | `bookmark` | Power BI Bookmark / Tableau Custom View |
+| 공유 필터, 크로스 필터 | `cross_filter` | Power BI Cross-filter / Looker Cross-filter |
+| 퍼블리시, 공유, 배포 | `publish` | 각 툴별 게시/공유 절차 |
+| **매핑 안 됨** | `general_feature` | 해당 툴의 주요 기능 목록 안내 |
+
+### 4-5. 트러블슈팅 키워드 매핑 (모드 4)
+
+**시스템 오류:**
 
 | 상황 키워드 | 매핑 situation_type |
 |-----------|-------------------|
 | 연결 오류, DB 연결, 데이터 소스, connection | `connection_error` |
 | 인증 오류, 로그인 실패, OAuth, 권한 | `auth_error` |
 | 차트 안 나옴, 빈 차트, 시각화 오류 | `viz_error` |
-| 필터 추가, 필터 설정, 날짜 필터 | `filter` |
-| 날짜 집계, 월별, 주별, 날짜 그룹 | `date_aggregation` |
-| 계산 필드, 수식, MoM, 성장률, 계산 컬럼 | `calculated_field` |
-| 퍼블리시, 배포, 공유, publish | `publish` |
-| 차트 바꾸기, 그래프 변경, 차트 타입 | `change_chart_type` |
+| 새로고침 오류, refresh, 업데이트 안 됨 | `refresh_error` |
+| 퍼블리시 오류, 배포 안 됨 | `publish_error` |
+
+**계산 디버깅:**
+
+| 상황 키워드 | 매핑 situation_type |
+|-----------|-------------------|
+| 함수 오류, 수식 오류, invalid calculation | `calc_syntax_error` |
+| 결과값 이상, 집계 틀림, 값이 다름 | `calc_wrong_result` |
+| NULL 처리, 빈값, 0으로 나옴 | `null_handling` |
+| 중복 집계, 값이 두 배, overcounting | `aggregation_error` |
+
 | **매핑 안 됨** | `general_troubleshoot` | → 범용 + 공식 문서 링크 |
 
 ---
@@ -132,54 +198,49 @@ tests/unit/test_bi_tool_guide.py      # 신규 생성
 ```python
 # ── 지원 툴 ──────────────────────────────────────────────────────────────────
 _SUPPORTED_TOOLS = {"tableau", "powerbi", "quicksight", "looker"}
+_TOOL_DOCS: dict[str, str]          # 툴 → 공식 문서 URL
 
-_TOOL_DOCS = {
-    "tableau":   "https://help.tableau.com/current/pro/desktop/en-us/",
-    "powerbi":   "https://learn.microsoft.com/en-us/power-bi/",
-    "quicksight":"https://docs.aws.amazon.com/quicksight/latest/user/",
-    "looker":    "https://support.google.com/looker-studio/",
-}
+# ── 키워드 매핑 딕셔너리 ──────────────────────────────────────────────────────
+_CHART_KEYWORDS:     dict[str, list[str]]  # chart_type → 키워드 리스트
+_CALC_KEYWORDS:      dict[str, list[str]]  # calc_type → 키워드 리스트
+_FEATURE_KEYWORDS:   dict[str, list[str]]  # feature_type → 키워드 리스트
+_SITUATION_KEYWORDS: dict[str, list[str]]  # situation_type → 키워드 리스트
 
-# ── 키워드 매핑 ───────────────────────────────────────────────────────────────
-_CHART_KEYWORDS: dict[str, list[str]]    # chart_type → [키워드 리스트]
-_SITUATION_KEYWORDS: dict[str, list[str]] # situation_type → [키워드 리스트]
+# ── 가이드 데이터 (모드별 × 툴별 × 타입별) ───────────────────────────────────
+_CHART_GUIDE:     dict[str, dict[str, list[str]]]  # tool → chart_type → steps
+_CALC_GUIDE:      dict[str, dict[str, list[str]]]  # tool → calc_type → steps
+_FEATURE_GUIDE:   dict[str, dict[str, list[str]]]  # tool → feature_type → steps
+_SITUATION_GUIDE: dict[str, dict[str, list[str]]]  # tool → situation_type → steps
 
-# ── 가이드 데이터 (툴별 × 타입별 단계) ─────────────────────────────────────────
-_CHART_GUIDE: dict[str, dict[str, list[str]]]
-# 예: _CHART_GUIDE["tableau"]["line"] = ["1단계: ...", "2단계: ..."]
+# ── 폴백 (매핑 안 될 때) ───────────────────────────────────────────────────────
+_CHART_FALLBACK:     dict[str, list[str]]  # tool → 범용 차트 생성 단계
+_CALC_FALLBACK:      dict[str, list[str]]  # tool → 범용 계산 필드 생성 단계
+_FEATURE_FALLBACK:   dict[str, list[str]]  # tool → 주요 기능 목록 안내
+_SITUATION_FALLBACK: dict[str, list[str]]  # tool → 범용 트러블슈팅 + 공식 문서
 
-_CHART_FALLBACK: dict[str, list[str]]
-# 예: _CHART_FALLBACK["tableau"] = ["1단계: 데이터 소스 연결", ...]
-
-_SITUATION_GUIDE: dict[str, dict[str, list[str]]]
-_SITUATION_FALLBACK: dict[str, list[str]]  # + 공식 문서 링크 포함
-
-# ── 툴별 UI 용어 사전 (컬럼명 치환에 사용) ───────────────────────────────────
-_TOOL_TERMS = {
-    "tableau":    {"dimension_shelf": "Columns/Rows Shelf", "measure_shelf": "Rows Shelf", ...},
-    "powerbi":    {"dimension_shelf": "Axis 버킷", "measure_shelf": "Values 버킷", ...},
-    "quicksight": {"dimension_shelf": "X axis (Field well)", "measure_shelf": "Value (Field well)", ...},
-    "looker":     {"dimension_shelf": "Dimension 슬롯", "measure_shelf": "Metric 슬롯", ...},
-}
+# ── 툴별 UI 용어 사전 ─────────────────────────────────────────────────────────
+_TOOL_TERMS: dict[str, dict[str, str]]     # 컬럼명 치환에 사용
 
 # ── 헬퍼 함수 ──────────────────────────────────────────────────────────────────
-def _detect_chart_type(intent: str) -> str:
-    """intent 키워드 퍼지 매칭 → chart_type 또는 'general'"""
+def _classify_intent(intent: str, situation: str) -> str:
+    """intent + situation → 모드 결정
+    반환값: 'recommend' | 'chart' | 'calc' | 'feature' | 'troubleshoot'
+    """
 
-def _detect_situation(situation: str) -> str:
-    """situation 키워드 퍼지 매칭 → situation_type 또는 'general_troubleshoot'"""
+def _fuzzy_match(text: str, keyword_map: dict[str, list[str]]) -> str | None:
+    """키워드 맵에서 퍼지 매칭 → matched_type 또는 None"""
 
 def _parse_columns(columns: str) -> list[str]:
-    """컬럼 문자열 파싱 → 리스트 (쉼표 구분 또는 JSON)"""
+    """컬럼 문자열 파싱 → 리스트"""
 
 def _inject_columns(steps: list[str], col_list: list[str], tool: str) -> str:
-    """단계 리스트에 실제 컬럼명을 치환하여 마크다운 문자열로 반환"""
+    """단계 리스트에 컬럼명 치환 후 마크다운 반환"""
 
-def _recommend_mode(intent: str, columns: str) -> str:
-    """tool 미지정 시 차트 추천 + 툴별 비교 반환"""
-
-def _guide_mode(intent: str, columns: str, tool: str, situation: str) -> str:
-    """tool 지정 시 단계별 가이드 반환 (차트 생성 또는 트러블슈팅)"""
+def _mode_recommend(intent: str, columns: str) -> str:
+def _mode_chart(intent: str, columns: str, tool: str) -> str:
+def _mode_calc(intent: str, columns: str, tool: str) -> str:
+def _mode_feature(intent: str, tool: str) -> str:
+def _mode_troubleshoot(intent: str, situation: str, tool: str) -> str:
 
 # ── 메인 함수 (MCP 등록) ────────────────────────────────────────────────────────
 def bi_tool_guide(intent, columns, tool, situation) -> str:
@@ -242,20 +303,47 @@ return "[ERROR] 지원하지 않는 툴입니다. tool은 tableau / powerbi / qu
 
 ## 8. 테스트 계획
 
+**모드 0 — 추천:**
 | 테스트 케이스 | 예상 결과 |
 |-------------|----------|
-| `bi_tool_guide("월별 추이")` (tool 없음) | 추천 모드: 라인 차트 추천 + 4개 툴 비교 |
-| `bi_tool_guide("월별 추이", tool="tableau", columns="date, revenue")` | Tableau 라인 차트 5단계 가이드 (컬럼명 포함) |
-| `bi_tool_guide("워터폴 차트", tool="looker")` | 폴백: "정확한 가이드 없음 + Looker 범용 워크플로우" |
-| `bi_tool_guide("연결이 안 된다", tool="powerbi", situation="연결 오류")` | Power BI 연결 오류 트러블슈팅 |
-| `bi_tool_guide("이상한 질문", tool="powerbi", situation="알 수 없는 상황")` | 폴백: 범용 트러블슈팅 + 공식 문서 링크 |
-| `bi_tool_guide("", tool="tableau")` | `[ERROR] intent는 필수 파라미터` |
-| `bi_tool_guide("차트", tool="unknown_tool")` | `[ERROR] 지원하지 않는 툴` |
-| `bi_tool_guide("KPI", tool="quicksight", columns="revenue")` | QuickSight KPI 시각화 가이드 |
-| `bi_tool_guide("코호트", tool="looker")` | Looker Studio Pivot Table 기반 코호트 가이드 |
-| 각 4개 툴 × 주요 3개 차트 타입 = 12케이스 | 모두 단계 포함 반환 |
+| `bi_tool_guide("매출 추이를 보고싶다")` | 라인 차트 추천 + 4개 툴 비교 |
 
-최소 2개/함수 (정상 + 에러) 원칙, 총 15개+ 테스트 목표.
+**모드 1 — 차트 생성:**
+| 테스트 케이스 | 예상 결과 |
+|-------------|----------|
+| `bi_tool_guide("월별 추이", tool="tableau", columns="date, revenue")` | 컬럼명 포함 단계 가이드 |
+| `bi_tool_guide("워터폴 차트", tool="looker")` | 폴백: 범용 차트 워크플로우 |
+| `bi_tool_guide("KPI", tool="quicksight", columns="revenue")` | QuickSight KPI 가이드 |
+
+**모드 2 — 계산/수식:**
+| 테스트 케이스 | 예상 결과 |
+|-------------|----------|
+| `bi_tool_guide("고객별 최초구매일", tool="tableau", columns="customer_id, purchase_date")` | `{FIXED [customer_id] : MIN([purchase_date])}` 포함 가이드 |
+| `bi_tool_guide("MoM 성장률", tool="powerbi", columns="date, revenue")` | DAX `DATEADD` 수식 포함 가이드 |
+| `bi_tool_guide("알 수 없는 계산", tool="quicksight")` | 폴백: 범용 계산 필드 생성 |
+
+**모드 3 — 기능 사용:**
+| 테스트 케이스 | 예상 결과 |
+|-------------|----------|
+| `bi_tool_guide("매개변수 만들기", tool="tableau")` | Tableau Parameter 생성 가이드 |
+| `bi_tool_guide("집합 생성", tool="tableau")` | Tableau Set 생성 가이드 |
+| `bi_tool_guide("슬라이서 추가", tool="powerbi")` | Power BI Slicer 추가 가이드 |
+
+**모드 4 — 트러블슈팅:**
+| 테스트 케이스 | 예상 결과 |
+|-------------|----------|
+| `bi_tool_guide("연결이 안 된다", tool="powerbi", situation="연결 오류")` | 연결 오류 트러블슈팅 |
+| `bi_tool_guide("함수가 오류남", tool="tableau", situation="함수 오류")` | 수식 오류 디버깅 가이드 |
+| `bi_tool_guide("값이 두 배로 나와", tool="tableau")` | 중복 집계 해결 가이드 |
+| `bi_tool_guide("이상한 질문", tool="powerbi", situation="알 수 없는 상황")` | 폴백: 범용 + 공식 문서 링크 |
+
+**에러 케이스:**
+| 테스트 케이스 | 예상 결과 |
+|-------------|----------|
+| `bi_tool_guide("", tool="tableau")` | `[ERROR] intent는 필수 파라미터` |
+| `bi_tool_guide("차트", tool="unknown")` | `[ERROR] 지원하지 않는 툴` |
+
+최소 2개/함수 (정상 + 에러) 원칙, 총 20개+ 테스트 목표.
 
 ---
 
