@@ -485,5 +485,9 @@ from bi_agent_mcp.tools.orchestrator import bi_start, bi_orchestrate
 register_tool(bi_start, is_core=True)
 register_tool(bi_orchestrate, is_core=True)
 
+# bi_tool_guide — BI 툴 시각화 가이드 (5개 모드: 추천/차트/계산/기능/트러블슈팅)
+from bi_agent_mcp.tools.bi_tool_guide import bi_tool_guide
+register_tool(bi_tool_guide, is_core=False)
+
 if __name__ == "__main__":
     mcp.run()

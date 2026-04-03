@@ -183,3 +183,44 @@ class TestTroubleshootMode:
         )
         assert "[ERROR]" not in result
         assert "docs.aws.amazon.com" in result or "quicksight" in result.lower()
+
+
+class TestIntegration:
+    """end-to-end 케이스 — 실제 반환값 사람이 읽을 수 있는지 확인."""
+
+    def test_full_tableau_line_chart(self):
+        result = bi_tool_guide(
+            intent="월별 매출 추이",
+            tool="tableau",
+            columns="order_date, revenue",
+        )
+        assert "order_date" in result
+        assert "revenue" in result
+        assert "Columns Shelf" in result
+
+    def test_full_powerbi_mom_dax(self):
+        result = bi_tool_guide(
+            intent="MoM 성장률 계산",
+            tool="powerbi",
+            columns="date, sales",
+        )
+        assert "DATEADD" in result or "DAX" in result
+        assert "sales" in result
+
+    def test_full_quicksight_connection_error(self):
+        result = bi_tool_guide(
+            intent="연결 오류",
+            tool="quicksight",
+            situation="연결 오류",
+        )
+        assert "VPC" in result or "CONNECTION" in result or "연결" in result
+
+    def test_full_looker_parameter(self):
+        result = bi_tool_guide(intent="매개변수 만들기", tool="looker")
+        # looker는 parameter 가이드 없으므로 general_feature 반환
+        assert "[ERROR]" not in result
+        assert "Looker Studio" in result
+
+    def test_doc_link_included(self):
+        result = bi_tool_guide(intent="차트 만들기", tool="tableau")
+        assert "help.tableau.com" in result
