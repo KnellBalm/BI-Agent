@@ -52,6 +52,198 @@ _CHART_NAMES: dict[str, str] = {
     "general": "범용 차트",
 }
 
+_CHART_GUIDE: dict[str, dict[str, list[str]]] = {
+    "tableau": {
+        "line": [
+            "**1단계: 데이터 소스 연결** — 상단 메뉴 Data > New Data Source",
+            "**2단계: 날짜 필드 배치** — `{col0}` 필드를 Columns Shelf로 드래그",
+            "**3단계: 수치 필드 배치** — `{col1}` 필드를 Rows Shelf로 드래그",
+            "**4단계: 날짜 집계 설정** — Columns의 `{col0}` 우클릭 > Month 선택",
+            "**5단계: 차트 타입** — Show Me 패널 > Lines (Continuous) 선택",
+            "**6단계: 포맷** — 제목 더블클릭 편집, 축 우클릭 > Format으로 단위 설정",
+        ],
+        "bar": [
+            "**1단계: 데이터 소스 연결** — Data > New Data Source",
+            "**2단계: 범주 필드 배치** — `{col0}` 필드를 Columns Shelf로 드래그",
+            "**3단계: 수치 필드 배치** — `{col1}` 필드를 Rows Shelf로 드래그",
+            "**4단계: 정렬** — Rows Shelf의 `{col1}` 우클릭 > Sort > Descending",
+            "**5단계: 차트 타입** — Show Me > Horizontal Bars 또는 Vertical Bars 선택",
+        ],
+        "pie": [
+            "**1단계: 데이터 소스 연결** — Data > New Data Source",
+            "**2단계: 범주 필드** — `{col0}` 필드를 Marks 카드의 Color 슬롯으로 드래그",
+            "**3단계: 수치 필드** — `{col1}` 필드를 Marks 카드의 Angle 슬롯으로 드래그",
+            "**4단계: 차트 타입** — Show Me > Pie Chart 선택",
+            "**5단계: 레이블** — Marks > Label 체크, 비율(%) 표시 설정",
+        ],
+        "kpi": [
+            "**1단계: 데이터 소스 연결** — Data > New Data Source",
+            "**2단계: 수치 필드 배치** — `{col0}` 필드를 Rows Shelf로 드래그",
+            "**3단계: 차트 타입** — Show Me > Text Table 선택",
+            "**4단계: 크게 표시** — Marks 카드에서 Label 선택, 폰트 크기 키우기",
+            "**5단계: 불필요한 축 제거** — 축 우클릭 > Hide Field Labels",
+        ],
+        "scatter": [
+            "**1단계: 데이터 소스 연결** — Data > New Data Source",
+            "**2단계: X축 수치 배치** — `{col0}` 필드를 Columns Shelf로 드래그",
+            "**3단계: Y축 수치 배치** — `{col1}` 필드를 Rows Shelf로 드래그",
+            "**4단계: 차트 타입** — Show Me > Scatter Plot 선택",
+            "**5단계: 구분 색상** — 범주 필드를 Marks > Color 슬롯으로 드래그 (선택)",
+        ],
+        "heatmap": [
+            "**1단계: 데이터 소스 연결** — Data > New Data Source",
+            "**2단계: 행 차원** — `{col0}` 필드를 Rows Shelf로 드래그",
+            "**3단계: 열 차원** — `{col1}` 필드를 Columns Shelf로 드래그",
+            "**4단계: 색상 값** — 수치 필드를 Marks > Color 슬롯으로 드래그",
+            "**5단계: 차트 타입** — Show Me > Heat Map 선택",
+        ],
+        "general": [
+            "**1단계: 데이터 소스 연결** — Data > New Data Source > 소스 유형 선택",
+            "**2단계: 필드 배치** — 왼쪽 Data 패널에서 필드를 Columns/Rows Shelf로 드래그",
+            "**3단계: 차트 타입 선택** — 우측 Show Me 패널에서 원하는 차트 클릭",
+            "**4단계: Marks 카드 조정** — Color, Size, Label 슬롯에 필드 추가",
+            "**5단계: 포맷** — Format 메뉴로 제목, 축, 색상 조정",
+        ],
+    },
+    "powerbi": {
+        "line": [
+            "**1단계: 데이터 불러오기** — Home > Get Data > 소스 선택",
+            "**2단계: 시각화 선택** — Visualizations 패널에서 Line chart 아이콘 클릭",
+            "**3단계: 날짜 필드 배치** — Fields 패널에서 `{col0}`을 Axis 버킷으로 드래그",
+            "**4단계: 수치 필드 배치** — `{col1}`을 Values 버킷으로 드래그",
+            "**5단계: 날짜 계층** — Axis의 `{col0}` 드롭다운 > 월(Month) 선택",
+            "**6단계: 포맷** — Format pane(페인트브러시 아이콘)에서 제목·색상 조정",
+        ],
+        "bar": [
+            "**1단계: 데이터 불러오기** — Home > Get Data",
+            "**2단계: 시각화 선택** — Visualizations > Bar chart (가로) 또는 Column chart (세로) 선택",
+            "**3단계: 범주 배치** — `{col0}`을 Axis 버킷으로 드래그",
+            "**4단계: 수치 배치** — `{col1}`을 Values 버킷으로 드래그",
+            "**5단계: 정렬** — Visual 우측 상단 ⋯ > Sort by `{col1}` > Sort descending",
+        ],
+        "pie": [
+            "**1단계: 데이터 불러오기** — Home > Get Data",
+            "**2단계: 시각화 선택** — Visualizations > Pie chart 또는 Donut chart",
+            "**3단계: 범주 배치** — `{col0}`을 Legend 버킷으로 드래그",
+            "**4단계: 수치 배치** — `{col1}`을 Values 버킷으로 드래그",
+            "**5단계: 레이블** — Format pane > Detail labels > Value, Percent 표시",
+        ],
+        "kpi": [
+            "**1단계: 데이터 불러오기** — Home > Get Data",
+            "**2단계: 시각화 선택** — Visualizations > Card visual 선택",
+            "**3단계: 수치 배치** — `{col0}`을 Fields 버킷으로 드래그",
+            "**4단계: 집계 설정** — 버킷의 필드 드롭다운 > 집계 방식 선택(Sum/Average)",
+            "**5단계: 포맷** — Format pane에서 폰트 크기, 단위(K/M) 설정",
+        ],
+        "scatter": [
+            "**1단계: 데이터 불러오기** — Home > Get Data",
+            "**2단계: 시각화 선택** — Visualizations > Scatter chart",
+            "**3단계: X축 배치** — `{col0}`을 X Axis 버킷으로 드래그",
+            "**4단계: Y축 배치** — `{col1}`을 Y Axis 버킷으로 드래그",
+            "**5단계: 범주 색상** — 범주 필드를 Legend 버킷으로 드래그 (선택)",
+        ],
+        "heatmap": [
+            "**1단계: 데이터 불러오기** — Home > Get Data",
+            "**2단계: 시각화 선택** — Visualizations > Matrix",
+            "**3단계: 행 배치** — `{col0}`을 Rows 버킷으로 드래그",
+            "**4단계: 열 배치** — `{col1}`을 Columns 버킷으로 드래그",
+            "**5단계: 값 배치** — 수치 필드를 Values 버킷으로 드래그",
+            "**6단계: 조건부 서식** — Format pane > Cell elements > Background color 활성화",
+        ],
+        "general": [
+            "**1단계: 데이터 불러오기** — Home > Get Data > 소스 유형 선택",
+            "**2단계: 시각화 선택** — Visualizations 패널에서 차트 아이콘 클릭",
+            "**3단계: 필드 배치** — Fields 패널에서 필드를 Axis / Values / Legend 버킷으로 드래그",
+            "**4단계: 집계 설정** — 버킷 필드 드롭다운 > 집계 방식 선택",
+            "**5단계: 포맷** — Format pane(페인트브러시 탭)에서 서식 조정",
+        ],
+    },
+    "quicksight": {
+        "line": [
+            "**1단계: 분석 생성** — QuickSight 콘솔 > New analysis > Dataset 선택",
+            "**2단계: 시각화 추가** — AutoGraph 또는 좌측 Visual types > Line chart",
+            "**3단계: X축 배치** — `{col0}` 필드를 X axis (Field well)로 드래그",
+            "**4단계: Y축 배치** — `{col1}` 필드를 Value (Field well)로 드래그",
+            "**5단계: 집계 설정** — X axis 필드 드롭다운 > Aggregate by Month",
+            "**6단계: 공유** — 상단 Publish > Publish dashboard",
+        ],
+        "bar": [
+            "**1단계: 분석 생성** — New analysis > Dataset 선택",
+            "**2단계: 시각화 선택** — Visual types > Bar chart",
+            "**3단계: X축 배치** — `{col0}`을 X axis Field well로 드래그",
+            "**4단계: Y축 배치** — `{col1}`을 Value Field well로 드래그",
+            "**5단계: 정렬** — Visual 상단 Sort 아이콘 클릭",
+        ],
+        "kpi": [
+            "**1단계: 분석 생성** — New analysis > Dataset 선택",
+            "**2단계: 시각화 선택** — Visual types > KPI",
+            "**3단계: 값 배치** — `{col0}`을 Value Field well로 드래그",
+            "**4단계: 비교값 배치** — 비교 기간 필드를 Comparison value로 드래그 (선택)",
+            "**5단계: 포맷** — Format visual에서 접두/접미사, 소수 자리 설정",
+        ],
+        "heatmap": [
+            "**1단계: 분석 생성** — New analysis > Dataset 선택",
+            "**2단계: 시각화 선택** — Visual types > Heat Map",
+            "**3단계: 행 배치** — `{col0}`을 Rows Field well로 드래그",
+            "**4단계: 열 배치** — `{col1}`을 Columns Field well로 드래그",
+            "**5단계: 값 배치** — 수치 필드를 Values Field well로 드래그",
+        ],
+        "general": [
+            "**1단계: 분석 생성** — New analysis > Dataset 선택",
+            "**2단계: AutoGraph 활용** — 필드를 Field well로 드래그하면 QuickSight가 적합한 차트 자동 선택",
+            "**3단계: 차트 타입 변경** — 좌측 Visual types 패널에서 원하는 타입 클릭",
+            "**4단계: 필드 배치** — X axis / Value / Color Field well에 필드 드래그",
+            "**5단계: 공유** — Publish > Publish dashboard > 사용자/그룹 지정",
+        ],
+    },
+    "looker": {
+        "line": [
+            "**1단계: 보고서 생성** — Looker Studio > Create > Report > 데이터 소스 연결",
+            "**2단계: 차트 추가** — Add a chart > Time series 또는 Line chart 선택",
+            "**3단계: 날짜 Dimension 배치** — Setup 탭 > Dimension에 `{col0}` 추가",
+            "**4단계: 수치 Metric 배치** — Metric에 `{col1}` 추가",
+            "**5단계: 집계 설정** — Metric 필드 옆 집계 드롭다운 > SUM/AVG 선택",
+            "**6단계: 공유** — 우측 상단 Share > 이메일 또는 링크 공유",
+        ],
+        "bar": [
+            "**1단계: 보고서 생성** — Create > Report > 데이터 소스 연결",
+            "**2단계: 차트 추가** — Add a chart > Bar chart 또는 Column chart 선택",
+            "**3단계: Dimension 배치** — Setup > Dimension에 `{col0}` 추가",
+            "**4단계: Metric 배치** — Metric에 `{col1}` 추가",
+            "**5단계: 정렬** — Setup > Sort > `{col1}` Descending",
+        ],
+        "pie": [
+            "**1단계: 보고서 생성** — Create > Report > 데이터 소스 연결",
+            "**2단계: 차트 추가** — Add a chart > Pie chart 또는 Donut chart 선택",
+            "**3단계: Dimension 배치** — Setup > Dimension에 `{col0}` 추가",
+            "**4단계: Metric 배치** — Metric에 `{col1}` 추가",
+            "**5단계: 레이블** — Style 탭 > Show data labels 체크",
+        ],
+        "kpi": [
+            "**1단계: 보고서 생성** — Create > Report > 데이터 소스 연결",
+            "**2단계: 차트 추가** — Add a chart > Scorecard 선택",
+            "**3단계: Metric 배치** — Setup > Metric에 `{col0}` 추가",
+            "**4단계: 비교** — Comparison date range 설정 (선택)",
+            "**5단계: 포맷** — Style 탭 > Compact numbers, Prefix/Suffix 설정",
+        ],
+        "heatmap": [
+            "**1단계: 보고서 생성** — Create > Report > 데이터 소스 연결",
+            "**2단계: 차트 추가** — Add a chart > Pivot table 선택",
+            "**3단계: 행 Dimension** — Setup > Row dimension에 `{col0}` 추가",
+            "**4단계: 열 Dimension** — Column dimension에 `{col1}` 추가",
+            "**5단계: 값 Metric** — Metric에 수치 필드 추가",
+            "**6단계: 히트맵 색상** — Style > Heatmap 활성화",
+        ],
+        "general": [
+            "**1단계: 보고서 생성** — Looker Studio > Create > Report",
+            "**2단계: 데이터 소스 연결** — 팝업에서 Connector 선택 (BigQuery/Sheets/GA4 등)",
+            "**3단계: 차트 추가** — 상단 Add a chart > 차트 타입 선택",
+            "**4단계: 필드 배치** — 우측 Setup 탭 > Dimension / Metric 슬롯에 필드 추가",
+            "**5단계: 포맷** — Style 탭에서 색상, 폰트, 레이블 조정",
+        ],
+    },
+}
+
 _CALC_KEYWORDS: list[str] = [
     "최초", "첫번째", "min", "max", "최솟값", "최댓값",
     "mom", "전월", "전기", "성장률", "증감률",
@@ -88,6 +280,27 @@ _TROUBLESHOOT_KEYWORDS: list[str] = [
     "두 배", "overcounting", "중복",
     "새로고침", "refresh", "업데이트 안",
 ]
+
+
+def _parse_columns(columns: str) -> list[str]:
+    """컬럼 문자열 파싱 → 리스트."""
+    if not columns:
+        return []
+    import json
+    try:
+        parsed = json.loads(columns)
+        if isinstance(parsed, list):
+            return [str(c).strip() for c in parsed]
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return [c.strip() for c in columns.split(",") if c.strip()]
+
+
+def _inject_columns(template: str, col_list: list[str]) -> str:
+    """템플릿의 {col0}, {col1} 플레이스홀더에 컬럼명 주입."""
+    for i, col in enumerate(col_list):
+        template = template.replace(f"{{col{i}}}", col)
+    return template
 
 
 def _classify_intent(intent: str, situation: str) -> str:
@@ -163,7 +376,33 @@ def _dispatch(intent: str, columns: str, tool: str, situation: str) -> str:
 
 
 def _mode_chart(intent: str, columns: str, tool: str) -> str:
-    return f"## {tool.upper()} 차트 가이드\n\n(Task 4에서 구현)"
+    """차트 생성 가이드 반환."""
+    chart_type = _fuzzy_match_chart(intent)
+    col_list = _parse_columns(columns)
+
+    tool_guide = _CHART_GUIDE.get(tool, {})
+    steps = tool_guide.get(chart_type) or tool_guide.get("general", [])
+
+    chart_name = _CHART_NAMES.get(chart_type, "차트")
+    tool_upper = tool.upper() if tool != "looker" else "Looker Studio"
+
+    header = f"## {tool_upper} — {chart_name}"
+    if chart_type == "general":
+        header += f"\n\n> '{intent}'에 대한 정확한 차트 매핑이 없습니다. 일반적인 차트 생성 워크플로우를 안내합니다."
+
+    if col_list:
+        formatted_steps = [_inject_columns(step, col_list) for step in steps]
+    else:
+        formatted_steps = [
+            s.replace("{col0}", "<날짜/범주 필드>").replace("{col1}", "<수치 필드>")
+            for s in steps
+        ]
+
+    lines = [header, ""] + formatted_steps
+    if tool in _TOOL_DOCS:
+        lines += ["", f"📖 공식 문서: {_TOOL_DOCS[tool]}"]
+
+    return "\n".join(lines)
 
 
 def _mode_calc(intent: str, columns: str, tool: str) -> str:

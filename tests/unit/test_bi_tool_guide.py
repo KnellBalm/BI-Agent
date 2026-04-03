@@ -64,3 +64,35 @@ class TestClassifyIntent:
 
     def test_unknown_defaults_to_chart(self):
         assert _classify_intent("완전히 모르는 의도", "") == "chart"
+
+
+class TestChartMode:
+    def test_tableau_line_chart_with_columns(self):
+        result = bi_tool_guide(
+            intent="월별 매출 추이",
+            tool="tableau",
+            columns="date, revenue",
+        )
+        assert "Columns Shelf" in result or "Rows Shelf" in result
+        assert "date" in result
+        assert "revenue" in result
+        assert "1단계" in result or "**1" in result
+
+    def test_powerbi_bar_chart(self):
+        result = bi_tool_guide(intent="카테고리별 비교", tool="powerbi")
+        assert "Axis" in result or "Values" in result
+        assert "1단계" in result or "**1" in result
+
+    def test_quicksight_kpi(self):
+        result = bi_tool_guide(intent="KPI 카드", tool="quicksight", columns="revenue")
+        assert "KPI" in result or "AutoGraph" in result
+
+    def test_looker_fallback_unknown_chart(self):
+        result = bi_tool_guide(intent="간트 차트 만들기", tool="looker")
+        assert "[ERROR]" not in result
+        assert "간트" in result or "가이드" in result or "Looker" in result
+
+    def test_tableau_fallback_unknown_chart(self):
+        result = bi_tool_guide(intent="완전히 모르는 차트", tool="tableau")
+        assert "[ERROR]" not in result
+        assert "단계" in result or "Tableau" in result
