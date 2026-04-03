@@ -966,8 +966,173 @@ def _mode_feature(intent: str, tool: str) -> str:
     return "\n".join(lines)
 
 
+_SITUATION_TYPE_KEYWORDS: dict[str, list[str]] = {
+    "connection_error":   ["연결 오류", "connection", "데이터 소스 오류", "연결 안", "db 연결"],
+    "auth_error":         ["인증 오류", "로그인 실패", "oauth", "권한 오류", "인증 실패"],
+    "viz_error":          ["차트 안 나", "빈 차트", "시각화 오류", "안 보임", "표시 안"],
+    "refresh_error":      ["새로고침 오류", "refresh", "업데이트 안", "갱신 실패"],
+    "calc_syntax_error":  ["함수 오류", "수식 오류", "invalid calculation", "계산 오류"],
+    "calc_wrong_result":  ["결과 이상", "값이 이상", "틀림", "다름", "예상과 다"],
+    "null_handling":      ["null", "빈값", "0으로 나", "누락"],
+    "aggregation_error":  ["두 배", "overcounting", "중복 집계", "값이 두 배"],
+}
+
+_SITUATION_GUIDE: dict[str, dict[str, list[str]]] = {
+    "tableau": {
+        "connection_error": [
+            "**Tableau 데이터 소스 연결 오류 해결**",
+            "",
+            "1. 상단 Data 메뉴 > 데이터 소스 이름 > Edit Connection",
+            "2. 서버 주소, 포트, 데이터베이스 이름 재확인",
+            "3. DB 드라이버 설치 확인 (help.tableau.com/driver-download)",
+            "4. 방화벽/VPN 설정 확인 — Tableau Server IP 허용 필요",
+            "5. Tableau Server 연결 시: Server > Sign In > URL 재입력",
+        ],
+        "calc_syntax_error": [
+            "**Tableau 계산 필드 오류 해결**",
+            "",
+            "1. Analysis > Edit Calculated Field 열기",
+            "2. 편집기 하단 오류 메시지 확인",
+            "3. 일반적인 원인:",
+            "   - 대괄호 누락: `[Field Name]` 형식 필수",
+            "   - 집계 혼용: `SUM([Sales]) + [Profit]` → `SUM([Sales]) + SUM([Profit])`",
+            "   - 따옴표: 문자열은 작은따옴표 `'text'`, 필드명은 대괄호",
+            "4. 'The calculation is valid' 메시지 확인 후 OK",
+        ],
+        "aggregation_error": [
+            "**Tableau 중복 집계 오류 해결**",
+            "",
+            "1. 데이터 소스 Join 확인: Data Source 탭 > Join 유형 확인 (LEFT → INNER 변경 시도)",
+            "2. 중복 행 확인: `{FIXED : COUNT([Primary Key])}` 로 중복 행 수 파악",
+            "3. COUNTD 사용: COUNT 대신 COUNTD([Primary Key])로 고유 수 집계",
+            "4. LOD 적용: `{FIXED [Dimension] : SUM([Measure])}` 로 집계 레벨 고정",
+        ],
+        "general_troubleshoot": [
+            "**Tableau 일반 문제 해결 순서**",
+            "",
+            "1. Data 패널에서 데이터 소스 연결 상태 확인",
+            "2. Analysis > View Data로 원본 데이터 확인",
+            "3. 필터 일시 제거 후 결과 재확인",
+            "4. 새 워크시트에서 동일 작업 재시도",
+        ],
+    },
+    "powerbi": {
+        "connection_error": [
+            "**Power BI 데이터 소스 연결 오류 해결**",
+            "",
+            "1. Home > Transform data > Data source settings에서 자격증명 확인",
+            "2. 온-프레미스 데이터: 온-프레미스 데이터 게이트웨이(Gateway) 설치/업데이트 확인",
+            "   - 게이트웨이 버전이 구식이면 GatewayNotReachable 오류 발생",
+            "3. Power BI Service 새로고침 오류 시 브라우저 캐시 삭제 후 재접속",
+            "4. OAuth 만료 (Dynamics CRM, SharePoint): 동일 계정으로 재인증",
+        ],
+        "calc_syntax_error": [
+            "**Power BI DAX 수식 오류 해결**",
+            "",
+            "1. Modeling 탭 > 측정값 선택 > 수식 표시줄에서 오류 메시지 확인",
+            "2. 일반적인 원인:",
+            "   - 테이블명 누락: `SUM([Sales])` → `SUM('테이블'[Sales])`",
+            "   - 따옴표: 테이블명은 작은따옴표, 열명은 대괄호",
+            "   - CALCULATE 안에서 SUM 없이 필터 사용 불가",
+            "3. Quick Measure 활용: Modeling > Quick measures에서 패턴 참고",
+        ],
+        "aggregation_error": [
+            "**Power BI 중복 집계 오류 해결**",
+            "",
+            "1. Model view에서 테이블 간 관계(Relationship) 확인",
+            "   - 다대다(M:N) 관계가 있으면 중복 집계 발생 가능",
+            "2. 관계 카디널리티 변경: 1:N으로 재설정",
+            "3. COUNTROWS 대신 DISTINCTCOUNT 사용",
+            "4. CALCULATE + ALL()로 필터 컨텍스트 재설정",
+        ],
+        "general_troubleshoot": [
+            "**Power BI 일반 문제 해결 순서**",
+            "",
+            "1. Home > Transform data에서 데이터 미리보기 확인",
+            "2. View > Performance analyzer로 느린 시각화 진단",
+            "3. 시각화 삭제 후 새로 추가하여 재현 확인",
+            "4. File > Options > Data Load 설정 확인",
+        ],
+    },
+    "quicksight": {
+        "connection_error": [
+            "**QuickSight 데이터 소스 연결 오류 해결**",
+            "",
+            "오류 코드별 해결:",
+            "- `CONNECTION_FAILURE` / `UNROUTABLE_HOST`: VPC 설정 및 Security Group 확인",
+            "- `DATA_SOURCE_AUTH_FAILED`: 자격증명 재입력 (Manage data sources > Edit)",
+            "- `SSL_CERTIFICATE_VALIDATION_FAILURE`: SSL 설정 확인",
+            "- `IAM_ROLE_NOT_AVAILABLE`: QuickSight IAM 역할 권한 확인",
+            "- `S3_FILE_INACCESSIBLE`: S3 버킷 정책 및 QuickSight 접근 권한 확인",
+        ],
+        "general_troubleshoot": [
+            "**QuickSight 일반 문제 해결**",
+            "",
+            "1. Dataset 새로고침: Datasets > Dataset 선택 > Refresh now",
+            "2. SPICE 용량 초과: Datasets > SPICE capacity 확인",
+            "3. Visual 오류: Visual 우측 상단 ⋯ > Edit 또는 Delete 후 재생성",
+        ],
+    },
+    "looker": {
+        "connection_error": [
+            "**Looker Studio 데이터 소스 연결 오류 해결**",
+            "",
+            "1. Resource > Manage added data sources > 데이터 소스 선택 > Edit connection",
+            "2. 오류별 해결:",
+            "   - 권한 오류: Owner's Credentials로 전환 (데이터 소스 편집 > Credentials)",
+            "   - 데이터 소스 삭제됨: 새 데이터 소스 추가",
+            "   - 인증 만료: Looker Studio의 Google Account 접근 철회 후 재연결",
+            "3. 최후 수단: 깨진 차트 선택 > 데이터 소스 교체 > Refresh fields",
+        ],
+        "general_troubleshoot": [
+            "**Looker Studio 일반 문제 해결**",
+            "",
+            "1. 보고서 새로고침: Ctrl+Shift+R (Windows) / Cmd+Shift+R (Mac)",
+            "2. 데이터 소스 새로고침: Resource > Manage data sources > Refresh fields",
+            "3. 차트 삭제 후 재생성",
+            "4. 다른 브라우저/시크릿 모드에서 접속 시도",
+        ],
+    },
+}
+
+
+def _fuzzy_match_situation(intent: str, situation: str) -> str:
+    """intent + situation에서 situation_type 매핑. 없으면 'general_troubleshoot'."""
+    text = (intent + " " + situation).lower()
+    for stype, keywords in _SITUATION_TYPE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in text:
+                return stype
+    return "general_troubleshoot"
+
+
 def _mode_troubleshoot(intent: str, situation: str, tool: str) -> str:
-    return f"## {tool.upper()} 트러블슈팅\n\n(Task 7에서 구현)"
+    """트러블슈팅 가이드 반환."""
+    sit_type = _fuzzy_match_situation(intent, situation)
+    tool_guide = _SITUATION_GUIDE.get(tool, {})
+    steps = tool_guide.get(sit_type) or tool_guide.get("general_troubleshoot", [])
+
+    tool_upper = tool.upper() if tool != "looker" else "Looker Studio"
+    sit_labels = {
+        "connection_error": "데이터 소스 연결 오류",
+        "auth_error": "인증/권한 오류",
+        "viz_error": "시각화 오류",
+        "refresh_error": "새로고침 오류",
+        "calc_syntax_error": "계산 수식 오류",
+        "calc_wrong_result": "잘못된 계산 결과",
+        "null_handling": "NULL/빈값 처리",
+        "aggregation_error": "중복 집계 오류",
+        "general_troubleshoot": "일반 트러블슈팅",
+    }
+    sit_name = sit_labels.get(sit_type, "트러블슈팅")
+    header = f"## {tool_upper} — {sit_name}"
+    if sit_type == "general_troubleshoot":
+        header += "\n\n> 정확한 오류 유형을 특정하지 못했습니다. 공식 문서를 참고하세요."
+
+    lines = [header, ""] + steps
+    if tool in _TOOL_DOCS:
+        lines += ["", f"📖 공식 문서: {_TOOL_DOCS[tool]}"]
+    return "\n".join(lines)
 
 
 def _fuzzy_match_chart(intent: str) -> str:

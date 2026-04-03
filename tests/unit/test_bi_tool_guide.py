@@ -150,3 +150,36 @@ class TestFeatureMode:
         result = bi_tool_guide(intent="알 수 없는 기능 설정", tool="tableau")
         assert "[ERROR]" not in result
         assert "tableau" in result.lower() or "Tableau" in result
+
+
+class TestTroubleshootMode:
+    def test_powerbi_connection_error(self):
+        result = bi_tool_guide(
+            intent="연결이 안 된다",
+            tool="powerbi",
+            situation="연결 오류",
+        )
+        assert "Gateway" in result or "게이트웨이" in result or "연결" in result
+        assert "[ERROR]" not in result
+
+    def test_tableau_calc_syntax_error(self):
+        result = bi_tool_guide(
+            intent="함수 오류 발생",
+            tool="tableau",
+            situation="함수 오류",
+        )
+        assert "valid" in result.lower() or "수식" in result or "오류" in result
+
+    def test_tableau_aggregation_error(self):
+        result = bi_tool_guide(intent="값이 두 배로 나와", tool="tableau")
+        assert "[ERROR]" not in result
+        assert "집계" in result or "LOD" in result or "중복" in result
+
+    def test_unknown_situation_fallback(self):
+        result = bi_tool_guide(
+            intent="뭔가 이상함",
+            tool="quicksight",
+            situation="완전 모르는 상황",
+        )
+        assert "[ERROR]" not in result
+        assert "docs.aws.amazon.com" in result or "quicksight" in result.lower()
