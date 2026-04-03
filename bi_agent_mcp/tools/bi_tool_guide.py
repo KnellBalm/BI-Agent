@@ -52,6 +52,70 @@ _CHART_NAMES: dict[str, str] = {
     "general": "범용 차트",
 }
 
+_CALC_KEYWORDS: list[str] = [
+    "최초", "첫번째", "min", "max", "최솟값", "최댓값",
+    "mom", "전월", "전기", "성장률", "증감률",
+    "누적합", "running sum", "러닝",
+    "비율", "전체 대비", "퍼센트",
+    "이동 평균", "7일 평균", "moving avg",
+    "순위", "랭킹", "rank",
+    "조건부", "if 계산", "case",
+    "lod", "세부 수준", "fixed", "include", "exclude",
+    "dax", "측정값", "measure", "계산 필드", "calculated field",
+    "수식", "formula", "함수 작성",
+]
+
+_FEATURE_KEYWORDS: list[str] = [
+    "매개변수", "parameter",
+    "집합", "set",
+    "그룹", "group", "묶기",
+    "드릴다운", "drill", "계층", "hierarchy",
+    "액션", "action", "클릭 연결",
+    "북마크", "bookmark",
+    "슬라이서", "slicer",
+    "크로스 필터", "cross filter",
+    "퍼블리시", "배포", "공유",
+    "인터랙티브 필터",
+]
+
+_TROUBLESHOOT_KEYWORDS: list[str] = [
+    "오류", "에러", "error", "안 된다", "안됨", "실패",
+    "연결 안", "connection", "인증", "oauth",
+    "차트 안 나", "빈 차트", "안 보임",
+    "값이 이상", "결과 이상", "틀림", "다름",
+    "함수 오류", "수식 오류", "invalid",
+    "null", "빈값", "0으로",
+    "두 배", "overcounting", "중복",
+    "새로고침", "refresh", "업데이트 안",
+]
+
+
+def _classify_intent(intent: str, situation: str) -> str:
+    """intent + situation → 모드 결정.
+
+    Returns: 'chart' | 'calc' | 'feature' | 'troubleshoot'
+    """
+    # situation 있으면 트러블슈팅 우선
+    if situation.strip():
+        return "troubleshoot"
+
+    intent_lower = intent.lower()
+
+    # 트러블슈팅 키워드
+    if any(kw in intent_lower for kw in _TROUBLESHOOT_KEYWORDS):
+        return "troubleshoot"
+
+    # 계산/수식 키워드
+    if any(kw in intent_lower for kw in _CALC_KEYWORDS):
+        return "calc"
+
+    # 기능 사용 키워드
+    if any(kw in intent_lower for kw in _FEATURE_KEYWORDS):
+        return "feature"
+
+    # 기본: 차트 생성 모드
+    return "chart"
+
 
 def bi_tool_guide(
     intent: str,
@@ -88,8 +152,30 @@ def bi_tool_guide(
 
 
 def _dispatch(intent: str, columns: str, tool: str, situation: str) -> str:
-    """모드 분기 — 추후 구현."""
-    return f"## {tool.upper()} 가이드\n\n(구현 중)"
+    mode = _classify_intent(intent, situation)
+    if mode == "chart":
+        return _mode_chart(intent, columns, tool)
+    if mode == "calc":
+        return _mode_calc(intent, columns, tool)
+    if mode == "feature":
+        return _mode_feature(intent, tool)
+    return _mode_troubleshoot(intent, situation, tool)
+
+
+def _mode_chart(intent: str, columns: str, tool: str) -> str:
+    return f"## {tool.upper()} 차트 가이드\n\n(Task 4에서 구현)"
+
+
+def _mode_calc(intent: str, columns: str, tool: str) -> str:
+    return f"## {tool.upper()} 계산 가이드\n\n(Task 5에서 구현)"
+
+
+def _mode_feature(intent: str, tool: str) -> str:
+    return f"## {tool.upper()} 기능 가이드\n\n(Task 6에서 구현)"
+
+
+def _mode_troubleshoot(intent: str, situation: str, tool: str) -> str:
+    return f"## {tool.upper()} 트러블슈팅\n\n(Task 7에서 구현)"
 
 
 def _fuzzy_match_chart(intent: str) -> str:
