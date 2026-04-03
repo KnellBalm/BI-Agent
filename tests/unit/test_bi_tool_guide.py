@@ -96,3 +96,37 @@ class TestChartMode:
         result = bi_tool_guide(intent="완전히 모르는 차트", tool="tableau")
         assert "[ERROR]" not in result
         assert "단계" in result or "Tableau" in result
+
+
+class TestCalcMode:
+    def test_tableau_lod_min_per_dim(self):
+        result = bi_tool_guide(
+            intent="고객별 최초구매일 구하기",
+            tool="tableau",
+            columns="customer_id, purchase_date",
+        )
+        assert "FIXED" in result or "MIN" in result
+        assert "customer_id" in result or "{col0}" not in result
+
+    def test_powerbi_mom_growth(self):
+        result = bi_tool_guide(
+            intent="MoM 성장률 계산",
+            tool="powerbi",
+            columns="date, revenue",
+        )
+        assert "DAX" in result or "DATEADD" in result or "DIVIDE" in result
+
+    def test_quicksight_running_total(self):
+        result = bi_tool_guide(intent="누적합 계산", tool="quicksight")
+        assert "[ERROR]" not in result
+        assert "runningSum" in result or "누적" in result or "calculated" in result.lower()
+
+    def test_looker_ratio(self):
+        result = bi_tool_guide(intent="전체 대비 비율 계산", tool="looker")
+        assert "[ERROR]" not in result
+        assert "%" in result or "비율" in result or "Calculated Field" in result
+
+    def test_unknown_calc_fallback(self):
+        result = bi_tool_guide(intent="알 수 없는 계산 수식", tool="tableau")
+        # _classify_intent이 calc로 분류 안 되면 chart 폴백으로 감 — 테스트는 에러 없음만 확인
+        assert "[ERROR]" not in result

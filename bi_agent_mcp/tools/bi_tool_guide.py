@@ -244,6 +244,288 @@ _CHART_GUIDE: dict[str, dict[str, list[str]]] = {
     },
 }
 
+_CALC_TYPE_KEYWORDS: dict[str, list[str]] = {
+    "min_per_dim":   ["최초", "첫번째", "min", "최솟값", "earliest", "first purchase"],
+    "max_per_dim":   ["마지막", "최근", "max", "최댓값", "latest", "last"],
+    "mom_growth":    ["mom", "전월", "전기 대비", "성장률", "증감률", "month over month"],
+    "running_total": ["누적합", "running sum", "러닝", "cumulative"],
+    "ratio":         ["비율", "전체 대비", "퍼센트", "proportion", "% of total"],
+    "moving_avg":    ["이동 평균", "7일 평균", "rolling", "moving avg"],
+    "rank":          ["순위", "랭킹", "rank"],
+    "conditional":   ["조건부", "if 계산", "case", "when"],
+    "lod":           ["lod", "세부 수준", "fixed", "include", "exclude"],
+    "dax_measure":   ["dax", "측정값", "measure"],
+}
+
+_CALC_GUIDE: dict[str, dict[str, list[str]]] = {
+    "tableau": {
+        "min_per_dim": [
+            "**방법: LOD Expression (FIXED)**",
+            "",
+            "Analysis 메뉴 > Create Calculated Field 클릭",
+            "이름 입력: `{col0}_최초_{col1}`",
+            "수식 입력:",
+            "```",
+            "{{FIXED [{col0}] : MIN([{col1}])}}",
+            "```",
+            "OK 클릭 → Data 패널에 새 필드 생성됨",
+            "",
+            "> 참고: `FIXED`는 뷰 필터와 독립적으로 `{col0}` 기준으로 `{col1}`의 최솟값을 계산합니다.",
+        ],
+        "mom_growth": [
+            "**방법: Table Calculation — LOOKUP**",
+            "",
+            "Analysis > Create Calculated Field",
+            "이름: `MoM 성장률`",
+            "수식:",
+            "```",
+            "(SUM([{col1}]) - LOOKUP(SUM([{col1}]), -1)) / ABS(LOOKUP(SUM([{col1}]), -1))",
+            "```",
+            "날짜 필드를 Columns Shelf에 Month 단위로 배치 후 이 필드를 뷰에 추가",
+            "필드 우클릭 > Edit Table Calculation > Compute using: Date",
+        ],
+        "running_total": [
+            "**방법: Table Calculation — RUNNING_SUM**",
+            "",
+            "Analysis > Create Calculated Field",
+            "이름: `누적 {col1}`",
+            "수식:",
+            "```",
+            "RUNNING_SUM(SUM([{col1}]))",
+            "```",
+            "필드 우클릭 > Edit Table Calculation > 집계 방향 확인",
+        ],
+        "ratio": [
+            "**방법: TOTAL() 또는 FIXED LOD**",
+            "",
+            "Analysis > Create Calculated Field",
+            "이름: `{col1} 비율`",
+            "수식 (뷰 레벨 기준):",
+            "```",
+            "SUM([{col1}]) / TOTAL(SUM([{col1}]))",
+            "```",
+            "또는 전체 기준:",
+            "```",
+            "SUM([{col1}]) / {{FIXED : SUM([{col1}])}}",
+            "```",
+        ],
+        "rank": [
+            "**방법: RANK() Table Calculation**",
+            "",
+            "Analysis > Create Calculated Field",
+            "이름: `{col0} 순위`",
+            "수식:",
+            "```",
+            "RANK(SUM([{col1}]))",
+            "```",
+            "필드 우클릭 > Edit Table Calculation > Compute using: {col0}",
+            "내림차순 정렬: RANK(SUM([{col1}]), 'desc')",
+        ],
+        "general_calc": [
+            "**계산 필드 생성 방법**",
+            "",
+            "1. Analysis 메뉴 > Create Calculated Field",
+            "2. 이름 입력 후 수식 작성",
+            "3. 편집기 하단 'The calculation is valid' 확인",
+            "4. OK 클릭 → Data 패널에 새 필드 생성",
+            "",
+            "주요 계산 타입:",
+            "- Basic: `[Sales] * 1.1`",
+            "- Aggregate: `AVG([Discount])`",
+            "- Table Calc: `RUNNING_SUM(SUM([Sales]))`",
+            "- LOD: `{FIXED [Region] : SUM([Sales])}`",
+        ],
+    },
+    "powerbi": {
+        "min_per_dim": [
+            "**방법: DAX MINX + FILTER**",
+            "",
+            "Modeling 탭 > New Measure",
+            "수식:",
+            "```dax",
+            "{col0}_최초_{col1} =",
+            "MINX(",
+            "    FILTER('테이블', '테이블'[{col0}] = EARLIER('테이블'[{col0}])),",
+            "    '테이블'[{col1}]",
+            ")",
+            "```",
+        ],
+        "mom_growth": [
+            "**방법: DAX DATEADD + DIVIDE**",
+            "",
+            "Modeling > New Measure",
+            "수식:",
+            "```dax",
+            "전월_{col1} =",
+            "CALCULATE(",
+            "    SUM('테이블'[{col1}]),",
+            "    DATEADD('날짜테이블'[Date], -1, MONTH)",
+            ")",
+            "",
+            "MoM_성장률 =",
+            "DIVIDE(",
+            "    SUM('테이블'[{col1}]) - [전월_{col1}],",
+            "    [전월_{col1}]",
+            ")",
+            "```",
+        ],
+        "running_total": [
+            "**방법: DAX CALCULATE + FILTER**",
+            "",
+            "Modeling > New Measure",
+            "수식:",
+            "```dax",
+            "누적_{col1} =",
+            "CALCULATE(",
+            "    SUM('테이블'[{col1}]),",
+            "    FILTER(",
+            "        ALL('날짜테이블'),",
+            "        '날짜테이블'[Date] <= MAX('날짜테이블'[Date])",
+            "    )",
+            ")",
+            "```",
+        ],
+        "ratio": [
+            "**방법: DAX DIVIDE + ALL**",
+            "",
+            "Modeling > New Measure",
+            "수식:",
+            "```dax",
+            "{col1}_비율 =",
+            "DIVIDE(",
+            "    SUM('테이블'[{col1}]),",
+            "    CALCULATE(SUM('테이블'[{col1}]), ALL('테이블'))",
+            ")",
+            "```",
+        ],
+        "rank": [
+            "**방법: DAX RANKX**",
+            "",
+            "Modeling > New Measure",
+            "수식:",
+            "```dax",
+            "{col0}_순위 =",
+            "RANKX(",
+            "    ALL('테이블'[{col0}]),",
+            "    SUM('테이블'[{col1}]),",
+            "    ,",
+            "    DESC",
+            ")",
+            "```",
+        ],
+        "general_calc": [
+            "**Power BI 계산 필드 생성 방법**",
+            "",
+            "1. Modeling 탭 > New Measure 클릭",
+            "2. 수식 표시줄에 DAX 수식 입력",
+            "3. 측정값은 Fields 패널에 계산기 아이콘으로 표시됨",
+            "",
+            "주요 DAX 함수:",
+            "- `SUM([col])`, `AVERAGE([col])`, `COUNT([col])`",
+            "- `CALCULATE(expr, filter)` — 필터 컨텍스트 수정",
+            "- `DIVIDE(a, b)` — 0으로 나누기 안전 처리",
+            "- `DATEADD(date, n, MONTH)` — 날짜 이동",
+        ],
+    },
+    "quicksight": {
+        "min_per_dim": [
+            "**방법: Calculated Field — min() 집계**",
+            "",
+            "Data pane 상단 Add calculated field 클릭",
+            "이름: `{col0}_최초_{col1}`",
+            "수식:",
+            "```",
+            "min({col1})",
+            "```",
+            "Field well에서 `{col0}`을 그룹 Dimension으로, 생성된 필드를 Value로 배치",
+        ],
+        "mom_growth": [
+            "**방법: periodOverPeriodDifference 함수**",
+            "",
+            "Data pane > Add calculated field",
+            "이름: `MoM 성장률`",
+            "수식:",
+            "```",
+            "periodOverPeriodDifference(sum({col1}), {col0}, MONTH, 1) /",
+            "periodOverPeriodLastValue(sum({col1}), {col0}, MONTH, 1)",
+            "```",
+        ],
+        "running_total": [
+            "**방법: runningSum 함수**",
+            "",
+            "Data pane > Add calculated field",
+            "이름: `누적_{col1}`",
+            "수식:",
+            "```",
+            "runningSum(sum({col1}), [{col0} ASC])",
+            "```",
+        ],
+        "general_calc": [
+            "**QuickSight 계산 필드 생성 방법**",
+            "",
+            "1. 분석(Analysis) 화면에서 Data pane 상단 'Add calculated field' 클릭",
+            "2. 필드명 입력 후 수식 에디터에서 함수/연산자/기존 필드 조합",
+            "3. 'Apply' 클릭",
+            "",
+            "주요 함수:",
+            "- `sum({col})`, `avg({col})`, `min({col})`, `max({col})`",
+            "- `ifelse(condition, true_val, false_val)`",
+            "- `dateDiff({date1}, {date2}, 'DD')`",
+            "- `runningSum(sum({col}), [{date} ASC])`",
+        ],
+    },
+    "looker": {
+        "min_per_dim": [
+            "**방법: Data Source에서 Calculated Field 생성**",
+            "",
+            "Resource > Manage added data sources > 데이터 소스 편집",
+            "Add a field > 이름: `{col0}_최초_{col1}`",
+            "수식 (BigQuery 기준):",
+            "```sql",
+            "MIN({col1}) OVER (PARTITION BY {col0})",
+            "```",
+            "또는 BigQuery 집계 후 조인 방식 권장",
+        ],
+        "mom_growth": [
+            "**방법: Date comparison 기능 활용**",
+            "",
+            "차트의 Setup 탭 > Comparison date range 활성화",
+            "또는 Calculated Field:",
+            "이름: `MoM 성장률`",
+            "수식 (BigQuery 기준):",
+            "```sql",
+            "(SUM({col1}) - SUM({col1}_prev)) / SUM({col1}_prev)",
+            "```",
+            "전월 데이터는 BigQuery에서 LAG 함수로 사전 처리 권장",
+        ],
+        "ratio": [
+            "**방법: Looker Studio Calculated Field**",
+            "",
+            "차트 선택 > Setup 탭 > Metric > Add field > Create field",
+            "이름: `{col1}_비율`",
+            "수식:",
+            "```",
+            "SUM({col1}) / SUM({col1})",
+            "```",
+            "> Looker Studio에서 '전체 대비 비율'은 Percent of total 집계 설정으로도 가능합니다.",
+            "Metric 필드 옆 집계 드롭다운 > Percent of total 선택",
+        ],
+        "general_calc": [
+            "**Looker Studio 계산 필드 생성 방법**",
+            "",
+            "1. 차트 선택 > Setup 탭 > Metric 영역 > Add field > Create field",
+            "2. 또는 Resource > Manage added data sources > 데이터 소스 편집 > Add a field",
+            "3. 필드명 입력 후 수식 작성",
+            "",
+            "주요 함수:",
+            "- `SUM({col})`, `AVG({col})`, `MAX({col})`, `MIN({col})`",
+            "- `CASE WHEN condition THEN val1 ELSE val2 END`",
+            "- `CONCAT({col1}, ' ', {col2})`",
+            "- 데이터 소스 레벨 계산 필드는 모든 차트에서 재사용 가능",
+        ],
+    },
+}
+
 _CALC_KEYWORDS: list[str] = [
     "최초", "첫번째", "min", "max", "최솟값", "최댓값",
     "mom", "전월", "전기", "성장률", "증감률",
@@ -405,8 +687,58 @@ def _mode_chart(intent: str, columns: str, tool: str) -> str:
     return "\n".join(lines)
 
 
+def _fuzzy_match_calc(intent: str) -> str:
+    """intent에서 calc_type 퍼지 매칭. 없으면 'general_calc' 반환."""
+    intent_lower = intent.lower()
+    for calc_type, keywords in _CALC_TYPE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in intent_lower:
+                return calc_type
+    return "general_calc"
+
+
 def _mode_calc(intent: str, columns: str, tool: str) -> str:
-    return f"## {tool.upper()} 계산 가이드\n\n(Task 5에서 구현)"
+    """계산/수식 가이드 반환."""
+    import re
+    calc_type = _fuzzy_match_calc(intent)
+    col_list = _parse_columns(columns)
+
+    tool_guide = _CALC_GUIDE.get(tool, {})
+    steps = tool_guide.get(calc_type) or tool_guide.get("general_calc", [])
+
+    tool_upper = tool.upper() if tool != "looker" else "Looker Studio"
+    calc_labels = {
+        "min_per_dim": "최솟값/최초값 (차원별)",
+        "max_per_dim": "최댓값/최근값 (차원별)",
+        "mom_growth": "전월 대비 성장률 (MoM)",
+        "running_total": "누적합 (Running Total)",
+        "ratio": "전체 대비 비율",
+        "moving_avg": "이동 평균",
+        "rank": "순위 (Rank)",
+        "conditional": "조건부 계산",
+        "lod": "세부 수준 계산 (LOD)",
+        "dax_measure": "DAX 측정값",
+        "general_calc": "계산 필드 (일반)",
+    }
+    calc_name = calc_labels.get(calc_type, "계산 필드")
+
+    header = f"## {tool_upper} — {calc_name}"
+    if calc_type == "general_calc":
+        header += f"\n\n> '{intent}'에 대한 정확한 계산식 매핑이 없습니다. 계산 필드 생성 일반 방법을 안내합니다."
+
+    formatted = []
+    for step in steps:
+        s = step
+        for i, col in enumerate(col_list):
+            s = s.replace(f"{{col{i}}}", col)
+        s = re.sub(r"\{col\d+\}", "<필드명>", s)
+        formatted.append(s)
+
+    lines = [header, ""] + formatted
+    if tool in _TOOL_DOCS:
+        lines += ["", f"📖 공식 문서: {_TOOL_DOCS[tool]}"]
+
+    return "\n".join(lines)
 
 
 def _mode_feature(intent: str, tool: str) -> str:
