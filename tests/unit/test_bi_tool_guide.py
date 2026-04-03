@@ -130,3 +130,23 @@ class TestCalcMode:
         result = bi_tool_guide(intent="알 수 없는 계산 수식", tool="tableau")
         # _classify_intent이 calc로 분류 안 되면 chart 폴백으로 감 — 테스트는 에러 없음만 확인
         assert "[ERROR]" not in result
+
+
+class TestFeatureMode:
+    def test_tableau_parameter(self):
+        result = bi_tool_guide(intent="매개변수 만들기", tool="tableau")
+        assert "Parameter" in result or "매개변수" in result
+        assert "1단계" in result or "**1" in result or "1." in result
+
+    def test_tableau_set(self):
+        result = bi_tool_guide(intent="집합 생성", tool="tableau")
+        assert "Set" in result or "집합" in result
+
+    def test_powerbi_slicer(self):
+        result = bi_tool_guide(intent="슬라이서 추가", tool="powerbi")
+        assert "Slicer" in result or "슬라이서" in result
+
+    def test_unknown_feature_fallback(self):
+        result = bi_tool_guide(intent="알 수 없는 기능 설정", tool="tableau")
+        assert "[ERROR]" not in result
+        assert "tableau" in result.lower() or "Tableau" in result

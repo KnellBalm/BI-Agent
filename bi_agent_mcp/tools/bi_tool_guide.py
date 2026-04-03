@@ -741,8 +741,229 @@ def _mode_calc(intent: str, columns: str, tool: str) -> str:
     return "\n".join(lines)
 
 
+_FEATURE_TYPE_KEYWORDS: dict[str, list[str]] = {
+    "parameter":       ["매개변수", "parameter", "파라미터"],
+    "set":             ["집합", " set", "세트"],
+    "group":           ["그룹", "group", "묶기"],
+    "interactive_filter": ["인터랙티브 필터", "퀵 필터", "슬라이서", "slicer", "filter control"],
+    "drill":           ["드릴다운", "drill", "계층", "hierarchy"],
+    "action":          ["액션", "action", "클릭 연결", "url action"],
+    "bookmark":        ["북마크", "bookmark", "custom view"],
+    "publish":         ["퍼블리시", "배포", "공유", "publish", "share"],
+    "cross_filter":    ["크로스 필터", "cross filter"],
+}
+
+_FEATURE_GUIDE: dict[str, dict[str, list[str]]] = {
+    "tableau": {
+        "parameter": [
+            "**Tableau Parameter 생성**",
+            "",
+            "1. 왼쪽 Data 패널 빈 공간 우클릭 > Create Parameter",
+            "2. 이름, 데이터 타입, 허용 값(전체/목록/범위) 설정",
+            "3. OK 클릭 → Parameters 섹션에 생성됨",
+            "4. 파라미터 우클릭 > Show Parameter → 뷰에 컨트롤 위젯 표시",
+            "5. 계산 필드에서 파라미터 참조: `[파라미터명]`",
+            "",
+            "활용 예: 날짜 범위 파라미터로 동적 필터링",
+            "```",
+            "[Order Date] >= [Start Date Parameter] AND [Order Date] <= [End Date Parameter]",
+            "```",
+        ],
+        "set": [
+            "**Tableau Set 생성**",
+            "",
+            "**조건 기반 Set (동적):**",
+            "1. Data 패널에서 Dimension 필드 우클릭 > Create > Set",
+            "2. 'Condition' 탭 > 조건 설정 (예: SUM([Sales]) > 10000)",
+            "3. OK 클릭",
+            "",
+            "**수동 선택 Set (정적):**",
+            "1. Data 패널에서 Dimension 우클릭 > Create > Set",
+            "2. 'General' 탭 > 원하는 멤버 체크박스 선택",
+            "3. OK 클릭",
+            "",
+            "Set은 IN/OUT 두 값을 가지며, Marks > Color에 드래그하면 강조 표시 가능",
+        ],
+        "drill": [
+            "**Tableau 계층(Hierarchy) 생성**",
+            "",
+            "1. Data 패널에서 부모 Dimension 필드 우클릭 > Hierarchy > Create Hierarchy",
+            "2. 이름 입력 후 OK",
+            "3. 자식 Dimension 필드를 계층 아래로 드래그",
+            "4. Shelf에 계층 배치 후 + 버튼으로 드릴다운",
+        ],
+        "action": [
+            "**Tableau Dashboard Action 생성**",
+            "",
+            "Dashboard > Actions > Add Action 클릭",
+            "",
+            "**Filter Action (클릭으로 다른 시트 필터링):**",
+            "- Action type: Filter",
+            "- Source sheet: 클릭할 시트 선택",
+            "- Target sheet: 필터 적용될 시트 선택",
+            "- Run action on: Select (클릭 시)",
+            "",
+            "**URL Action (외부 링크 열기):**",
+            "- Action type: URL",
+            "- URL에 필드 값 포함 가능: `https://example.com/<[Field]>`",
+        ],
+        "general_feature": [
+            "**Tableau 주요 기능 목록**",
+            "",
+            "- **Parameter**: 사용자 입력 동적 변수 (Data 패널 우클릭 > Create Parameter)",
+            "- **Set**: 조건 기반 데이터 부분집합 (Dimension 우클릭 > Create > Set)",
+            "- **Group**: 여러 멤버를 하나로 묶기 (Dimension 우클릭 > Create > Group)",
+            "- **Hierarchy**: 드릴다운 계층 구조 (우클릭 > Hierarchy > Create Hierarchy)",
+            "- **Filter Action**: 클릭으로 다른 시트 필터링 (Dashboard > Actions)",
+            "- **URL Action**: 클릭으로 외부 URL 열기",
+            "- **Publish**: Server > Publish Workbook",
+        ],
+    },
+    "powerbi": {
+        "interactive_filter": [
+            "**Power BI Slicer 추가**",
+            "",
+            "1. Visualizations 패널에서 Slicer 아이콘 클릭",
+            "2. Fields 패널에서 필터할 필드를 Field 버킷으로 드래그",
+            "3. Format pane > Slicer settings에서 스타일 선택:",
+            "   - Dropdown: 드롭다운 목록",
+            "   - List: 체크박스 목록",
+            "   - Between: 숫자/날짜 범위 슬라이더",
+            "4. 동일 페이지의 다른 시각화에 자동으로 필터 적용됨",
+        ],
+        "drill": [
+            "**Power BI 드릴다운 설정**",
+            "",
+            "**Auto date/time 활용 (날짜 필드):**",
+            "1. 날짜 필드를 Axis 버킷에 배치",
+            "2. Fields 패널에서 날짜 필드 확장 > Date Hierarchy 확인",
+            "3. 시각화 상단의 ▼ 아이콘으로 Year > Quarter > Month > Day 드릴다운",
+            "",
+            "**커스텀 계층:**",
+            "1. Model view에서 Dimension 필드 드래그하여 계층 생성",
+            "2. 상위 > 하위 순서로 배치",
+        ],
+        "bookmark": [
+            "**Power BI Bookmark 생성**",
+            "",
+            "1. View 탭 > Bookmarks 패널 열기",
+            "2. 원하는 필터/슬라이서 상태 설정",
+            "3. Bookmarks 패널 > Add 클릭",
+            "4. 북마크 이름 입력",
+            "5. 버튼(Button)에 북마크 연결: Insert > Button > Action > Bookmark 선택",
+        ],
+        "general_feature": [
+            "**Power BI 주요 기능 목록**",
+            "",
+            "- **Slicer**: 캔버스 위 인터랙티브 필터 위젯 (Visualizations > Slicer)",
+            "- **Drillthrough**: 상세 페이지로 컨텍스트 이동 (Visual 우클릭 > Drillthrough)",
+            "- **Bookmark**: 필터/슬라이서 상태 저장 (View > Bookmarks)",
+            "- **Q&A**: 자연어 질의 시각화 (Insert > Q&A)",
+            "- **Decomposition Tree**: AI 기반 다차원 탐색",
+            "- **Publish**: Home > Publish > Workspace 선택",
+        ],
+    },
+    "quicksight": {
+        "interactive_filter": [
+            "**QuickSight Filter Control 추가**",
+            "",
+            "1. 분석 화면 좌측 Filter 패널 열기 > Add filter 클릭",
+            "2. 필터할 필드 선택",
+            "3. 조건 설정 (값 선택, 날짜 범위 등)",
+            "4. 'Add to sheet' 토글 활성화 → Sheet에 인터랙티브 컨트롤 위젯 표시",
+        ],
+        "publish": [
+            "**QuickSight Dashboard 퍼블리시**",
+            "",
+            "1. 분석 완료 후 상단 Publish 버튼 클릭",
+            "2. Publish dashboard 선택",
+            "3. 대시보드 이름 입력",
+            "4. 공유할 사용자/그룹 지정",
+            "5. View 또는 Co-owner 권한 설정 후 Publish",
+        ],
+        "general_feature": [
+            "**QuickSight 주요 기능 목록**",
+            "",
+            "- **Filter Control**: Sheet에 인터랙티브 필터 위젯 (Filter 패널 > Add to sheet)",
+            "- **Parameter**: 동적 값 변수 (Manage parameters에서 생성)",
+            "- **ML Insights**: 이상 탐지·예측 (Visual > Add Insight)",
+            "- **Small Multiples**: 격자형 반복 차트",
+            "- **Publish**: 상단 Publish 버튼 > Dashboard 이름·권한 설정",
+        ],
+    },
+    "looker": {
+        "interactive_filter": [
+            "**Looker Studio Filter Control 추가**",
+            "",
+            "1. 보고서 편집 모드 > Add a control 클릭",
+            "2. 컨트롤 유형 선택:",
+            "   - Drop-down list: 단일/다중 선택",
+            "   - Date Range Control: 날짜 범위",
+            "   - Slider: 숫자 범위",
+            "3. Setup 탭 > Control field 설정",
+            "4. 컨트롤이 영향을 줄 차트 선택 (같은 데이터 소스의 차트 자동 연결)",
+        ],
+        "publish": [
+            "**Looker Studio 보고서 공유**",
+            "",
+            "1. 우측 상단 Share 버튼 클릭",
+            "2. 이메일 입력 후 View 또는 Edit 권한 부여",
+            "3. 링크 공유: 'Change to anyone with the link' 설정",
+            "4. PDF 내보내기: File > Download > PDF",
+            "5. 이메일 예약 발송: File > Schedule email delivery",
+        ],
+        "general_feature": [
+            "**Looker Studio 주요 기능 목록**",
+            "",
+            "- **Date Range Control**: 보고서 전체 날짜 범위 조정",
+            "- **Drop-down Filter**: 차원 기준 필터 위젯",
+            "- **Data Control**: 보고서에서 사용할 Dataset 선택",
+            "- **Blended Data**: 최대 5개 소스 JOIN (Resource > Manage blended data)",
+            "- **Cross-filter**: 차트 클릭 시 다른 차트 자동 필터링 (Setup > Cross-filtering)",
+            "- **Share**: 우측 상단 Share 버튼",
+        ],
+    },
+}
+
+
+def _fuzzy_match_feature(intent: str) -> str:
+    """intent에서 feature_type 퍼지 매칭. 없으면 'general_feature' 반환."""
+    intent_lower = intent.lower()
+    for ftype, keywords in _FEATURE_TYPE_KEYWORDS.items():
+        for kw in keywords:
+            if kw in intent_lower:
+                return ftype
+    return "general_feature"
+
+
 def _mode_feature(intent: str, tool: str) -> str:
-    return f"## {tool.upper()} 기능 가이드\n\n(Task 6에서 구현)"
+    """기능 사용 가이드 반환."""
+    feature_type = _fuzzy_match_feature(intent)
+    tool_guide = _FEATURE_GUIDE.get(tool, {})
+    steps = tool_guide.get(feature_type) or tool_guide.get("general_feature", [])
+
+    tool_upper = tool.upper() if tool != "looker" else "Looker Studio"
+    feature_labels = {
+        "parameter": "매개변수 (Parameter)",
+        "set": "집합 (Set)",
+        "group": "그룹 (Group)",
+        "interactive_filter": "인터랙티브 필터",
+        "drill": "드릴다운 / 계층",
+        "action": "액션 (Action)",
+        "bookmark": "북마크 (Bookmark)",
+        "publish": "퍼블리시 / 공유",
+        "cross_filter": "크로스 필터",
+        "general_feature": "기능 안내",
+    }
+    feature_name = feature_labels.get(feature_type, "기능")
+    header = f"## {tool_upper} — {feature_name}"
+    if feature_type == "general_feature":
+        header += f"\n\n> '{intent}'에 대한 정확한 기능 매핑이 없습니다. {tool_upper} 주요 기능을 안내합니다."
+
+    lines = [header, ""] + steps
+    if tool in _TOOL_DOCS:
+        lines += ["", f"📖 공식 문서: {_TOOL_DOCS[tool]}"]
+    return "\n".join(lines)
 
 
 def _mode_troubleshoot(intent: str, situation: str, tool: str) -> str:
