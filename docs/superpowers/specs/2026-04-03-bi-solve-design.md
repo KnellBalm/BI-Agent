@@ -194,22 +194,32 @@ context/socratic_questions/
 
 ## 6. 플랫폼 어댑터
 
-### 구조
+### 원칙: 단일 소스 + 플랫폼별 얇은 래퍼
+
+bi-solve 워크플로우 내용은 `skills/bi-solve.md` 한 곳에만 작성한다.
+각 플랫폼 파일은 "여기를 보라"는 참조만 담는다. 내용이 바뀌면 `skills/bi-solve.md` 하나만 수정하면 된다.
 
 ```
-.claude/commands/bi-solve.md    ← Claude Code 슬래시 명령 (/bi-solve)
-AGENTS.md                       ← Antigravity IDE + Codex 등
-context/                        ← 모든 플랫폼 공유 파일 시스템
+skills/
+└── bi-solve.md          ← 단일 소스 (전체 워크플로우 정의)
+
+# 플랫폼 어댑터 (얇은 래퍼 — 각 AI 도구가 읽는 파일)
+.claude/commands/bi-solve.md                        ← Claude Code (/bi-solve)
+.gemini/antigravity/global_workflows/bi-solve.md    ← Gemini / Antigravity IDE
+AGENTS.md                                           ← Codex 등
+
+context/                 ← 모든 플랫폼 공유 데이터 (수정 없음)
 ```
 
-### 역할 분담
+### 플랫폼별 사용 방법
 
-| 플랫폼 | 사용 시점 | 주요 모드 |
+| 플랫폼 | 진입 방법 | 주요 모드 |
 |---|---|---|
-| Claude Code | 문제 정의 불명확, 탐색 중 | 소크라테스 (대화형) |
-| Antigravity IDE | 방향 잡힌 후 실행 | Playbook (step-by-step) |
+| Claude Code | `/bi-solve` 슬래시 명령 | 소크라테스 (대화형) |
+| Antigravity IDE | global_workflows에서 bi-solve 실행 | Playbook (step-by-step) |
+| Codex | AGENTS.md 지침 따라 자동 적용 | 둘 다 |
 
-### 핸드오프 패턴
+### 핸드오프 패턴 (Claude Code → Antigravity)
 
 ```
 Claude Code에서 bi-solve 실행
