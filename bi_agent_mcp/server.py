@@ -489,5 +489,18 @@ register_tool(bi_orchestrate, is_core=True)
 from bi_agent_mcp.tools.bi_tool_guide import bi_tool_guide
 register_tool(bi_tool_guide, is_core=False)
 
+# history tools — 분석 세션 히스토리 저장/검색 (Phase 2)
+from bi_agent_mcp.tools.history import (
+    save_session,
+    get_similar_sessions,
+    search_history,
+    tag_session,
+)
+
+register_tool(save_session, is_core=False)
+register_tool(get_similar_sessions, is_core=False)
+register_tool(search_history, is_core=False)
+register_tool(tag_session, is_core=False)
+
 if __name__ == "__main__":
     mcp.run()
