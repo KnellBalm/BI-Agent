@@ -502,5 +502,18 @@ register_tool(get_similar_sessions, is_core=False)
 register_tool(search_history, is_core=False)
 register_tool(tag_session, is_core=False)
 
+# redshift tools — AWS IAM 인증 기반 Redshift 연동 (Phase 3a)
+from bi_agent_mcp.tools.redshift import (
+    connect_redshift,
+    run_redshift_query,
+    get_redshift_schema,
+    list_redshift_tables,
+)
+
+register_tool(connect_redshift, is_core=False)
+register_tool(run_redshift_query, is_core=False)
+register_tool(get_redshift_schema, is_core=False)
+register_tool(list_redshift_tables, is_core=False)
+
 if __name__ == "__main__":
     mcp.run()
