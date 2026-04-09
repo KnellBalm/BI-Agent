@@ -515,5 +515,22 @@ register_tool(run_redshift_query, is_core=False)
 register_tool(get_redshift_schema, is_core=False)
 register_tool(list_redshift_tables, is_core=False)
 
+# airflow tools — Airflow REST API 연동 (Phase 3a)
+from bi_agent_mcp.tools.airflow import (
+    connect_airflow,
+    list_airflow_dags,
+    get_dag_status,
+    trigger_dag,
+    get_task_logs,
+    list_dag_runs,
+)
+
+register_tool(connect_airflow, is_core=False)
+register_tool(list_airflow_dags, is_core=False)
+register_tool(get_dag_status, is_core=False)
+register_tool(trigger_dag, is_core=False)
+register_tool(get_task_logs, is_core=False)
+register_tool(list_dag_runs, is_core=False)
+
 if __name__ == "__main__":
     mcp.run()
