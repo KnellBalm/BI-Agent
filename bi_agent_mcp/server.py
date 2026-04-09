@@ -340,6 +340,19 @@ register_tool(list_metabase_questions, is_core=False)
 register_tool(run_metabase_question, is_core=False)
 register_tool(list_metabase_dashboards, is_core=False)
 
+# metabase 강화 — Phase 3a (Tableau 수준 기능)
+from bi_agent_mcp.tools.metabase import (
+    list_metabase_collections,
+    get_metabase_card_data,
+    refresh_metabase_cache,
+    run_metabase_adhoc_sql,
+)
+
+register_tool(list_metabase_collections, is_core=False)
+register_tool(get_metabase_card_data, is_core=False)
+register_tool(refresh_metabase_cache, is_core=False)
+register_tool(run_metabase_adhoc_sql, is_core=False)
+
 # superset tools — 차트/대시보드/SQL 실행
 from bi_agent_mcp.tools.superset import (
     connect_superset,
