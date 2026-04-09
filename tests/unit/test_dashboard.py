@@ -96,30 +96,29 @@ class TestBuildHtml:
 
 class TestSaveDashboard:
     def test_saves_to_specified_path(self, tmp_path):
-        out_path = str(tmp_path / "my_dashboard.html")
-        result = _save_dashboard("<html></html>", out_path, "테스트")
+        out_dir = tmp_path / "test_out"
+        out_dir.mkdir()
+        out_path = str(out_dir / "my_dashboard.html")
+        rich_html = "<html><body><h1>Dashboard</h1><div class='grid'>" + "C" * 200 + "</div></body></html>"
+        result = _save_dashboard(rich_html, out_path, "테스트")
         assert result == out_path
-        assert Path(out_path).read_text(encoding="utf-8") == "<html></html>"
+        assert Path(out_path).exists()
+        assert Path(out_path).read_text(encoding="utf-8") == rich_html
 
     def test_saves_to_downloads_when_no_path(self, tmp_path):
-        with patch("bi_agent_mcp.tools.dashboard.Path") as MockPath:
-            # Path("~/Downloads").expanduser() 모킹
-            mock_downloads = tmp_path / "Downloads"
-            mock_downloads.mkdir()
-
-            fake_path = mock_downloads / "dashboard_test_20260101_000000.html"
-
-            mock_path_instance = MagicMock()
-            mock_path_instance.parent = MagicMock()
-            mock_path_instance.write_text = MagicMock()
-            mock_path_instance.__str__ = MagicMock(return_value=str(fake_path))
-
-            MockPath.return_value.expanduser.return_value.__truediv__ = MagicMock(return_value=mock_path_instance)
-            MockPath.return_value = mock_path_instance
-
+        # [PATCH] 실제 Downloads 폴더 오염 방지를 위해 tmp_path 기반으로 홈 디렉토리 모킹
+        fake_home = tmp_path
+        fake_downloads = tmp_path / "Downloads"
+        fake_downloads.mkdir()
+        
+        with patch.object(Path, "home", return_value=fake_home), \
+             patch.object(Path, "expanduser", return_value=fake_downloads):
             # 실제 파일 저장으로 테스트 (output_path 없이)
-        out = _save_dashboard("<html>test</html>", str(tmp_path / "out.html"), "대시보드")
-        assert "out.html" in out
+            rich_html = "<html><body><h1>Dashboard</h1><div class='grid'>" + "D" * 200 + "</div></body></html>"
+            out = _save_dashboard(rich_html, "", "대시보드")
+            assert "Downloads" in out
+            assert Path(out).exists()
+            assert Path(out).read_text(encoding="utf-8") == rich_html
 
 
 class TestGenerateDashboard:
@@ -308,9 +307,12 @@ class TestSaveDashboardExtended:
         fake_home = tmp_path
         fake_downloads = tmp_path / "Downloads"
         fake_downloads.mkdir()
-        with patch.object(Path, "home", return_value=fake_home):
-            result = _save_dashboard("<html></html>", "", "My Dashboard")
+        with patch.object(Path, "home", return_value=fake_home), \
+             patch.object(Path, "expanduser", return_value=fake_downloads):
+            rich_html = "<html><body><h1>Dashboard</h1><div class='grid'>" + "E" * 200 + "</div></body></html>"
+            result = _save_dashboard(rich_html, "", "My Dashboard")
         assert result.endswith(".html")
+        assert "Downloads" in result
         assert "My_Dashboard" in result or "dashboard" in result.lower()
 
 

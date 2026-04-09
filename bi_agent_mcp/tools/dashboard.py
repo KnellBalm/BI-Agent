@@ -218,11 +218,19 @@ def _build_html(title: str, cards_html: str) -> str:
 
 def _save_dashboard(html: str, output_path: str, title: str) -> str:
     """대시보드 HTML을 파일로 저장하고 경로를 반환합니다."""
+    # [SAFETY] 빈 내용 혹은 불완전한 HTML 저장 방지
+    content = html.strip()
+    if len(content) < 150: # 기본적인 HTML 구조 + 에셋 링크 포함 시 최소 150자 이상 예상
+        import sys
+        print(f"[WARNING] Skipping dashboard save: content too short ({len(content)} bytes)", file=sys.stderr)
+        return f"[ERROR] 유효한 대시보드 내용이 없습니다 (최소 150자 필요). 저장을 취소합니다."
+
     if output_path:
         path = Path(output_path)
     else:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_title = "".join(c if c.isalnum() else "_" for c in title)[:30]
+        # Path.home() / "Downloads" 대신 expanduser() 사용 (테스트 모킹 용이성)
         path = Path("~/Downloads").expanduser() / f"dashboard_{safe_title}_{ts}.html"
 
     path.parent.mkdir(parents=True, exist_ok=True)

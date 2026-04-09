@@ -96,3 +96,5 @@ test_*
 !tests/unit/test_*.py
 tests/*.pyc
 tests/*
+
+인수인계.md
